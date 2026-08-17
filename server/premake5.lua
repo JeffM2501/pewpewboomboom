@@ -37,8 +37,12 @@ project (baseName)
   
     includedirs { "./" }
     includedirs { "src" }
-    includedirs { "include" }
     
     link_raylib()
     link_to("sharedLib")
+
+    filter "system:windows"
+        links { "ws2_32" }
+    filter {}
+
 -- To link to a lib use link_to("LIB_FOLDER_NAME")

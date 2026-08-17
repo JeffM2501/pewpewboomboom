@@ -29,6 +29,7 @@ This document serves as both the **Game Design Document (GDD)** and the **Step-b
    - [Phase 8: HUD, UI, Audio, & Visual Polish](#phase-8-hud-ui-audio--visual-polish)
    - [Phase 9: Stress Testing, Optimization, & Lag Simulation](#phase-9-stress-testing-optimization--lag-simulation)
 4. [Development Milestones & Success Criteria](#4-development-milestones--success-criteria)
+5. [Recommended Prompts and Tasks](#5-recommended-prompts-and-tasks)
 
 ---
 
@@ -277,7 +278,6 @@ Contains the coordinates and state of an item spawned on the map.
 
 ---
 
-
 ## 2. Project Architecture
 
 ### Directory Structure
@@ -324,9 +324,8 @@ pewpewboomboom/
 ### Phase 1: Setup & Networking Foundations
 **Goal**: Integrate ENet into the project build system, initialize ENet on client and server, and establish a successful connection handshake.
 
-- [ ] **1.1 ENet Premake Setup**
-  - Download ENet source code or integrate it as a submodule.
-  - Modify `premake5.lua` to compile ENet as a static library (like Box2D) or link it dynamically/statically.
+- [*] **1.1 ENet Premake Setup**
+  - Embed enet as a single header library into the sharedLib code
   - Link ENet to both `client` and `server` build scripts.
 - [ ] **1.2 Headless Server Initialization**
   - Modify [server/src/main.cpp](file:///c:/Users/jeffm/Desktop/pewpewboomboom/server/src/main.cpp).
@@ -586,3 +585,162 @@ pewpewboomboom/
 ### Milestone 6: Polish, UI, Sound & Scale (Phases 8-9)
 - **Deliverable**: Complete polished game client and server ready for distribution.
 - **Success Criteria**: Beautiful tank sprites, tread marks, particle explosions, immersive 2D audio, functional matchmaking/lobby screen, and stable performance with 32 simulated players.
+
+---
+
+## 5. Recommended Prompts and Tasks
+
+This section provides technical directives tailored for a **senior game developer (20+ years C++ / engine experience)** alongside exact, production-ready AI prompts for each phase of implementation.
+
+---
+
+### Phase 1: Setup & Networking Foundations
+
+#### Senior Developer Technical Directives
+- **Build System Integration**: Ensure `premake5.lua` embeds `ENet` cleanly across MSVC/MinGW without third-party static lib path issues. Verify link flags for `ws2_32.lib` and `winmm.lib`.
+- **Socket Initialization**: Use `enet_host_create` with dual channels (Channel 0 = Reliable, Channel 1 = Unreliable). Set bandwidth parameters to 0 (uncapped for local LAN/IPC testing).
+- **Service Loop Isolation**: Run `enet_host_service` in a non-blocking poll loop with zero timeout (`timeout = 0`) inside the main server loop to avoid stalling tick processing.
+
+#### Recommended AI Prompts
+- **Prompt 1.1 (ENet Integration)**:
+  > *"Integrate ENet as an embedded single-header library into `sharedLib`. Update `premake5.lua` in both `client` and `server` projects to include ENet header paths and link required platform sockets (`ws2_32.lib`, `winmm.lib` on Windows). Verify zero compilation warnings."*
+- **Prompt 1.2 (Headless Server Host Setup)**:
+  > *"Modify `server/src/main.cpp` to initialize ENet via `enet_initialize()`. Create a headless `ENetHost` bound to 0.0.0.0:7777 with max 32 peers and 2 channels. Implement a clean non-blocking `ENetEvent` polling loop that logs client connection, packet, and disconnect events with timestamps."*
+- **Prompt 1.3 (Client Connection & Raylib Viewport)**:
+  > *"Modify `client/src/main.cpp` to initialize ENet and Raylib 2D window (`1280x720`). Implement non-blocking connection logic targeting `127.0.0.1:7777`. Render connection status (Connecting, Connected, Disconnected) on screen using Raylib `DrawText()`."*
+- **Prompt 1.4 (Reliable Echo Handshake)**:
+  > *"Define a `C2S_Ping` and `S2C_Pong` structure in `sharedLib/include/Protocol.h`. Have the client send a reliable `C2S_Ping` packet on Channel 0 upon connection. Have the server reply immediately with `S2C_Pong` containing server uptime millisecond timestamp. Measure and print RTT latency on the client."*
+
+---
+
+### Phase 2: Network Protocol & Shared Data Structures
+
+#### Senior Developer Technical Directives
+- **Zero-Copy & Bit-Packing Alignment**: Avoid casting raw struct pointers to `char*` directly over ENet packets to prevent compiler padding misalignment across platforms/compilers.
+- **Bitstream Helper API**: Use an explicit byte-writer/reader (`BufferWriter`, `BufferReader`) with explicit endianness handling (`uint32_t`, `float`, `uint16_t`).
+- **Memory Footprint**: Keep `PlayerNetState` $\le 24$ bytes, `BulletNetState` $\le 16$ bytes, and `PowerupNetState` $\le 12$ bytes.
+
+#### Recommended AI Prompts
+- **Prompt 2.1 (Configuration Defs)**:
+  > *"Create `sharedLib/include/Common.h`. Define `constexpr` values for `TICK_RATE = 60`, `TICK_TIME = 1.0f / 60.0f`, `MAX_PLAYERS = 32`, `MAX_BULLETS = 256`, `MAP_BOUNDS = 2000.0f`, `TANK_RADIUS = 24.0f`, and `BULLET_RADIUS = 4.0f`."*
+- **Prompt 2.2 (BufferWriter & BufferReader)**:
+  > *"In `sharedLib`, create high-performance `BufferWriter` and `BufferReader` classes operating over a flat `std::vector<uint8_t>` or raw `uint8_t*` memory range. Add templated `Write<T>` and `Read<T>` methods for `uint8_t`, `uint16_t`, `uint32_t`, and `float` with bounds assertion checks."*
+- **Prompt 2.3 (Packet Definitions & Serialization)**:
+  > *"Implement serialization and deserialization methods for `C2S_InputState`, `S2C_WorldSnapshot`, `S2C_JoinResponse`, and `S2C_EventNotification` in `sharedLib/include/Protocol.h` using `BufferWriter`/`BufferReader`. Include automated unit tests verifying roundtrip data integrity."*
+
+---
+
+### Phase 3: Fixed-Tick Server Simulation & Client Skeleton
+
+#### Senior Developer Technical Directives
+- **Accumulator Loop**: Implement Glenn Fiedler’s *Fix Your Timestep!* game loop algorithm. Clamp `frameTime` to a max of $0.25\text{s}$ to prevent the "spiral of death" if the server thread stalls.
+- **Server State Storage**: Store active player states in a contiguous `std::array<PlayerState, MAX_PLAYERS>` array indexed by ENet `peer->incomingPeerID` for $O(1)$ lookups.
+
+#### Recommended AI Prompts
+- **Prompt 3.1 (Server Fixed Timestep Loop)**:
+  > *"Implement a high-precision accumulator game loop in `server/src/main.cpp` using `std::chrono::high_resolution_clock`. Run `ServerTick()` at exact 60Hz intervals. Clamp delta time to 0.25s maximum. Poll ENet events between ticks."*
+- **Prompt 3.2 (Server World Snapshot Broadcast)**:
+  > *"In `server/include/World.h`, maintain the canonical server world state. On every `ServerTick()`, pack all active players, projectiles, and powerups into a `S2C_WorldSnapshot` packet and broadcast it to all connected peers over ENet Channel 1 (unreliable)."*
+- **Prompt 3.3 (Client Render Skeleton)**:
+  > *"In `client/src/main.cpp`, set up a 2D camera viewport (`Camera2D`). Parse incoming `S2C_WorldSnapshot` packets and render player tanks as colored 2D rectangles at their authoritative coordinates. Include a debug overlay showing tick count, FPS, and player count."*
+
+---
+
+### Phase 4: Player Input Replication, Prediction, and Reconciliation
+
+#### Senior Developer Technical Directives
+- **Input History Ring Buffer**: Use a power-of-two array size (e.g. 128 or 256 entries) indexed by `tick & 127` for zero-allocation $O(1)$ client input history buffer management.
+- **Reconciliation Threshold**: Apply reconciliation re-simulation only if `distance(PredictedPos, ServerPos) > 0.05f` units. Avoid micro-teleports by applying a small exponential moving average (EMA) dampener if error is below 0.5 units.
+- **Entity Interpolation**: Buffer incoming snapshots on the client by $100\text{ms}$ ($6$ ticks). Interpolate remote player positions using Linear Interpolation (LERP) for coordinates and Slerp/Shortest-path angle lerp for rotations.
+
+#### Recommended AI Prompts
+- **Prompt 4.1 (Input Sampling & Transmission)**:
+  > *"Implement `LocalPlayer` in `client`. Every frame, sample WASD movement keys, compute turret angle from mouse screen position via `GetScreenToWorld2D()`, construct `C2S_InputState` with current `clientTick`, and transmit it over ENet Channel 1."*
+- **Prompt 4.2 (Server Tank Kinematics)**:
+  > *"Implement tank physics simulation in `server`: calculate forward/backward acceleration based on WASD input bitmask, apply rotational speed to chassis, apply linear friction/drag, and integrate position `pos += velocity * TICK_TIME`."*
+- **Prompt 4.3 (Client Prediction & Reconciliation)**:
+  > *"Implement a circular input/state history buffer `InputHistory[128]` on the client. Predict local movement immediately upon input. When `S2C_WorldSnapshot` tick $T$ arrives, compare predicted position vs server position. If error > 0.05 units, reset local position to server position and re-simulate inputs from tick $T+1$ to current tick."*
+- **Prompt 4.4 (Remote Entity Interpolation)**:
+  > *"In `client`, implement a snapshot buffer for remote player tanks. Maintain a 100ms interpolation delay. Interpolate remote positions between `Snapshot[k]` and `Snapshot[k+1]` using lerp for position and shortest-path angular lerp for chassis/turret angles."*
+
+---
+
+### Phase 5: Collision Detection & Map Obstacles
+
+#### Senior Developer Technical Directives
+- **Primitive Physics Collision**: Keep collision math analytical and lightweight. Use Circle-vs-Circle for Tank-to-Tank and Bullet-to-Tank; use Circle-vs-AABB for Tank-to-Wall and Bullet-to-Wall.
+- **Separating Axis / Pushout**: Resolve Circle-vs-AABB by finding the closest point on the AABB to the circle center, computing the penetration vector, and projecting the circle out along the normal.
+
+#### Recommended AI Prompts
+- **Prompt 5.1 (Physics Geometry Utilities)**:
+  > *"In `sharedLib/include/Physics.h`, write standalone C++ functions for: `CheckCircleCircleCollision()`, `ResolveCircleCircleCollision()`, `CheckCircleAABBCollision()`, and `ResolveCircleAABBCollision()`. Return contact normals and penetration depths."*
+- **Prompt 5.2 (Server Arena Obstacle Layout)**:
+  > *"Create an arena map definition in `sharedLib/include/MapData.h` containing an array of indestructible wall AABBs (outer border + internal obstacles) and destructible crate AABBs with health points."*
+- **Prompt 5.3 (Server & Client Prediction Collision Integration)**:
+  > *"Integrate wall collision resolution into `ServerTick()`. Resolve tank-to-wall collisions after updating velocities. Mirror this collision check in client-side prediction so predicted movement matches server constraints."*
+
+---
+
+### Phase 6: Combat System, Bullets, & Damage
+
+#### Senior Developer Technical Directives
+- **Contiguous Bullet Pool**: Allocate a fixed pool `std::array<Bullet, MAX_BULLETS>` on the server. Recycle bullet slots using an active index freelist to prevent memory allocation during combat ticks.
+- **Reliable Death/Respawn Flow**: Handle hit damage during `ServerTick()`. Send bullet impact and kill events over Channel 0 (Reliable) via `S2C_EventNotification`.
+
+#### Recommended AI Prompts
+- **Prompt 6.1 (Server Bullet Pool & Spawning)**:
+  > *"Implement a fixed-size Bullet Pool (max 256 bullets) in `server/include/World.h`. When a player fires, spawn a bullet entity at the turret muzzle vector. Advance bullet position `pos += velocity * TICK_TIME` every server tick."*
+- **Prompt 6.2 (Bullet Collision & Destruction)**:
+  > *"In `ServerTick()`, test active bullet collisions against map AABBs and enemy tank circles. If a bullet hits a wall, destroy it. If it hits an enemy tank, deduct health, broadcast an explosion event, and destroy the bullet."*
+- **Prompt 6.3 (Death, Scoreboard & Respawn Logic)**:
+  > *"When a player's health drops to 0, mark state as `Dead`, increment attacker kills, increment victim deaths, and broadcast `S2C_EventNotification` kill event. Start a 5-second respawn timer on server, then reset player health and move to a random spawn point."*
+
+---
+
+### Phase 7: Weapons & Powerups Sandbox
+
+#### Senior Developer Technical Directives
+- **Hitscan Line Tracing**: For the Laser Railgun, perform line segment vs circle/AABB intersection queries across all active tanks and walls.
+- **AoE Explosions**: For Heavy Rockets, query all tanks within `SPLASH_RADIUS` upon impact and apply falloff damage: `damage = MAX_DAMAGE * (1.0f - distance / SPLASH_RADIUS)`.
+
+#### Recommended AI Prompts
+- **Prompt 7.1 (Weapon Variants Implementation)**:
+  > *"Implement weapon behavior logic in `server`: Standard Cannon (infinite ammo), Rapid-Fire MG (continuous spray with 5-degree random angular spread), Heavy Rocket (slow velocity, 100px splash damage radius), and Laser Railgun (instant hitscan line trace)."*
+- **Prompt 7.2 (Powerup Spawners)**:
+  > *"Add `PowerupSpawner` pads to `World.h`. Every 15 seconds, spawn a random powerup (Health Repair, Speed Boost, Shield Generator, or Weapon Ammo Crate). Handle collision pickup when a tank overlaps a powerup pad."*
+- **Prompt 7.3 (Powerup Effects & Buff Timers)**:
+  > *"Implement buff duration timers on `PlayerState` (e.g. Speed Boost gives 1.5x velocity multiplier for 8s; Shield Generator gives damage immunity for 5s). Broadcast active buff bitmasks in `S2C_WorldSnapshot`."*
+
+---
+
+### Phase 8: HUD, UI, Audio, & Visual Polish
+
+#### Senior Developer Technical Directives
+- **Raylib Sprite & Particle Pool**: Pre-allocate a 1000-particle array on the client. Render tank chassis and turret sprites with `DrawTexturePro()`, applying center-origin rotation matrices.
+- **Positional 2D Audio**: Calculate spatial audio volume and stereo balance based on distance and relative X position from the local player's tank: `volume = 1.0f / (1.0f + distance * 0.002f)`.
+
+#### Recommended AI Prompts
+- **Prompt 8.1 (Sprite Rendering Pipeline)**:
+  > *"In `client/src/Render.cpp`, implement tank sprite rendering using Raylib textures. Render the tank chassis sprite rotated by `ChassisAngle`, then render the turret sprite centered on the chassis rotated by `TurretAngle`."*
+- **Prompt 8.2 (Client Particle System)**:
+  > *"Create a zero-allocation particle system on the client. Spawn particles for tank tread tracks, muzzle flashes, rocket trail smoke, and explosion sparks. Update and draw particles using additive blending."*
+- **Prompt 8.3 (HUD & Tab Scoreboard)**:
+  > *"Implement an in-game HUD: health bar, ammo count, active powerup icons with countdown timers, and mini-map in the corner. Implement a TAB scoreboard listing all players, ping, kills, and deaths."*
+- **Prompt 8.4 (2D Positional Audio Manager)**:
+  > *"In `client`, implement a sound manager using Raylib audio (`InitAudioDevice()`). Play positional 2D audio for shooting, explosions, and powerups, attenuating volume and panning based on distance from local player camera."*
+
+---
+
+### Phase 9: Stress Testing, Optimization, & Lag Simulation
+
+#### Senior Developer Technical Directives
+- **Network Conditioning Wrapper**: Intercept incoming/outgoing ENet packets in debug builds to delay packets by $X\text{ms}$ or drop $Y\%$ of packets to stress test prediction/reconciliation resilience.
+- **Delta Snapshot Compression**: Compress `S2C_WorldSnapshot` packets by encoding relative position deltas or using bitfields to omit unchanged entity states between ticks.
+
+#### Recommended AI Prompts
+- **Prompt 9.1 (Artificial Network Latency & Packet Loss)**:
+  > *"Implement a network simulator wrapper around ENet on the client. Add GUI controls to artificially delay outgoing/incoming packets by 0 to 250ms and inject 0% to 15% random packet loss to evaluate reconciliation smoothness under bad conditions."*
+- **Prompt 9.2 (Delta Snapshot Compression)**:
+  > *"Implement delta compression for `S2C_WorldSnapshot`. Include a bitmask indicating which entities changed since the client's last acknowledged tick. Pack positions into 16-bit fixed-point integers relative to map dimensions."*
+- **Prompt 9.3 (32-Player Headless Bot Simulator)**:
+  > *"Add a `--bot` command line flag to `client`. When run with `--bot`, launch a headless AI client that connects to server, moves randomly around the map, and automatically targets and shoots the nearest player. Allow spawning 30 bot processes for load testing."*

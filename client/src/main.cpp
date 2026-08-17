@@ -19,6 +19,57 @@ Material CubeMaterial = { 0 };
 
 Camera3D ViewCamera = { 0 };
 
+
+#include <mutex>
+#include <deque>
+#include <set>
+#include <vector>
+
+std::mutex  KeyLock;
+
+struct KeyEvent
+{
+    KeyboardKey Key;
+    bool Down;
+};
+std::set<KeyboardKey> DownKeys;
+std::deque<KeyEvent> KeyEvents;
+
+void PollRealInput()
+{
+    std::vector<KeyboardKey> deadKeys;
+    for (const KeyboardKey& key : DownKeys)
+    {
+        if (!IsKeyDown(key))
+        {
+            std::lock_guard<std::mutex> lock(KeyLock);
+            KeyEvents.push_back(KeyEvent{ key, false });
+            deadKeys.push_back(key);
+        }
+    }
+
+    for (auto key : deadKeys)
+        DownKeys.erase(key);
+
+    while (int key = GetKeyPressed() != 0)
+    {
+        std::lock_guard<std::mutex> lock(KeyLock);
+        DownKeys.insert((KeyboardKey)key);
+        KeyEvents.push_back(KeyEvent{ (KeyboardKey)key, true });
+    }
+}
+
+KeyEvent PollKeyEvents()
+{
+    std::lock_guard<std::mutex> lock(KeyLock);
+    if (KeyEvents.empty())
+        return KeyEvent{ KEY_NULL, false };
+
+    KeyEvent front = KeyEvents.front();
+    KeyEvents.pop_front();
+    return front;
+}
+
 void GameInit()
 {
     SetConfigFlags(FLAG_VSYNC_HINT | FLAG_WINDOW_RESIZABLE);

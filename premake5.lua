@@ -47,7 +47,7 @@ end
 
 function link_to(lib)
     links (lib)
-    includedirs ("../"..lib.."/include")
+    includedirs ("../"..lib.."/src")
     includedirs ("../"..lib.."/" )
 end
 

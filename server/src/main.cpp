@@ -1,87 +1,91 @@
-/*
-Raylib example file.
-This is an example main file for a simple raylib project.
-Use this as a starting point or replace it with your code.
--- Game Premake by Jeffery Myers is marked CC0 1.0. To view a copy of this mark, visit https://creativecommons.org/publicdomain/zero/1.0/
 
-*/
+#include <stdio.h>
+#include <chrono>
 
-#include "raylib.h"
-#include "raymath.h"
+#include "enet.h"
+#include "external/fix_win32_compatibility.h"
 
-#include "game.h"    // an external header in this project
-#include "lib.h"    // an external header in the static lib project
+bool Running = true;
+
+std::chrono::time_point;
+
+ENetHost* ServerHost = nullptr;
 
 
-Matrix CubeTransform = MatrixIdentity();
-Mesh CubeMesh = { 0 };
-Material CubeMaterial = { 0 };
-
-Camera3D ViewCamera = { 0 };
-
-void GameInit()
+void ServerSetup()
 {
-    SetConfigFlags(FLAG_VSYNC_HINT | FLAG_WINDOW_RESIZABLE);
-    InitWindow(InitialWidth, InitialHeight, "Example");
-    SetTargetFPS(144);
+    ENetAddress address = { 0 };
 
-    ViewCamera.fovy = 45.0f;
-    ViewCamera.position = { 3.0f, 3.0f, 3.0f };
-    ViewCamera.up = { 0.0f, 1.0f, 0.0f };
-    ViewCamera.target = { 0.0f, 0.0f, 0.0f };
 
-    // load resources
+    address.host = ENET_HOST_ANY;
+    address.port = 2401;
+    enet_initialize();
 
-    CubeMesh = GenMeshCube(1.0f, 1.0f, 1.0f);
-    CubeMaterial = LoadMaterialDefault();
-    CubeMaterial.maps[MATERIAL_MAP_DIFFUSE].texture = LoadTexture("resources/texture_01.png");
-
-    GenTextureMipmaps(&CubeMaterial.maps[MATERIAL_MAP_DIFFUSE].texture);
-    SetTextureFilter(CubeMaterial.maps[MATERIAL_MAP_DIFFUSE].texture, TEXTURE_FILTER_TRILINEAR);
+    ServerHost = enet_host_create(&address /* the address to bind the server host to */,
+        32      /* allow up to 32 clients and/or outgoing connections */,
+        2      /* allow up to 2 channels to be used, 0 and 1 */,
+        0      /* assume any amount of incoming bandwidth */,
+        0      /* assume any amount of outgoing bandwidth */);
 }
 
-void GameCleanup()
+void ServerCleanup()
 {
-    // unload resources
-    UnloadMesh(CubeMesh);
-    UnloadTexture(CubeMaterial.maps[MATERIAL_MAP_DIFFUSE].texture);
-
-    CloseWindow();
-}
-
-bool GameUpdate()
-{
-    Matrix rotation = MatrixRotateXYZ({ 0.0f, GetFrameTime(), 0.0f });
-    CubeTransform = MatrixMultiply(CubeTransform, rotation);
-    return true;
-}
-
-void GameDraw()
-{
-    BeginDrawing();
-    ClearBackground(GRAY);
-
-    BeginMode3D(ViewCamera);
-    DrawMesh(CubeMesh, CubeMaterial, CubeTransform);
-    EndMode3D();
-
-    DrawText("Hello Cube", 10, 10, 20, GetTextColor());
-
-    EndDrawing();
-}
-
-int main()
-{
-    GameInit();
-
-    while (!WindowShouldClose())
+    if (ServerHost)
     {
-        if (!GameUpdate())
-            break;
-
-        GameDraw();
+        enet_host_destroy(ServerHost);
+        ServerHost = nullptr;
     }
-    GameCleanup();
 
+    enet_deinitialize();
+}
+
+void ServerNetUpdate()
+{
+
+}
+
+int main(int argc, char* argv[])
+{
+    ServerSetup();
+
+    while (!Running && ServerHost)
+    {
+        ENetEvent event;
+
+        /* Wait up to 1000 milliseconds for an event. */
+        while (enet_host_service(ServerHost, &event, 1000) > 0)
+        {
+            switch (event.type)
+            {
+            case ENET_EVENT_TYPE_CONNECT:
+                printf("A new client connected from %x:%u.\n",
+                    event.peer->address.host,
+                    event.peer->address.port);
+
+                break;
+
+            case ENET_EVENT_TYPE_RECEIVE:
+                printf("A packet of length %u containing %s was received from %s on channel %u.\n",
+                    event.packet->dataLength,
+                    event.packet->data,
+                    event.peer->data,
+                    event.channelID);
+
+                /* Clean up the packet now that we're done using it. */
+                enet_packet_destroy(event.packet);
+
+                break;
+
+            case ENET_EVENT_TYPE_DISCONNECT:
+                printf("%s disconnected.\n", event.peer->data);
+
+                /* Reset the peer's client information. */
+
+                event.peer->data = nullptr;
+            }
+        }
+    }
+
+    ServerCleanup();
     return 0;
 }
