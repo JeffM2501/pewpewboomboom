@@ -30,8 +30,10 @@ This document serves as both the **Game Design Document (GDD)** and the **Step-b
    - [Phase 9: Stress Testing, Optimization, & Lag Simulation](#phase-9-stress-testing-optimization--lag-simulation)
 4. [Development Milestones & Success Criteria](#4-development-milestones--success-criteria)
 5. [Recommended Prompts and Tasks](#5-recommended-prompts-and-tasks)
-
----
+6. [Implementation Notes](#6-implementation-notes)
+   - [Handling Variable-Sized Packets (PacketProcessor Architecture)](#handling-variable-sized-packets-packetprocessor-architecture)
+35: 
+36: ---
 
 ## 1. Game Design Document (GDD)
 
@@ -742,3 +744,62 @@ This section provides technical directives tailored for a **senior game develope
   > *"Implement delta compression for `S2C_WorldSnapshot`. Include a bitmask indicating which entities changed since the client's last acknowledged tick. Pack positions into 16-bit fixed-point integers relative to map dimensions."*
 - **Prompt 9.3 (32-Player Headless Bot Simulator)**:
   > *"Add a `--bot` command line flag to `client`. When run with `--bot`, launch a headless AI client that connects to server, moves randomly around the map, and automatically targets and shoots the nearest player. Allow spawning 30 bot processes for load testing."*
+
+---
+
+## 6. Implementation Notes
+
+### Handling Variable-Sized Packets (PacketProcessor Architecture)
+
+#### Analysis of Original PacketProcessor Limitations
+The initial [`PacketProcessor`](file:///c:/Users/jeffm/Desktop/pewpewboomboom/sharedLib/packet_processor.h) implementation relied on static `sizeof(T)` struct validation and raw pointer reinterpretation (`reinterpret_cast<const T*>`). This approach introduces critical limitations for dynamic payloads:
+* **Fixed Struct Casting**: Packets like Chat Messages (`C2S_ChatMessage` / `S2C_ChatMessage`) and Map Data (`S2C_JoinResponse` / Map tile sending) have dynamic length requirements. Using fixed-size byte arrays in structs wastes bandwidth, while dynamic types (`std::string`, `std::vector`) cannot be serialized via raw struct memory casting.
+* **Rigid Size Checks**: Rejecting packets where `packet->dataLength < PacketSize` prevents dynamic payloads from being processed when they vary in length.
+* **Compiler Alignment & Padding**: Raw memory casting violates cross-platform binary alignment rules across different compilers or architecture targets.
+
+#### Architectural Solution: Stream Serialization & Minimum Header Validation
+To universally process both fixed and variable-sized packets in a clean, robust, and zero-copy manner:
+
+1. **Bitstream Reading & Writing (`BufferReader` / `BufferWriter`)**:
+   Implement stream helpers in `sharedLib/include/BufferStream.h` as outlined in [`PEW-202`](file:///c:/Users/jeffm/Desktop/pewpewboomboom/tasks.md#L95-L105). `BufferReader` handles bounds-checked parsing of primitives, length-prefixed strings (`ReadString`), and variable-length array vectors (`ReadVector`).
+
+2. **Refactored `PacketProcessor` Handler Signatures**:
+   Register handlers that take a `BufferReader&` and validate against a `MinPacketSize` (the minimum required header length):
+
+```cpp
+class PacketProcessor {
+public:
+    using PacketHandler = std::function<void(ENetPeer* sender, BufferReader& reader)>;
+
+    struct ProcessorInfo {
+        PacketHandler Handler = nullptr;
+        size_t MinPacketSize = 1; // Minimum header size
+    };
+
+    void RegisterProcessor(PacketType packetType, PacketHandler handler, size_t minPacketSize = sizeof(uint8_t)) {
+        Processors[static_cast<uint8_t>(packetType)] = ProcessorInfo{ handler, minPacketSize };
+    }
+
+    void ProcessPacket(ENetPacket* packet, ENetPeer* sender) {
+        if (!packet || packet->dataLength < sizeof(uint8_t)) return;
+
+        BufferReader reader(packet->data, packet->dataLength);
+        uint8_t rawType = 0;
+        if (!reader.Read(rawType)) return;
+
+        auto it = Processors.find(rawType);
+        if (it == Processors.end() || packet->dataLength < it->second.MinPacketSize) return;
+
+        it->second.Handler(sender, reader);
+    }
+
+    void SendPacket(ENetPeer* peer, int channel, const BufferWriter& writer, enet_uint32 flags = ENET_PACKET_FLAG_RELIABLE) {
+        ENetPacket* packet = enet_packet_create(writer.GetData(), writer.GetSize(), flags);
+        enet_peer_send(peer, channel, packet);
+    }
+};
+```
+
+3. **Concrete Usage Patterns**:
+   * **Chat Messages**: Encoded as `[PacketType: 1B] [SenderID: 2B] [TextLength: 2B] [UTF-8 Text Bytes: N]`.
+   * **Map Data**: Encoded as `[PacketType: 1B] [Width: 2B] [Height: 2B] [TileCount: 2B] [Tile Array: N * sizeof(Tile)]`.
