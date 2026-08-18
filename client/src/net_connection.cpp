@@ -8,6 +8,8 @@ namespace NetConnection
 	ENetHost* ClientHost = nullptr;
 	ENetPeer* ServerPeer = nullptr;
 
+	bool WasTimeout = false;
+
 	void Init()
 	{
 		enet_initialize();
@@ -21,6 +23,10 @@ namespace NetConnection
 
 	void BeginConnect(const char* address, uint16_t port)
 	{
+		WasTimeout = false;
+		if (CurentState != ConnectionState::Disconnected)
+			Disconnect();
+
 		ClientHost = enet_host_create(nullptr, 1, 2, 0, 0);
 		ENetAddress hostAddress = { 0 };
 		enet_address_set_host(&hostAddress, address);
@@ -52,6 +58,11 @@ namespace NetConnection
 		return CurentState;
 	}
 
+	bool HadTimeout()
+	{
+		return WasTimeout;
+	}
+
 	void Update()
 	{
 		if (CurentState != ConnectionState::Disconnected)
@@ -66,6 +77,10 @@ namespace NetConnection
 				else if (event.type == ENET_EVENT_TYPE_DISCONNECT)
 				{
 					CurentState = ConnectionState::Disconnected;
+				}
+				else if (event.type == ENET_EVENT_TYPE_DISCONNECT_TIMEOUT)
+				{
+					CurentState == ConnectionState::Disconnected;
 				}
 			}
 		}

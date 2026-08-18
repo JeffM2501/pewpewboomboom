@@ -47,6 +47,8 @@ namespace NetConnectionDialog
 			else if (NetConnection::GetState() == ConnectionState::Disconnected)
 			{
 				ImGui::TextUnformatted("Disconnected");
+				if (NetConnection::HadTimeout())
+					ImGui::TextColored(ImVec4(1,0,0,1), "ERROR: Timeout");
 			}
 		}
 		ImGui::End();

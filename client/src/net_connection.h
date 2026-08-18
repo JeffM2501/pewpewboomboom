@@ -20,5 +20,7 @@ namespace NetConnection
 
 	void Update();
 
+	bool HadTimeout();
+
 	ConnectionState GetState();
 }

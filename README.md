@@ -325,12 +325,12 @@ pewpewboomboom/
 - [*] **1.1 ENet Premake Setup**
   - Embed enet as a single header library into the sharedLib code
   - Link ENet to both `client` and `server` build scripts.
-- [ ] **1.2 Headless Server Initialization**
+- [*] **1.2 Headless Server Initialization**
   - Modify [server/src/main.cpp](file:///c:/Users/jeffm/Desktop/pewpewboomboom/server/src/main.cpp).
   - Add initialization of ENet: `enet_initialize()`.
   - Create an ENet host: `enet_host_create()` listening on a configurable port (default: `7777`).
   - Create a basic server tick loop that polls ENet events (`enet_host_service`) and logs client connection and disconnection events.
-- [ ] **1.3 Client Connection System**
+- [*] **1.3 Client Connection System**
   - Modify [client/src/main.cpp](file:///c:/Users/jeffm/Desktop/pewpewboomboom/client/src/main.cpp).
   - Add initialization of ENet: `enet_initialize()`.
   - Create an ENet client host: `enet_host_create(NULL, 1, 2, 0, 0)`.

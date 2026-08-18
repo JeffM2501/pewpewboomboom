@@ -48,15 +48,15 @@ This document contains the complete, Jira-formatted issue backlog for **PewPewBo
 ---
 
 ### [PEW-103] Client ENet Connection & Raylib 2D Window Setup
-* **Status**: `[ ] TO DO`
+* **Status**: `[x] DONE`
 * **Issue Type**: Task
 * **Component**: `client`, `networking`
 * **Priority**: High
 * **Story**: As a player, I want the client application to initialize a Raylib window and attempt a non-blocking network connection to the server.
 * **Technical Acceptance Criteria**:
-  - [ ] Initialize Raylib 2D window (`1280x720` resolution, target 144 FPS).
-  - [ ] Initialize ENet client host and issue `enet_host_connect()` targeting `127.0.0.1:7777`.
-  - [ ] Draw connection lifecycle state ("Connecting...", "Connected", "Disconnected") on screen using Raylib `DrawText()`.
+  - [*] Initialize Raylib 2D window (`1280x720` resolution, target 144 FPS).
+  - [*] Initialize ENet client host and issue `enet_host_connect()` targeting `127.0.0.1:7777`.
+  - [*] Draw connection lifecycle state ("Connecting...", "Connected", "Disconnected") on screen using Raylib `DrawText()`.
 * **Definition of Done**: Running `client.exe` opens a Raylib window, connects to a running `server.exe`, and displays "Connected" on screen.
 
 ---

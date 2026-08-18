@@ -126,7 +126,10 @@ void GameDraw()
 	DrawMesh(CubeMesh, CubeMaterial, CubeTransform);
 	EndMode3D();
 
-	DrawText("Hello Cube", 10, 10, 20, GetTextColor());
+	if (NetConnection::GetState() != ConnectionState::Connected)
+		DrawText("Disconnected", 10, 10, 20, RED);
+	else
+		DrawText("Connected", 10, 10, 20, DARKGRAY);
 
 	rlImGuiBegin();
 	NetConnectionDialog::ShowDialog();
