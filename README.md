@@ -336,7 +336,7 @@ pewpewboomboom/
   - Create an ENet client host: `enet_host_create(NULL, 1, 2, 0, 0)`.
   - Add a connection routine targeting `localhost:7777` using `enet_host_connect()`.
   - Print connection success/failure logs to console and display status on screen using raylib text rendering.
-- [ ] **1.4 Simple Echo Handshake**
+- [*] **1.4 Simple Echo Handshake**
   - Define a test packet in the shared module.
   - Send a "Hello Server" message from the client upon successful connection.
   - The server receives it, prints the message, and sends back an echo packet ("Hello Client").
