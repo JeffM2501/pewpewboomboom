@@ -64,12 +64,17 @@ namespace NetConnection
 	{
 		if (ServerPeer)
 		{
-			enet_peer_disconnect(ServerPeer, 0);
+			C2S_Goodbye bye;
+			Processor.SendPacket(ServerPeer, 0, bye);
+            enet_host_flush(ClientHost);
+
+			enet_peer_disconnect_now(ServerPeer, 0);
 			ServerPeer = nullptr;
 		}
 
 		if (ClientHost)
 		{
+			
 			enet_host_destroy(ClientHost);
 			ClientHost = nullptr;
 		}

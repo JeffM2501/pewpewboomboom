@@ -23,6 +23,7 @@ static constexpr int ServerTickTimeMS = static_cast<int>(1.0f / ServerTickTime *
 FixedTickAccumulator ServerTick(ServerTickTime);
 
 void ProcessC2S_Ping(ENetPeer* sender, const C2S_Ping* ping);
+void ProcessC2S_Goodbye(ENetPeer* sender, const C2S_Goodbye* goodbye);
 
 void ServerSetup()
 {
@@ -50,6 +51,7 @@ void ServerSetup()
 	}
 
 	Proessor.RegisterProcessor<C2S_Ping>(PacketType::C2S_Ping, ProcessC2S_Ping);
+	Proessor.RegisterProcessor<C2S_Goodbye>(PacketType::C2S_Goodbye, ProcessC2S_Goodbye);
 }
 
 void ServerCleanup()
@@ -95,6 +97,11 @@ void ServerNetUpdate(double deltaTime)
 			/* Reset the peer's client information. */
 
 			event.peer->data = nullptr;
+			break;
+
+		case ENET_EVENT_TYPE_DISCONNECT_TIMEOUT:
+            ServerLogger.Log(LogLevel::Info, "%x disconnected (timeout).", event.peer->data);
+			break;
 		}
 	}
 }
@@ -110,6 +117,14 @@ void ProcessC2S_Ping(ENetPeer* sender, const C2S_Ping* ping)
 
 	ServerLogger.Log(LogLevel::Info, "Received C2S_Ping from client, replied with S2C_Pong (Server Uptime: %llu ms)", pong.serverTimeMs);
 }
+
+void ProcessC2S_Goodbye(ENetPeer* sender, const C2S_Goodbye* goodbye)
+{
+    ServerLogger.Log(LogLevel::Info, "%x sent goodbye, reason %d.", sender->address.host, goodbye->reason);
+
+	enet_peer_disconnect_now(sender, 0);
+}
+
 
 int main(int argc, char* argv[])
 {
