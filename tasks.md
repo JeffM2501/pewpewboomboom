@@ -5,7 +5,7 @@ This document contains the complete, Jira-formatted issue backlog for **PewPewBo
 ---
 
 ## Progress Overview
-- [x] **EPIC 1: Infrastructure & ENet Networking Foundations** (1 / 4 Completed)
+- [x] **EPIC 1: Infrastructure & ENet Networking Foundations** (4 / 4 Completed)
 - [ ] **EPIC 2: Network Protocol & Binary Serialization** (0 / 3 Completed)
 - [ ] **EPIC 3: Fixed-Tick Server Simulation & Rendering Skeleton** (0 / 3 Completed)
 - [ ] **EPIC 4: Client Prediction, Server Reconciliation & Interpolation** (0 / 5 Completed)
@@ -62,16 +62,16 @@ This document contains the complete, Jira-formatted issue backlog for **PewPewBo
 ---
 
 ### [PEW-104] Reliable Echo Handshake & RTT Ping Test
-* **Status**: `[ ] TO DO`
+* **Status**: `[x] DONE`
 * **Issue Type**: Technical Spike
 * **Component**: `sharedLib`, `networking`
 * **Priority**: High
 * **Story**: As a network engineer, I want to verify reliable packet delivery on ENet Channel 0 by measuring round-trip time (RTT).
 * **Technical Acceptance Criteria**:
-  - [ ] Define `C2S_Ping` and `S2C_Pong` packet IDs in `sharedLib/include/Protocol.h`.
-  - [ ] Upon connection, client transmits a reliable `C2S_Ping` containing local system time.
-  - [ ] Server receives `C2S_Ping` and immediately replies with `S2C_Pong`.
-  - [ ] Client calculates latency `(CurrentTime - PingSentTime)` and prints RTT in ms.
+  - [x] Define `C2S_Ping` and `S2C_Pong` packet IDs in `sharedLib/include/Protocol.h`.
+  - [x] Upon connection, client transmits a reliable `C2S_Ping` containing local system time.
+  - [x] Server receives `C2S_Ping` and immediately replies with `S2C_Pong`.
+  - [x] Client calculates latency `(CurrentTime - PingSentTime)` and prints RTT in ms.
 * **Definition of Done**: Client console displays calculated RTT in milliseconds with 0% packet drop on Channel 0.
 
 ---

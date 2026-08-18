@@ -129,7 +129,11 @@ void GameDraw()
 	if (NetConnection::GetState() != ConnectionState::Connected)
 		DrawText("Disconnected", 10, 10, 20, RED);
 	else
-		DrawText("Connected", 10, 10, 20, DARKGRAY);
+	{
+		char statusText[128];
+		snprintf(statusText, sizeof(statusText), "Connected | RTT: %llu ms", (unsigned long long)NetConnection::GetRTT());
+		DrawText(statusText, 10, 10, 20, DARKGRAY);
+	}
 
 	rlImGuiBegin();
 	NetConnectionDialog::ShowDialog();

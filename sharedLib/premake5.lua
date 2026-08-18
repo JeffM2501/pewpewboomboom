@@ -9,7 +9,7 @@ project (baseName)
 
     vpaths 
     {
-        ["Header Files/*"] = { "include/**.h", "include/**.hpp", "**.h", "**.hpp"},
+        ["Header Files/*"] = { "src/**.h", "src/**.hpp"},
         ["Source Files/*"] = { "src/**.cpp", "src/**.c", "**.cpp","**.c"},
     }
     files {"**.hpp", "**.h", "**.cpp","**.c"}
