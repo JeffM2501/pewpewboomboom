@@ -287,30 +287,28 @@ pewpewboomboom/
 ├── premake5.exe                # Premake executable (Windows)
 ├── sharedLib/
 │   ├── premake5.lua
-│   ├── include/
-│   │   ├── Protocol.h          # Network packet structures & IDs
-│   │   ├── Common.h            # Config constants (FPS, Tickrate, Max Players)
-│   │   ├── EntityState.h       # Structs representing tanks, projectiles, etc.
-│   │   └── Physics.h           # Lightweight 2D collision logic (AABB, circle, raycast)
 │   └── src/
+│       ├── Protocol.h          # Network packet structures & IDs
+│       ├── Common.h            # Config constants (FPS, Tickrate, Max Players)
+│       ├── EntityState.h       # Structs representing tanks, projectiles, etc.
+│       └── Physics.h           # Lightweight 2D collision logic (AABB, circle, raycast)
 │       ├── Physics.cpp
 │       └── Protocol.cpp
 ├── server/
 │   ├── premake5.lua
-│   ├── include/
-│   │   ├── ServerInstance.h    # Core server manager
-│   │   └── World.h             # Authoritative simulation state
 │   └── src/
+│       ├── ServerInstance.h    # Core server manager
+│       └── World.h             # Authoritative simulation state
 │       ├── main.cpp            # Entrypoint (initializes ENet & runs tick loop)
 │       ├── ServerInstance.cpp
 │       └── World.cpp
 └── client/
     ├── premake5.lua
     ├── include/
-    │   ├── ClientInstance.h    # Core client manager
-    │   ├── Render.h            # Sprites, animations, and particle systems
-    │   └── LocalPlayer.h       # Prediction & Input buffering
     └── src/
+        ├── ClientInstance.h    # Core client manager
+        ├── Render.h            # Sprites, animations, and particle systems
+        └── LocalPlayer.h       # Prediction & Input buffering
         ├── main.cpp            # Entrypoint (initializes raylib, ENet & main loop)
         ├── ClientInstance.cpp
         ├── Render.cpp

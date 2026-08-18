@@ -11,3 +11,4 @@ obj
 *.user
 /*.sln
 *.slnx
+/imgui.ini

@@ -40,7 +40,7 @@ project (workspaceName)
     
     link_raylib()
     link_to("sharedLib")
-
+    link_to("rlImGui")
     filter "system:windows"
         links { "ws2_32" }
     filter {}

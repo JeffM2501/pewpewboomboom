@@ -34,15 +34,15 @@ This document contains the complete, Jira-formatted issue backlog for **PewPewBo
 ---
 
 ### [PEW-102] Headless Server Host Initialization & Polling Loop
-* **Status**: `[ ] TO DO`
+* **Status**: `[x] DONE`
 * **Issue Type**: Task
 * **Component**: `server`, `networking`
 * **Priority**: Highest
 * **Story**: As a server administrator, I want a headless ENet host server so that multiple client peers can establish UDP connections.
 * **Technical Acceptance Criteria**:
-  - [ ] Initialize ENet via `enet_initialize()` inside `server/src/main.cpp`.
-  - [ ] Create an `ENetHost` listening on port `7777` supporting up to 32 concurrent peers and 2 channels.
-  - [ ] Implement a non-blocking `enet_host_service` loop logging peer connection and disconnection events with timestamped output.
+  - [x] Initialize ENet via `enet_initialize()` inside `server/src/main.cpp`.
+  - [x] Create an `ENetHost` listening on port `7777` supporting up to 32 concurrent peers and 2 channels.
+  - [x] Implement a non-blocking `enet_host_service` loop logging peer connection and disconnection events with timestamped output.
 * **Definition of Done**: Launching `server.exe` opens a console process that listens on port `7777` without freezing or leaking socket descriptors.
 
 ---
