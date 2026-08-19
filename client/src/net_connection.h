@@ -14,6 +14,8 @@ namespace NetConnection
 	void Init();
 	void Shutdown();
 
+	char* GetPlayerName();
+
 	void BeginConnect(const char* address, uint16_t port);
 
 	void Disconnect();

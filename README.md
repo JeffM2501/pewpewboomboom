@@ -147,8 +147,7 @@ Sent by a client attempting to connect and register with the server.
 | :--- | :--- | :--- | :--- |
 | **PacketType** | `uint8_t` | 1 | Set to `PacketType::C2S_JoinRequest` (value: 0) |
 | **ProtocolVersion** | `uint32_t` | 4 | Protocol version hash to check compatibility. |
-| **PlayerNameLength**| `uint8_t` | 1 | Length of player name string (max 16). |
-| **PlayerName** | `char[]` | Variable | UTF-8 string containing the user's nickname. |
+| **PlayerName** | `char[16]` | 16 | Null-terminated UTF-8 string containing the user's nickname. |
 
 ##### C2S_InputState (Channel 1 - Unreliable)
 Sent every frame/tick (60Hz) by clients to drive the player's tank.
@@ -166,16 +165,15 @@ Sent by a player to broadcast text in the lobby or in-game chat.
 
 | Field | Data Type | Bytes | Description |
 | :--- | :--- | :--- | :--- |
-| **PacketType** | `uint8_t` | 1 | Set to `PacketType::C2S_ChatMessage` (value: 5) |
-| **MessageLength** | `uint8_t` | 1 | Length of message content (max 128 characters). |
-| **MessageText** | `char[]` | Variable | UTF-8 encoded text string. |
+| **PacketType** | `uint8_t` | 1 | Set to `PacketType::C2S_ChatMessage` (value: 8) |
+| **MessageText** | `char[128]` | 128 | Null-terminated UTF-8 encoded message text. |
 
 ##### C2S_RespawnRequest (Channel 0 - Reliable)
 Sent by a dead client to request respawning in the game.
 
 | Field | Data Type | Bytes | Description |
 | :--- | :--- | :--- | :--- |
-| **PacketType** | `uint8_t` | 1 | Set to `PacketType::C2S_RespawnRequest` (value: 7) |
+| **PacketType** | `uint8_t` | 1 | Set to `PacketType::C2S_RespawnRequest` (value: 10) |
 
 ---
 
@@ -188,31 +186,55 @@ Server response containing authorization status, assigned ID, and general map co
 | :--- | :--- | :--- | :--- |
 | **PacketType** | `uint8_t` | 1 | Set to `PacketType::S2C_JoinResponse` (value: 1) |
 | **ResponseCode** | `uint8_t` | 1 | `0`: Success, `1`: Server Full, `2`: Version Mismatch. |
-| **AssignedID** | `size_t` | 1 | Unique network ID (0-31) representing the client's tank. |
+| **AssignedID** | `uint8_t` | 1 | Unique network ID (0-31) representing the client's tank. |
 | **SpawnX** | `float` | 4 | Initial coordinate X on spawning. |
 | **SpawnY** | `float` | 4 | Initial coordinate Y on spawning. |
 
-##### S2C_WorldSnapshot (Channel 1 - Unreliable)
-Broadcast at 60Hz from the server to synchronize overall world state.
+##### S2C_WorldSnapshotHeader (Channel 1 - Unreliable)
+Broadcast at 60Hz from the server to establish the current tick's frame information and entity counts.
 
 | Field | Data Type | Bytes | Description |
 | :--- | :--- | :--- | :--- |
-| **PacketType** | `uint8_t` | 1 | Set to `PacketType::S2C_WorldSnapshot` (value: 3) |
+| **PacketType** | `uint8_t` | 1 | Set to `PacketType::S2C_WorldSnapshotHeader` (value: 3) |
 | **ServerTick** | `uint32_t` | 4 | Authoritative server tick count. |
 | **LastAckedTick** | `uint32_t` | 4 | The last client tick processed by the server (for reconciliation). |
-| **PlayerCount** | `uint8_t` | 1 | Number of active tanks in this snapshot ($N_p$). |
-| **PlayerArray** | `PlayerNetState[]` | $N_p \times 23$ | Array of active tank coordinates and states (see structure below). |
-| **BulletCount** | `uint16_t` | 2 | Number of active bullets ($N_b$). |
-| **BulletArray** | `BulletNetState[]` | $N_b \times 13$ | Array of active bullets (see structure below). |
-| **PowerupCount** | `uint8_t` | 1 | Number of spawned powerup items on map ($N_m$). |
-| **PowerupArray** | `PowerupNetState[]`| $N_m \times 10$| Array of spawned powerups (see structure below). |
+| **PlayerCount** | `uint8_t` | 1 | Total active players. Client expects this many player update packets. |
+| **BulletCount** | `uint16_t` | 2 | Total active bullets. Client expects this many bullet update packets. |
+| **PowerupCount** | `uint8_t` | 1 | Total active powerups. Client expects this many powerup update packets. |
+
+##### S2C_PlayerSnapshot (Channel 1 - Unreliable)
+Sent for each active player.
+
+| Field | Data Type | Bytes | Description |
+| :--- | :--- | :--- | :--- |
+| **PacketType** | `uint8_t` | 1 | Set to `PacketType::S2C_PlayerSnapshot` (value: 4) |
+| **ServerTick** | `uint32_t` | 4 | Server tick associated with this player state. |
+| **State** | `PlayerNetState` | 23 | Player position and status structure (see below). |
+
+##### S2C_BulletSnapshot (Channel 1 - Unreliable)
+Sent for each active bullet.
+
+| Field | Data Type | Bytes | Description |
+| :--- | :--- | :--- | :--- |
+| **PacketType** | `uint8_t` | 1 | Set to `PacketType::S2C_BulletSnapshot` (value: 5) |
+| **ServerTick** | `uint32_t` | 4 | Server tick associated with this bullet state. |
+| **State** | `BulletNetState` | 13 | Bullet position and status structure (see below). |
+
+##### S2C_PowerupSnapshot (Channel 1 - Unreliable)
+Sent for each active powerup.
+
+| Field | Data Type | Bytes | Description |
+| :--- | :--- | :--- | :--- |
+| **PacketType** | `uint8_t` | 1 | Set to `PacketType::S2C_PowerupSnapshot` (value: 6) |
+| **ServerTick** | `uint32_t` | 4 | Server tick associated with this powerup state. |
+| **State** | `PowerupNetState` | 10 | Powerup position and status structure (see below). |
 
 ##### S2C_EventNotification (Channel 0 - Reliable)
 Sent when high-impact game events occur that require perfect delivery.
 
 | Field | Data Type | Bytes | Description |
 | :--- | :--- | :--- | :--- |
-| **PacketType** | `uint8_t` | 1 | Set to `PacketType::S2C_EventNotification` (value: 4) |
+| **PacketType** | `uint8_t` | 1 | Set to `PacketType::S2C_EventNotification` (value: 7) |
 | **EventType** | `uint8_t` | 1 | Event: `0` (Damage Taken), `1` (Kill Event), `2` (Powerup Collected), `3` (Match Finished). |
 | **SourceID** | `uint8_t` | 1 | Player/entity ID that initiated the event. |
 | **TargetID** | `uint8_t` | 1 | Player/entity ID affected by the event. |
@@ -223,7 +245,7 @@ Broadcast when a peer disconnects to clean up the client state immediately.
 
 | Field | Data Type | Bytes | Description |
 | :--- | :--- | :--- | :--- |
-| **PacketType** | `uint8_t` | 1 | Set to `PacketType::S2C_PlayerDisconnected` (value: 6) |
+| **PacketType** | `uint8_t` | 1 | Set to `PacketType::S2C_PlayerDisconnected` (value: 9) |
 | **PlayerID** | `uint8_t` | 1 | The ID of the player who disconnected. |
 
 ##### S2C_ChatMessage (Channel 0 - Reliable)
@@ -231,10 +253,9 @@ Broadcast of a text message from a user.
 
 | Field | Data Type | Bytes | Description |
 | :--- | :--- | :--- | :--- |
-| **PacketType** | `uint8_t` | 1 | Set to `PacketType::S2C_ChatMessage` (value: 8) |
+| **PacketType** | `uint8_t` | 1 | Set to `PacketType::S2C_ChatMessage` (value: 11) |
 | **SenderID** | `uint8_t` | 1 | Client ID who sent the message (or `255` for Server/System). |
-| **MessageLength** | `uint8_t` | 1 | Length of message content. |
-| **MessageText** | `char[]` | Variable | UTF-8 encoded message text. |
+| **MessageText** | `char[128]` | 128 | Null-terminated UTF-8 message text. |
 
 ---
 
@@ -363,19 +384,23 @@ pewpewboomboom/
         C2S_JoinRequest = 0,
         S2C_JoinResponse = 1,
         C2S_InputState = 2,
-        S2C_WorldSnapshot = 3,
-        S2C_EventNotification = 4,
-        C2S_ChatMessage = 5,
-        S2C_PlayerDisconnected = 6,
-        C2S_RespawnRequest = 7,
-        S2C_ChatMessage = 8
+        S2C_WorldSnapshotHeader = 3,
+        S2C_PlayerSnapshot = 4,
+        S2C_BulletSnapshot = 5,
+        S2C_PowerupSnapshot = 6,
+        S2C_EventNotification = 7,
+        C2S_ChatMessage = 8,
+        S2C_PlayerDisconnected = 9,
+        C2S_RespawnRequest = 10,
+        S2C_ChatMessage = 11
     };
     ```
-  - Implement a manual bitstream/binary writer/reader helper class to pack and unpack values into flat `uint8_t` buffers. This ensures cross-platform byte alignment (no compiler padding issues).
+  - Define network packets as fixed-size structs utilizing `#pragma pack(push, 1)` or compiler alignment attributes to ensure direct memory copyability/casting without padding differences between platforms.
 - [ ] **2.3 Define Core Data Packets**
-  - `C2S_InputState`: Tick count, flags (WASD, shoot), turret angle.
-  - `S2C_WorldSnapshot`: Current tick count, active player entities (ID, position, chassis angle, turret angle, health, current weapon, states), projectile list (ID, type, position, velocity).
-  - `S2C_JoinResponse`: Assigned Player ID, spawned coordinates, arena map data configuration.
+  - `C2S_InputState`: Tick count, flags (WASD, shoot), turret angle, selected weapon.
+  - `S2C_WorldSnapshotHeader`: Server tick count, last processed client tick, active counts of players, bullets, and powerups.
+  - `S2C_PlayerSnapshot`, `S2C_BulletSnapshot`, `S2C_PowerupSnapshot`: Individual entity state snapshots sent as separate fixed-size packets.
+  - `S2C_JoinResponse`: Assigned Player ID, spawned coordinates.
 
 ---
 
@@ -615,17 +640,17 @@ This section provides technical directives tailored for a **senior game develope
 ### Phase 2: Network Protocol & Shared Data Structures
 
 #### Senior Developer Technical Directives
-- **Zero-Copy & Bit-Packing Alignment**: Avoid casting raw struct pointers to `char*` directly over ENet packets to prevent compiler padding misalignment across platforms/compilers.
-- **Bitstream Helper API**: Use an explicit byte-writer/reader (`BufferWriter`, `BufferReader`) with explicit endianness handling (`uint32_t`, `float`, `uint16_t`).
-- **Memory Footprint**: Keep `PlayerNetState` $\le 24$ bytes, `BulletNetState` $\le 16$ bytes, and `PowerupNetState` $\le 12$ bytes.
+- **Zero-Copy Alignment**: Ensure all packet structs are packed using `#pragma pack(push, 1)` to prevent compiler alignment padding differences across platforms.
+- **Fixed-Size Verification**: Avoid any variable-length payload structures; all string fields (e.g. usernames, chat messages) must be defined as fixed-size buffers (`char[N]`).
+- **Memory Footprint**: Ensure `PlayerNetState` $\le 24$ bytes, `BulletNetState` $\le 16$ bytes, and `PowerupNetState` $\le 12$ bytes.
 
 #### Recommended AI Prompts
 - **Prompt 2.1 (Configuration Defs)**:
   > *"Create `sharedLib/include/Common.h`. Define `constexpr` values for `TICK_RATE = 60`, `TICK_TIME = 1.0f / 60.0f`, `MAX_PLAYERS = 32`, `MAX_BULLETS = 256`, `MAP_BOUNDS = 2000.0f`, `TANK_RADIUS = 24.0f`, and `BULLET_RADIUS = 4.0f`."*
-- **Prompt 2.2 (BufferWriter & BufferReader)**:
-  > *"In `sharedLib`, create high-performance `BufferWriter` and `BufferReader` classes operating over a flat `std::vector<uint8_t>` or raw `uint8_t*` memory range. Add templated `Write<T>` and `Read<T>` methods for `uint8_t`, `uint16_t`, `uint32_t`, and `float` with bounds assertion checks."*
-- **Prompt 2.3 (Packet Definitions & Serialization)**:
-  > *"Implement serialization and deserialization methods for `C2S_InputState`, `S2C_WorldSnapshot`, `S2C_JoinResponse`, and `S2C_EventNotification` in `sharedLib/include/Protocol.h` using `BufferWriter`/`BufferReader`. Include automated unit tests verifying roundtrip data integrity."*
+- **Prompt 2.2 (Fixed-Size Packets Definition)**:
+  > *"Define all network packet structures in `sharedLib/include/Protocol.h` using `#pragma pack(push, 1)`. Ensure all packet structs have fixed known sizes, including C2S_JoinRequest (21B) and C2S_ChatMessage (129B) which should use fixed character arrays (`char[16]` and `char[128]`) instead of dynamic serialization."*
+- **Prompt 2.3 (Packet Size Validation & Handler Registry)**:
+  > *"In `sharedLib/src/packet_processor.cpp`, implement validation logic to assert that incoming ENet packets exactly match the expected `sizeof(T)` for their designated PacketType. Register callbacks that accept direct struct pointers and reject malformed/wrong-sized packets."*
 
 ---
 
@@ -639,9 +664,9 @@ This section provides technical directives tailored for a **senior game develope
 - **Prompt 3.1 (Server Fixed Timestep Loop)**:
   > *"Implement a high-precision accumulator game loop in `server/src/main.cpp` using `std::chrono::high_resolution_clock`. Run `ServerTick()` at exact 60Hz intervals. Clamp delta time to 0.25s maximum. Poll ENet events between ticks."*
 - **Prompt 3.2 (Server World Snapshot Broadcast)**:
-  > *"In `server/include/World.h`, maintain the canonical server world state. On every `ServerTick()`, pack all active players, projectiles, and powerups into a `S2C_WorldSnapshot` packet and broadcast it to all connected peers over ENet Channel 1 (unreliable)."*
+  > *"In `server/include/World.h`, maintain the canonical server world state. On every `ServerTick()`, broadcast `S2C_WorldSnapshotHeader` and individual `S2C_PlayerSnapshot`, `S2C_BulletSnapshot`, and `S2C_PowerupSnapshot` packets for all active entities over ENet Channel 1 (unreliable)."*
 - **Prompt 3.3 (Client Render Skeleton)**:
-  > *"In `client/src/main.cpp`, set up a 2D camera viewport (`Camera2D`). Parse incoming `S2C_WorldSnapshot` packets and render player tanks as colored 2D rectangles at their authoritative coordinates. Include a debug overlay showing tick count, FPS, and player count."*
+  > *"In `client/src/main.cpp`, set up a 2D camera viewport (`Camera2D`). Parse incoming `S2C_WorldSnapshotHeader` and entity snapshot packets to reconstruct tick states and render player tanks as colored 2D rectangles at their authoritative coordinates. Include a debug overlay showing tick count, FPS, and player count."*
 
 ---
 
@@ -658,9 +683,9 @@ This section provides technical directives tailored for a **senior game develope
 - **Prompt 4.2 (Server Tank Kinematics)**:
   > *"Implement tank physics simulation in `server`: calculate forward/backward acceleration based on WASD input bitmask, apply rotational speed to chassis, apply linear friction/drag, and integrate position `pos += velocity * TICK_TIME`."*
 - **Prompt 4.3 (Client Prediction & Reconciliation)**:
-  > *"Implement a circular input/state history buffer `InputHistory[128]` on the client. Predict local movement immediately upon input. When `S2C_WorldSnapshot` tick $T$ arrives, compare predicted position vs server position. If error > 0.05 units, reset local position to server position and re-simulate inputs from tick $T+1$ to current tick."*
+  > *"Implement a circular input/state history buffer `InputHistory[128]` on the client. Predict local movement immediately upon input. When the server snapshot header and corresponding player snapshot for tick $T$ arrive, compare predicted position vs server position. If error > 0.05 units, reset local position to server position and re-simulate inputs from tick $T+1$ to current tick."*
 - **Prompt 4.4 (Remote Entity Interpolation)**:
-  > *"In `client`, implement a snapshot buffer for remote player tanks. Maintain a 100ms interpolation delay. Interpolate remote positions between `Snapshot[k]` and `Snapshot[k+1]` using lerp for position and shortest-path angular lerp for chassis/turret angles."*
+  > *"In `client`, implement a snapshot buffer that reconstructs entity states from incoming header and entity snapshot packets. Maintain a 100ms interpolation delay. Interpolate remote positions between reconstructed states `TickState[k]` and `TickState[k+1]` using lerp for position and shortest-path angular lerp for chassis/turret angles."*
 
 ---
 
@@ -734,13 +759,13 @@ This section provides technical directives tailored for a **senior game develope
 
 #### Senior Developer Technical Directives
 - **Network Conditioning Wrapper**: Intercept incoming/outgoing ENet packets in debug builds to delay packets by $X\text{ms}$ or drop $Y\%$ of packets to stress test prediction/reconciliation resilience.
-- **Delta Snapshot Compression**: Compress `S2C_WorldSnapshot` packets by encoding relative position deltas or using bitfields to omit unchanged entity states between ticks.
+- **Snapshot Packet Culling & Optimization**: Optimize bandwidth by only transmitting entity snapshot packets when their positions or states change. Pack float coordinates into 16-bit fixed-point integers to reduce memory footprint.
 
 #### Recommended AI Prompts
 - **Prompt 9.1 (Artificial Network Latency & Packet Loss)**:
   > *"Implement a network simulator wrapper around ENet on the client. Add GUI controls to artificially delay outgoing/incoming packets by 0 to 250ms and inject 0% to 15% random packet loss to evaluate reconciliation smoothness under bad conditions."*
-- **Prompt 9.2 (Delta Snapshot Compression)**:
-  > *"Implement delta compression for `S2C_WorldSnapshot`. Include a bitmask indicating which entities changed since the client's last acknowledged tick. Pack positions into 16-bit fixed-point integers relative to map dimensions."*
+- **Prompt 9.2 (Snapshot Packet Culling & Bit-packing)**:
+  > *"Implement packet culling for active players and projectiles. Instead of sending snapshots for every entity on every tick, skip sending `S2C_PlayerSnapshot` or `S2C_BulletSnapshot` for entities that have not changed position or state since their last update. Pack float coordinates into 16-bit fixed-point integers in the snapshots to save bandwidth."*
 - **Prompt 9.3 (32-Player Headless Bot Simulator)**:
   > *"Add a `--bot` command line flag to `client`. When run with `--bot`, launch a headless AI client that connects to server, moves randomly around the map, and automatically targets and shoots the nearest player. Allow spawning 30 bot processes for load testing."*
 
@@ -748,57 +773,57 @@ This section provides technical directives tailored for a **senior game develope
 
 ## 6. Implementation Notes
 
-### Handling Variable-Sized Packets (PacketProcessor Architecture)
+### Handling Fixed-Size Packets (PacketProcessor Architecture)
 
-#### Analysis of Original PacketProcessor Limitations
-The initial [`PacketProcessor`](file:///c:/Users/jeffm/Desktop/pewpewboomboom/sharedLib/packet_processor.h) implementation relied on static `sizeof(T)` struct validation and raw pointer reinterpretation (`reinterpret_cast<const T*>`). This approach introduces critical limitations for dynamic payloads:
-* **Fixed Struct Casting**: Packets like Chat Messages (`C2S_ChatMessage` / `S2C_ChatMessage`) and Map Data (`S2C_JoinResponse` / Map tile sending) have dynamic length requirements. Using fixed-size byte arrays in structs wastes bandwidth, while dynamic types (`std::string`, `std::vector`) cannot be serialized via raw struct memory casting.
-* **Rigid Size Checks**: Rejecting packets where `packet->dataLength < PacketSize` prevents dynamic payloads from being processed when they vary in length.
-* **Compiler Alignment & Padding**: Raw memory casting violates cross-platform binary alignment rules across different compilers or architecture targets.
+#### Rationale for Fixed-Size Packets
+By defining all packet structures to have a fixed, known size:
+* **No Stream Reader/Writer Needed**: Packets can be cast directly to their respective struct pointers (`reinterpret_cast<const T*>`) or copied safely using `std::memcpy`. This eliminates the need for dynamic bitstream writing/reading (`BufferWriter`/`BufferReader`), simplifying the network layer significantly.
+* **Deterministic Size Validation**: Incoming packets are validated by comparing ENet's `packet->dataLength` against the exact expected size of the struct (`sizeof(T)`). Any packet not matching the expected size is immediately discarded.
+* **Guaranteed Alignment**: Using `#pragma pack(push, 1)` prevents compiler alignment padding discrepancies, ensuring safe struct casting across different compilers and platforms.
 
-#### Architectural Solution: Stream Serialization & Minimum Header Validation
-To universally process both fixed and variable-sized packets in a clean, robust, and zero-copy manner:
+#### Transmitting Variable-Sized Lists of Entities
+To send a variable list of objects (such as active players, bullets, or powerups), the server splits the list into individual fixed-size packets.
+1. **World Snapshot Header**: The server first broadcasts an `S2C_WorldSnapshotHeader` containing the `ServerTick`, `LastAckedTick`, and the count of active players, bullets, and powerups.
+2. **Individual Snapshot Packets**: The server then transmits a sequence of individual `S2C_PlayerSnapshot`, `S2C_BulletSnapshot`, and `S2C_PowerupSnapshot` packets. Each contains the entity's network state and the corresponding `ServerTick`.
+3. **Reconstitution**: The client groups incoming entity snapshots using their `ServerTick` and matches them against the expected counts received in the header packet to reconstruct the complete tick state.
 
-1. **Bitstream Reading & Writing (`BufferReader` / `BufferWriter`)**:
-   Implement stream helpers in `sharedLib/include/BufferStream.h` as outlined in [`PEW-202`](file:///c:/Users/jeffm/Desktop/pewpewboomboom/tasks.md#L95-L105). `BufferReader` handles bounds-checked parsing of primitives, length-prefixed strings (`ReadString`), and variable-length array vectors (`ReadVector`).
-
-2. **Refactored `PacketProcessor` Handler Signatures**:
-   Register handlers that take a `BufferReader&` and validate against a `MinPacketSize` (the minimum required header length):
+#### Refactored `PacketProcessor` Handler Signatures
+The `PacketProcessor` registers handlers that take raw data pointers and validates against exact struct sizes:
 
 ```cpp
 class PacketProcessor {
 public:
-    using PacketHandler = std::function<void(ENetPeer* sender, BufferReader& reader)>;
+    using PacketHandler = std::function<void(ENetPeer* sender, const uint8_t* data, size_t size)>;
 
     struct ProcessorInfo {
         PacketHandler Handler = nullptr;
-        size_t MinPacketSize = 1; // Minimum header size
+        size_t ExpectedSize = 0;
     };
 
-    void RegisterProcessor(PacketType packetType, PacketHandler handler, size_t minPacketSize = sizeof(uint8_t)) {
-        Processors[static_cast<uint8_t>(packetType)] = ProcessorInfo{ handler, minPacketSize };
+    void RegisterProcessor(PacketType packetType, PacketHandler handler, size_t expectedSize) {
+        Processors[static_cast<uint8_t>(packetType)] = ProcessorInfo{ handler, expectedSize };
     }
 
     void ProcessPacket(ENetPacket* packet, ENetPeer* sender) {
         if (!packet || packet->dataLength < sizeof(uint8_t)) return;
 
-        BufferReader reader(packet->data, packet->dataLength);
-        uint8_t rawType = 0;
-        if (!reader.Read(rawType)) return;
-
+        uint8_t rawType = packet->data[0];
         auto it = Processors.find(rawType);
-        if (it == Processors.end() || packet->dataLength < it->second.MinPacketSize) return;
+        if (it == Processors.end()) return;
 
-        it->second.Handler(sender, reader);
+        // Strict validation check on exact struct size
+        if (packet->dataLength != it->second.ExpectedSize) return;
+
+        it->second.Handler(sender, packet->data, packet->dataLength);
     }
 
-    void SendPacket(ENetPeer* peer, int channel, const BufferWriter& writer, enet_uint32 flags = ENET_PACKET_FLAG_RELIABLE) {
-        ENetPacket* packet = enet_packet_create(writer.GetData(), writer.GetSize(), flags);
+    void SendPacket(ENetPeer* peer, int channel, const void* data, size_t size, enet_uint32 flags = ENET_PACKET_FLAG_RELIABLE) {
+        ENetPacket* packet = enet_packet_create(data, size, flags);
         enet_peer_send(peer, channel, packet);
     }
 };
 ```
 
-3. **Concrete Usage Patterns**:
-   * **Chat Messages**: Encoded as `[PacketType: 1B] [SenderID: 2B] [TextLength: 2B] [UTF-8 Text Bytes: N]`.
-   * **Map Data**: Encoded as `[PacketType: 1B] [Width: 2B] [Height: 2B] [TileCount: 2B] [Tile Array: N * sizeof(Tile)]`.
+#### Concrete Usage Patterns
+* **Chat Messages**: Always transmitted as a fixed `S2C_ChatMessage` struct (130 bytes), containing `[PacketType: 1B] [SenderID: 1B] [MessageText: char[128]]`.
+* **Join Requests**: Always transmitted as a fixed `C2S_JoinRequest` struct (21 bytes), containing `[PacketType: 1B] [ProtocolVersion: 4B] [PlayerName: char[16]]`.

@@ -1,17 +1,18 @@
 #include "connection_dialog.h"
-
+#include "constants.h"
 #include "net_connection.h"
 #include "imgui.h"
 
 namespace NetConnectionDialog
 {
 	static char HostBuffer[128] = "localhost";
+
 	void ShowDialog()
 	{
 		if (NetConnection::GetState() == ConnectionState::Connected)
 			return;
 
-		ImVec2 windowSize(250, 120);
+		ImVec2 windowSize(250, 140);
 		ImVec2 windowPos((ImGui::GetIO().DisplaySize.x - windowSize.x) * 0.5f, (ImGui::GetIO().DisplaySize.y - windowSize.y) * 0.5f);
 
 		ImGui::SetNextWindowSize(windowSize, ImGuiCond_Appearing);
@@ -22,9 +23,17 @@ namespace NetConnectionDialog
 			{
 				ImGui::TableNextRow();
 				ImGui::TableSetColumnIndex(0);
-				ImGui::TextUnformatted("Host");
+				ImGui::TextUnformatted("Name");
 				ImGui::TableNextColumn();
-				ImGui::InputText("##Host", HostBuffer, sizeof(HostBuffer));
+				ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+				ImGui::InputText("##Name", NetConnection::GetPlayerName(), kMaxNameSize);
+
+                ImGui::TableNextRow();
+				ImGui::TableNextColumn();
+                ImGui::TextUnformatted("Host");
+                ImGui::TableNextColumn();
+				ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+                ImGui::InputText("##Host", HostBuffer, sizeof(HostBuffer));
 
 				ImGui::TableNextRow();
 				ImGui::TableNextColumn();

@@ -91,31 +91,31 @@ This document contains the complete, Jira-formatted issue backlog for **PewPewBo
 
 ---
 
-### [PEW-202] High-Performance Bitstream BufferWriter / BufferReader API
+### [PEW-202] Fixed-Size Network Packet Structure Definitions
 * **Status**: `[ ] TO DO`
 * **Issue Type**: Task
 * **Component**: `sharedLib`
 * **Priority**: Highest
-* **Story**: As a network programmer, I want a custom bitstream reader and writer to serialize game state into contiguous byte buffers without padding or endian misalignment.
+* **Story**: As a network programmer, I want all network packets defined as fixed-size structs with pack alignment so they can be cast or copied directly without manual stream parsing.
 * **Technical Acceptance Criteria**:
-  - [ ] Create `BufferWriter` and `BufferReader` classes in `sharedLib/include/BufferStream.h`.
-  - [ ] Add explicit templated methods `Write<T>()` and `Read<T>()` supporting `uint8_t`, `uint16_t`, `uint32_t`, and `float`.
-  - [ ] Include array bounds safety checks to prevent buffer overflow exceptions.
-* **Definition of Done**: Unit test verifies that writing diverse primitive types into `BufferWriter` and reading via `BufferReader` produces identical values.
+  - [ ] Define all network packet structs in `sharedLib/include/Protocol.h` using `#pragma pack(push, 1)`.
+  - [ ] Ensure `C2S_JoinRequest` (21B) and `C2S_ChatMessage` / `S2C_ChatMessage` (129B/130B) use fixed-size character arrays (`char[16]` and `char[128]`) instead of variable-length strings.
+  - [ ] Define `S2C_WorldSnapshotHeader` (13B), `S2C_PlayerSnapshot` (28B), `S2C_BulletSnapshot` (18B), and `S2C_PowerupSnapshot` (15B).
+* **Definition of Done**: Compilation succeeds and `static_assert(sizeof(T) == ExpectedSize)` checks pass for all defined structs.
 
 ---
 
-### [PEW-203] Binary Network Packet Specifications & Struct Serializers
+### [PEW-203] Fixed-Size PacketProcessor Verification & Dispatch
 * **Status**: `[ ] TO DO`
 * **Issue Type**: Task
 * **Component**: `sharedLib`, `networking`
 * **Priority**: Highest
-* **Story**: As a network engineer, I want explicit binary serializers for all client-server packet types.
+* **Story**: As a network engineer, I want incoming packets verified against their expected fixed sizes and dispatched to appropriate handlers without a stream reader.
 * **Technical Acceptance Criteria**:
-  - [ ] Implement serialization routines in `sharedLib/src/Protocol.cpp` for `C2S_JoinRequest`, `S2C_JoinResponse`, `C2S_InputState`, `S2C_WorldSnapshot`, `S2C_EventNotification`, `C2S_ChatMessage`, `S2C_PlayerDisconnected`, and `C2S_RespawnRequest`.
-  - [ ] Keep `PlayerNetState` payload $\le 23$ bytes per player.
-  - [ ] Keep `BulletNetState` payload $\le 13$ bytes per projectile.
-* **Definition of Done**: Roundtrip serialization unit test passes for all 8 packet structures.
+  - [ ] Implement a `PacketProcessor` in `sharedLib` that processes raw ENet packets using `sizeof(T)` checks: `packet->dataLength == expected_size`.
+  - [ ] Discard any packet that does not match its type's exact fixed size.
+  - [ ] Register callbacks/handlers that receive direct struct pointers (e.g. `const C2S_InputState*`) rather than stream readers.
+* **Definition of Done**: Unit tests verify that sending malformed or wrong-sized packets is rejected, and valid fixed-size packets are successfully dispatched.
 
 ---
 
@@ -140,12 +140,12 @@ This document contains the complete, Jira-formatted issue backlog for **PewPewBo
 * **Issue Type**: Task
 * **Component**: `server`, `networking`
 * **Priority**: High
-* **Story**: As a server developer, I want the server to maintain active entity states and broadcast world snapshots to connected clients every tick.
+* **Story**: As a server developer, I want the server to maintain active entity states and broadcast world snapshots as a series of fixed-size packets to connected clients every tick.
 * **Technical Acceptance Criteria**:
   - [ ] Maintain a fixed-size contiguous array `std::array<PlayerState, MAX_PLAYERS>` in `server/include/World.h`.
-  - [ ] In `ServerTick()`, advance world tick counter and assemble `S2C_WorldSnapshot`.
-  - [ ] Broadcast `S2C_WorldSnapshot` to all connected peers via ENet Channel 1 (unreliable).
-* **Definition of Done**: Network packet analyzer verifies server sends a 60Hz stream of `S2C_WorldSnapshot` packets to connected clients.
+  - [ ] In `ServerTick()`, advance world tick counter and assemble `S2C_WorldSnapshotHeader`.
+  - [ ] Broadcast `S2C_WorldSnapshotHeader` and individual `S2C_PlayerSnapshot`, `S2C_BulletSnapshot`, and `S2C_PowerupSnapshot` packets for all active entities via ENet Channel 1 (unreliable).
+* **Definition of Done**: Network packet analyzer verifies server sends a 60Hz stream of fixed-size snapshot header and entity packets.
 
 ---
 
@@ -154,11 +154,11 @@ This document contains the complete, Jira-formatted issue backlog for **PewPewBo
 * **Issue Type**: Task
 * **Component**: `client`
 * **Priority**: High
-* **Story**: As a player, I want to see connected tanks rendered as 2D shapes inside a scrollable camera viewport.
+* **Story**: As a player, I want to see connected tanks reconstructed from individual packets and rendered as 2D shapes inside a scrollable camera viewport.
 * **Technical Acceptance Criteria**:
   - [ ] Configure Raylib `Camera2D` to center on the local player tank position.
   - [ ] Draw a background grid representing arena coordinates `(2000x2000)`.
-  - [ ] Deserialize incoming `S2C_WorldSnapshot` packets and draw 2D rectangles for each player tank at their server coordinates.
+  - [ ] Process incoming `S2C_WorldSnapshotHeader` and individual entity snapshot packets to reconstruct the current tick's world state, and draw 2D rectangles for each player tank at their server coordinates.
 * **Definition of Done**: Connecting two clients to a server displays two colored rectangles in the Raylib window.
 
 ---
@@ -214,7 +214,7 @@ This document contains the complete, Jira-formatted issue backlog for **PewPewBo
 * **Priority**: High
 * **Story**: As a player, I want my local predicted tank position reconciled against authoritative server snapshots to prevent cheating and desync.
 * **Technical Acceptance Criteria**:
-  - [ ] Upon receiving `S2C_WorldSnapshot` for tick $T$, compare server position vs `InputHistory[T]`.
+  - [ ] Upon receiving the snapshot header and corresponding player snapshot for tick $T$, compare server position vs `InputHistory[T]`.
   - [ ] If error exceeds threshold `0.05` units: snap local position to server position and re-simulate physics for all stored inputs from tick $T+1$ to current client tick.
 * **Definition of Done**: Introducing artificially delayed server packets causes local tank to correct smoothly without persistent position drift.
 
@@ -227,8 +227,8 @@ This document contains the complete, Jira-formatted issue backlog for **PewPewBo
 * **Priority**: High
 * **Story**: As a player, I want remote tanks to move smoothly on screen without stuttering.
 * **Technical Acceptance Criteria**:
-  - [ ] Buffer received server snapshots on client with a $100\text{ms}$ ($6$ ticks) interpolation delay.
-  - [ ] Interpolate remote tank position between `Snapshot[k]` and `Snapshot[k+1]` using Linear Interpolation (LERP).
+  - [ ] Reconstruct ticks from incoming fixed-size snapshot packets (header + entity snapshots) and buffer them on client with a $100\text{ms}$ ($6$ ticks) interpolation delay.
+  - [ ] Interpolate remote tank position between reconstructed states `TickState[k]` and `TickState[k+1]` using Linear Interpolation (LERP).
   - [ ] Interpolate chassis and turret angles using shortest-path angular lerp.
 * **Definition of Done**: Other connected players move smoothly across the viewport without visual jitter.
 
@@ -443,15 +443,15 @@ This document contains the complete, Jira-formatted issue backlog for **PewPewBo
 
 ---
 
-### [PEW-902] World Snapshot Delta Compression
+### [PEW-902] World Snapshot Entity Packet Culling & Struct Optimization
 * **Status**: `[ ] TO DO`
 * **Issue Type**: Task
 * **Component**: `sharedLib`, `networking`
 * **Priority**: Low
-* **Story**: As a network engineer, I want world snapshot packets delta-compressed to conserve bandwidth.
+* **Story**: As a network engineer, I want to minimize ENet traffic by only transmitting entity snapshot packets when their positions or states change.
 * **Technical Acceptance Criteria**:
-  - [ ] Include a change bitmask in `S2C_WorldSnapshot` indicating which entities changed since client's last acknowledged tick.
-  - [ ] Compress float coordinates into 16-bit fixed-point integers relative to map dimensions.
+  - [ ] Implement culling logic on the server to skip sending `S2C_PlayerSnapshot` or `S2C_BulletSnapshot` for entities that have not changed state or moved significantly.
+  - [ ] Support packing float coordinates into 16-bit fixed-point integers relative to map bounds inside the entity snapshots.
 * **Definition of Done**: Network bandwidth consumption per client drops by >40% during static or low-movement gameplay.
 
 ---

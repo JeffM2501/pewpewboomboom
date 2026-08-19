@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 static constexpr int kDefaultTickRate = 60;
 static constexpr float kDefaultTickTime = 1.0f / 60;
 static constexpr int kMaxPlayers = 32;

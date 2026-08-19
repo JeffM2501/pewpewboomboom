@@ -5,13 +5,16 @@
 #include <functional>
 #include <unordered_map>
 
+
+static constexpr size_t UnknownPacketSize = size_t(-1);
+
 class PacketProcessor
 {
 private:
     struct ProcessorInfo
     {
         std::function<void(ENetPeer*, const void*)> Processor = nullptr;
-        size_t PacketSize = 0;
+        size_t PacketSize = UnknownPacketSize;
     };
 
     std::unordered_map<uint8_t, ProcessorInfo> Processors;

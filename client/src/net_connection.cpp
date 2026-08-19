@@ -5,6 +5,7 @@
 #include "protocol.h"
 #include "time_utils.h"
 #include "packet_processor.h"
+#include "text_utils.h"
 
 namespace NetConnection
 {
@@ -20,6 +21,10 @@ namespace NetConnection
 	uint64_t ConnectionStartTime = 0;
 
 	uint64_t ConnectionTimeout = 10 * 1000;
+
+	char PlayerName[kMaxNameSize] = "PlayerMcPlayerface";
+
+	uint64_t PlayerID = uint64_t(-1);
 
 	void ProcessS2C_Pong(ENetPeer* sender, const S2C_Pong* pong)
 	{
@@ -43,6 +48,11 @@ namespace NetConnection
 		enet_deinitialize();
 	}
 
+	char* GetPlayerName()
+	{
+		return PlayerName;
+	}
+
 	void BeginConnect(const char* address, uint16_t port)
 	{
 		WasTimeout = false;
@@ -62,6 +72,8 @@ namespace NetConnection
 
 	void Disconnect()
 	{
+		PlayerID = uint64_t(-1);
+
 		if (ServerPeer)
 		{
 			C2S_Goodbye bye;
@@ -114,6 +126,10 @@ namespace NetConnection
 					ping.clientTimeMs = GetTimeMs();
 
 					Processor.SendPacket(ServerPeer, 0, ping);
+
+					C2S_JoinRequest join;
+					CopyFixedSizeString(join.desriredName, PlayerName, sizeof(PlayerName));
+					Processor.SendPacket(ServerPeer, 0, join);
 
 					printf("[Client] Connected to server. Sent C2S_Ping packet on Channel 0 (timestamp: %llu ms).\n", ping.clientTimeMs);
 				}
