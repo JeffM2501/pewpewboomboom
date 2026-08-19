@@ -188,10 +188,9 @@ Server response containing authorization status, assigned ID, and general map co
 | :--- | :--- | :--- | :--- |
 | **PacketType** | `uint8_t` | 1 | Set to `PacketType::S2C_JoinResponse` (value: 1) |
 | **ResponseCode** | `uint8_t` | 1 | `0`: Success, `1`: Server Full, `2`: Version Mismatch. |
-| **AssignedID** | `uint8_t` | 1 | Unique network ID (0-31) representing the client's tank. |
+| **AssignedID** | `size_t` | 1 | Unique network ID (0-31) representing the client's tank. |
 | **SpawnX** | `float` | 4 | Initial coordinate X on spawning. |
 | **SpawnY** | `float` | 4 | Initial coordinate Y on spawning. |
-| **MapSeed** | `uint32_t` | 4 | Seed to generate identical procedural map details on client. |
 
 ##### S2C_WorldSnapshot (Channel 1 - Unreliable)
 Broadcast at 60Hz from the server to synchronize overall world state.
@@ -349,7 +348,7 @@ pewpewboomboom/
 ### Phase 2: Network Protocol & Shared Data Structures
 **Goal**: Standardize the message format, sequence ordering, and serialization utility logic.
 
-- [ ] **2.1 Configuration Constant Defs**
+- [*] **2.1 Configuration Constant Defs**
   - Create [sharedLib/include/Common.h](file:///c:/Users/jeffm/Desktop/pewpewboomboom/sharedLib/include/Common.h).
   - Define global variables and constants:
     - `TICK_RATE = 60` (ticks per second)
@@ -802,4 +801,4 @@ public:
 
 3. **Concrete Usage Patterns**:
    * **Chat Messages**: Encoded as `[PacketType: 1B] [SenderID: 2B] [TextLength: 2B] [UTF-8 Text Bytes: N]`.
-   * **Map Data**: Encoded as `[PacketType: 1B] [Width: 2B] [Height: 2B] [TileCount: 2B] [Tile Array: N * sizeof(Tile)]`.
+   * **Map Data**: Encoded as `[PacketType: 1B] [Width: 2B] [Height: 2B] [TileCount: 2B] [Tile Array: N * sizeof(Tile)]`.

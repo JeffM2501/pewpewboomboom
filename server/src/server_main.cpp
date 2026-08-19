@@ -8,6 +8,7 @@
 #include "log_system.h"
 #include "protocol.h"
 #include "packet_processor.h"
+#include "constants.h"
 
 bool Running = true;
 
@@ -17,7 +18,7 @@ PacketProcessor Proessor;
 
 Logger ServerLogger(ConsoleLogOutput);
 
-static constexpr double ServerTickTime = 60.0f;
+static constexpr double ServerTickTime = double(kDefaultTickRate);
 static constexpr int ServerTickTimeMS = static_cast<int>(1.0f / ServerTickTime * 1000.0f);
 
 FixedTickAccumulator ServerTick(ServerTickTime);
@@ -36,10 +37,10 @@ void ServerSetup()
 	ServerLogger.Log(LogLevel::Info, "Server is starting up...");
 
 	ServerHost = enet_host_create(&address /* the address to bind the server host to */,
-		32      /* allow up to 32 clients and/or outgoing connections */,
-		2      /* allow up to 2 channels to be used, 0 and 1 */,
-		0      /* assume any amount of incoming bandwidth */,
-		0      /* assume any amount of outgoing bandwidth */);
+		kMaxPlayers     /* allow up to 32 clients and/or outgoing connections */,
+		2				/* allow up to 2 channels to be used, 0 and 1 */,
+		0				/* assume any amount of incoming bandwidth */,
+		0				/* assume any amount of outgoing bandwidth */);
 
 	if (ServerHost)
 	{
@@ -100,7 +101,7 @@ void ServerNetUpdate(double deltaTime)
 			break;
 
 		case ENET_EVENT_TYPE_DISCONNECT_TIMEOUT:
-            ServerLogger.Log(LogLevel::Info, "%x disconnected (timeout).", event.peer->data);
+			ServerLogger.Log(LogLevel::Info, "%x disconnected (timeout).", event.peer->data);
 			break;
 		}
 	}
@@ -108,10 +109,10 @@ void ServerNetUpdate(double deltaTime)
 
 void ProcessC2S_Ping(ENetPeer* sender, const C2S_Ping* ping)
 {
-    S2C_Pong pong;
-    pong.type = static_cast<uint8_t>(PacketType::S2C_Pong);
-    pong.clientTimeMs = ping->clientTimeMs;
-    pong.serverTimeMs = GetTimeMs() - ServerStartTimeMs;
+	S2C_Pong pong;
+	pong.type = static_cast<uint8_t>(PacketType::S2C_Pong);
+	pong.clientTimeMs = ping->clientTimeMs;
+	pong.serverTimeMs = GetTimeMs() - ServerStartTimeMs;
 
 	Proessor.SendPacket(sender, 0, pong);
 
@@ -120,7 +121,7 @@ void ProcessC2S_Ping(ENetPeer* sender, const C2S_Ping* ping)
 
 void ProcessC2S_Goodbye(ENetPeer* sender, const C2S_Goodbye* goodbye)
 {
-    ServerLogger.Log(LogLevel::Info, "%x sent goodbye, reason %d.", sender->address.host, goodbye->reason);
+	ServerLogger.Log(LogLevel::Info, "%x sent goodbye, reason %d.", sender->address.host, goodbye->reason);
 
 	enet_peer_disconnect_now(sender, 0);
 }

@@ -2,11 +2,23 @@
 
 #include <cstdint>
 
+#include "constants.h"
+
 enum class PacketType : uint8_t
 {
+	INVALID = 0,
 	C2S_Ping = 1,
 	S2C_Pong = 2,
 	C2S_Goodbye = 3,
+	C2S_JoinRequest = 4,
+	S2C_JoinResponse = 5,
+	C2S_InputState = 6,
+	S2C_WorldSnapshot = 7,
+	S2C_EventNotification = 8,
+	C2S_ChatMessage = 9,
+	S2C_PlayerDisconnected = 10,
+	C2S_RespawnRequest = 11,
+	S2C_ChatMessage = 12
 };
 
 #pragma pack(push, 1)
@@ -30,7 +42,31 @@ struct C2S_Goodbye
 		Disconnect,
 		Transfer,
 	};
-    uint8_t type = static_cast<uint8_t>(PacketType::C2S_Goodbye);
+	uint8_t type = static_cast<uint8_t>(PacketType::C2S_Goodbye);
 	Reason reason = Reason::Disconnect;
+};
+
+struct C2S_JoinRequest
+{
+	uint8_t type = static_cast<uint8_t>(PacketType::C2S_JoinRequest);
+	uint8_t protocolVersion = kProtocolVersion;
+	char desriredName[kMaxNameSize] = {};
+};
+
+struct S2C_JoinResponse
+{
+	enum class Result : uint8_t
+	{
+		Failure = 0,
+		Success = 1
+	};
+	uint8_t type = static_cast<uint8_t>(PacketType::S2C_JoinResponse);
+	Result result = Result::Failure;
+
+	size_t playerId = 0;
+	float spawnX = 0.0f;
+	float spawnY = 0.0f;
+
+	char actualName[kMaxNameSize] = {};
 };
 #pragma pack(pop)

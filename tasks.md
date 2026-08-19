@@ -79,14 +79,14 @@ This document contains the complete, Jira-formatted issue backlog for **PewPewBo
 ## EPIC 2: Network Protocol & Binary Serialization
 
 ### [PEW-201] Shared Constants & Configuration Header
-* **Status**: `[ ] TO DO`
+* **Status**: `[x] DONE`
 * **Issue Type**: Task
 * **Component**: `sharedLib`
 * **Priority**: High
 * **Story**: As a developer, I want a single source of truth for game constants so that client and server operate under identical simulation rules.
 * **Technical Acceptance Criteria**:
-  - [ ] Create `sharedLib/include/Common.h`.
-  - [ ] Define `constexpr` values for `TICK_RATE = 60`, `TICK_TIME = 1.0f / 60.0f`, `MAX_PLAYERS = 32`, `MAX_BULLETS = 256`, `MAP_BOUNDS = 2000.0f`, `TANK_RADIUS = 24.0f`, `BULLET_RADIUS = 4.0f`.
+  - [*] Create `sharedLib/include/constnats.h`.
+  - [*] Define `constexpr` values for `TICK_RATE = 60`, `TICK_TIME = 1.0f / 60.0f`, `MAX_PLAYERS = 32`
 * **Definition of Done**: Header compiles in both `client` and `server` without macro collision errors.
 
 ---
