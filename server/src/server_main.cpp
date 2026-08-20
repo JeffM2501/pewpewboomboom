@@ -8,6 +8,7 @@
 #include "log_system.h"
 #include "protocol.h"
 #include "packet_processor.h"
+#include "text_utils.h"
 #include "constants.h"
 
 bool Running = true;
@@ -25,6 +26,7 @@ FixedTickAccumulator ServerTick(ServerTickTime);
 
 void ProcessC2S_Ping(ENetPeer* sender, const C2S_Ping* ping);
 void ProcessC2S_Goodbye(ENetPeer* sender, const C2S_Goodbye* goodbye);
+void ProcessC2S_JoinRequest(ENetPeer* sender, const C2S_JoinRequest* goodbye);
 
 void ServerSetup()
 {
@@ -53,6 +55,7 @@ void ServerSetup()
 
 	Proessor.RegisterProcessor<C2S_Ping>(PacketType::C2S_Ping, ProcessC2S_Ping);
 	Proessor.RegisterProcessor<C2S_Goodbye>(PacketType::C2S_Goodbye, ProcessC2S_Goodbye);
+	Proessor.RegisterProcessor<C2S_JoinRequest>(PacketType::C2S_JoinRequest, ProcessC2S_JoinRequest);
 }
 
 void ServerCleanup()
@@ -110,7 +113,6 @@ void ServerNetUpdate(double deltaTime)
 void ProcessC2S_Ping(ENetPeer* sender, const C2S_Ping* ping)
 {
 	S2C_Pong pong;
-	pong.type = static_cast<uint8_t>(PacketType::S2C_Pong);
 	pong.clientTimeMs = ping->clientTimeMs;
 	pong.serverTimeMs = GetTimeMs() - ServerStartTimeMs;
 
@@ -126,6 +128,19 @@ void ProcessC2S_Goodbye(ENetPeer* sender, const C2S_Goodbye* goodbye)
 	enet_peer_disconnect_now(sender, 0);
 }
 
+void ProcessC2S_JoinRequest(ENetPeer* sender, const C2S_JoinRequest* join)
+{
+    S2C_JoinResponse responce;
+	
+	CopyFixedSizeString(responce.actualName, join->desriredName, kMaxPlayers);
+	responce.result = S2C_JoinResponse::Result::Success;
+	responce.playerId = uint64_t(sender->connectID);
+	responce.spawnX = 100;
+	responce.spawnY = 100;
+    Proessor.SendPacket(sender, 0, responce);
+
+    ServerLogger.Log(LogLevel::Info, "%x sent Join Response, ID %d name %s", responce.playerId, responce.actualName);
+}
 
 int main(int argc, char* argv[])
 {

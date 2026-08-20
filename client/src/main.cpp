@@ -6,6 +6,8 @@ Use this as a starting point or replace it with your code.
 
 */
 
+#include <deque>
+
 #include "raylib.h"
 #include "raymath.h"
 
@@ -22,6 +24,24 @@ Material CubeMaterial = { 0 };
 
 Camera3D ViewCamera = { 0 };
 
+std::deque<std::string> LogLines;
+
+static void GameLogger(std::string_view message, LogLevel level)
+{
+	LogLines.push_back(std::string(message));
+
+	while (LogLines.size() > 10)
+	{
+		LogLines.pop_front();
+	}
+}
+
+static Logger GlobalLogger(GameLogger);
+
+Logger& GetLogger()
+{
+	return GlobalLogger;
+}
 
 #include <mutex>
 #include <deque>
@@ -76,7 +96,7 @@ KeyEvent PollKeyEvents()
 void GameInit()
 {
 	SetConfigFlags(FLAG_VSYNC_HINT | FLAG_WINDOW_RESIZABLE);
-	InitWindow(InitialWidth, InitialHeight, "Example");
+	InitWindow(1280, 800, "Example");
 	SetTargetFPS(144);
 
 	rlImGuiSetup(true);
@@ -127,7 +147,9 @@ void GameDraw()
 	EndMode3D();
 
 	if (NetConnection::GetState() != ConnectionState::Connected)
+	{
 		DrawText("Disconnected", 10, 10, 20, RED);
+	}
 	else
 	{
 		char statusText[128];
@@ -138,6 +160,14 @@ void GameDraw()
 	rlImGuiBegin();
 	NetConnectionDialog::ShowDialog();
 	rlImGuiEnd();
+
+	int y = GetScreenHeight() - 200;
+	DrawRectangle(5, y-5, 600, 210, ColorAlpha(BLACK, 0.25f));
+	for (auto& line : LogLines)
+	{
+		DrawText(line.c_str(), 10, y, 10, WHITE);
+		y += 10;
+	}
 
 	EndDrawing();
 }

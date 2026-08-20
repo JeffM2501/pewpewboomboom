@@ -6,6 +6,7 @@
 #include "time_utils.h"
 #include "packet_processor.h"
 #include "text_utils.h"
+#include "game.h"
 
 namespace NetConnection
 {
@@ -32,8 +33,17 @@ namespace NetConnection
         uint64_t rtt = (nowMs >= pong->clientTimeMs) ? (nowMs - pong->clientTimeMs) : 0;
         LastRTT = rtt;
 
-        printf("[Client] Received S2C_Pong packet! RTT Latency: %llu ms (Server Uptime: %llu ms)\n", rtt, pong->serverTimeMs);
+        GetLogger().Log(LogLevel::Info, "[Client] Received S2C_Pong packet! RTT Latency: %llu ms (Server Uptime: %llu ms)", rtt, pong->serverTimeMs);
 	}
+
+    void ProcessS2C_JoinResponce(ENetPeer* sender, const S2C_JoinResponse* responce)
+    {
+        uint64_t nowMs = GetTimeMs();
+        uint64_t rtt = (nowMs >= pong->clientTimeMs) ? (nowMs - pong->clientTimeMs) : 0;
+        LastRTT = rtt;
+
+        GetLogger().Log(LogLevel::Info, "[Client] Received S2C_Pong packet! RTT Latency: %llu ms (Server Uptime: %llu ms)", rtt, pong->serverTimeMs);
+    }
 
 	void Init()
 	{
@@ -126,12 +136,13 @@ namespace NetConnection
 					ping.clientTimeMs = GetTimeMs();
 
 					Processor.SendPacket(ServerPeer, 0, ping);
+					GetLogger().Log(LogLevel::Info, "[Client] Connected to server. Sent C2S_Ping packet on Channel 0 (timestamp: %llu ms).", ping.clientTimeMs);
 
 					C2S_JoinRequest join;
 					CopyFixedSizeString(join.desriredName, PlayerName, sizeof(PlayerName));
 					Processor.SendPacket(ServerPeer, 0, join);
 
-					printf("[Client] Connected to server. Sent C2S_Ping packet on Channel 0 (timestamp: %llu ms).\n", ping.clientTimeMs);
+					GetLogger().Log(LogLevel::Info, "[Client] Sent C2S_JoinRequest packet on Channel 0, desired name %s.", PlayerName);
 				}
 				else if (event.type == ENET_EVENT_TYPE_RECEIVE)
 				{
