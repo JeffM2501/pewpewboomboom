@@ -14,10 +14,6 @@
 
 bool Running = true;
 
-bool HadAJoin = false;
-
-size_t PeerCount = 0;
-
 ENetHost* ServerHost = nullptr;
 uint64_t ServerStartTimeMs = 0;
 PacketProcessor Proessor;
@@ -28,6 +24,19 @@ static constexpr double ServerTickTime = double(kDefaultTickRate);
 static constexpr int ServerTickTimeMS = static_cast<int>(1.0f / ServerTickTime * 1000.0f);
 
 FixedTickAccumulator ServerTick(ServerTickTime);
+
+struct ServerPlayer
+{
+	uint64_t PlayerID = uint64_t(-1);
+	ENetPeer* Peer = nullptr;
+	char Name[kMaxNameSize] = {};
+	int Team = -1;
+	float Position[3] = { 0.0f, 0.0f, 0.0f };
+	float Rotation[2] = { 0.0f, 0.0f };
+	float Velocity[3] = { 0.0f, 0.0f, 0.0f };
+};
+
+std::unordered_map<enet_uint32, ServerPlayer> ServerPlayers;
 
 void ProcessC2S_Ping(ENetPeer* sender, const C2S_Ping* ping);
 void ProcessC2S_Goodbye(ENetPeer* sender, const C2S_Goodbye* goodbye);
@@ -74,6 +83,22 @@ void ServerCleanup()
 	enet_deinitialize();
 }
 
+void RemovePlayer(ENetPeer* peer)
+{
+	auto it = ServerPlayers.find(peer->connectID);
+	if (it != ServerPlayers.end())
+	{
+		ServerLogger.Log(LogLevel::Info, "Removing player %s (ID: %llu) from server.", it->second.Name, it->second.PlayerID);
+		ServerPlayers.erase(it);
+
+		// send a remove player to all other players
+	}
+	else
+	{
+		ServerLogger.Log(LogLevel::Warning, "Attempted to remove unknown player with connectID %u.", peer->connectID);
+	}
+}
+
 void ServerNetUpdate(double deltaTime)
 {
 	ENetEvent event;
@@ -87,8 +112,8 @@ void ServerNetUpdate(double deltaTime)
 		{
 		case ENET_EVENT_TYPE_CONNECT:
 			ServerLogger.Log(LogLevel::Info, "A new client connected from %x:%d", event.peer->address.host, event.peer->address.port);
-			HadAJoin = true;
-			PeerCount++;
+
+			ServerPlayers.emplace(event.peer->connectID, ServerPlayer{ uint64_t(event.peer->connectID), event.peer });
 			break;
 
 		case ENET_EVENT_TYPE_RECEIVE:
@@ -103,11 +128,11 @@ void ServerNetUpdate(double deltaTime)
 
 		case ENET_EVENT_TYPE_DISCONNECT:
 			ServerLogger.Log(LogLevel::Info, "%x disconnected.", event.peer->data);
-
+			RemovePlayer(event.peer);
 			/* Reset the peer's client information. */
 			event.peer->data = nullptr;
-			PeerCount--;
-			if (PeerCount == 0)
+
+			if (ServerPlayers.empty())
 			{
 				Running = false;
 			}
@@ -115,11 +140,11 @@ void ServerNetUpdate(double deltaTime)
 
 		case ENET_EVENT_TYPE_DISCONNECT_TIMEOUT:
 			ServerLogger.Log(LogLevel::Info, "%x disconnected (timeout).", event.peer->data);
-            PeerCount--;
-            if (PeerCount == 0)
-            {
-                Running = false;
-            }
+			RemovePlayer(event.peer);
+			if (ServerPlayers.empty())
+			{
+				Running = false;
+			}
 			break;
 		}
 	}
@@ -145,16 +170,41 @@ void ProcessC2S_Goodbye(ENetPeer* sender, const C2S_Goodbye* goodbye)
 
 void ProcessC2S_JoinRequest(ENetPeer* sender, const C2S_JoinRequest* join)
 {
-    S2C_JoinResponse responce;
-	
-	CopyFixedSizeString(responce.actualName, "Steve", kMaxPlayers);
-	responce.result = S2C_JoinResponse::Result::Success;
-	responce.playerId = uint64_t(sender->connectID);
-	responce.spawnX = float(GetRandomValue(-50,50));
-	responce.spawnY = float(GetRandomValue(-50, 50));
-    Proessor.SendPacket(sender, 0, responce);
+	S2C_JoinResponse responce;
 
-    ServerLogger.Log(LogLevel::Info, "%x sent Join Response, ID %d name %s", sender->address.host, responce.playerId, responce.actualName);
+	auto it = ServerPlayers.find(sender->connectID);
+	if (it == ServerPlayers.end())
+	{
+		responce.result = S2C_JoinResponse::Result::Failure;
+		ServerLogger.Log(LogLevel::Warning, "Received C2S_JoinRequest from unknown peer %x.", sender->address.host);
+		Proessor.SendPacket(sender, 0, responce);
+		enet_peer_disconnect_now(sender, 0);
+		return;
+	}
+
+	it->second.PlayerID = uint64_t(sender->connectID);
+	CopyFixedSizeString(it->second.Name, "Steve", kMaxPlayers);
+
+	it->second.Position[0] = float(GetRandomValue(-50, 50));
+	it->second.Position[1] = 0;
+	it->second.Position[2] = float(GetRandomValue(-50, 50));
+
+	responce.result = S2C_JoinResponse::Result::Success;
+	CopyFixedSizeString(responce.actualName, it->second.Name, kMaxPlayers);
+
+	responce.playerId = it->second.PlayerID;
+	responce.spawnX = it->second.Position[0];
+	responce.spawnY = it->second.Position[1];
+
+	Proessor.SendPacket(sender, 0, responce);
+	ServerLogger.Log(LogLevel::Info, "%x sent Join Response, ID %d name %s", sender->address.host, responce.playerId, responce.actualName);
+
+	// send the world snapshot
+
+	// send the player list as snapshots
+
+	// send them to all other players
+
 }
 
 int main(int argc, char* argv[])
