@@ -24,6 +24,8 @@ Material CubeMaterial = { 0 };
 
 Camera3D ViewCamera = { 0 };
 
+
+#include <deque>
 std::deque<std::string> LogLines;
 
 static void GameLogger(std::string_view message, LogLevel level)
@@ -31,13 +33,10 @@ static void GameLogger(std::string_view message, LogLevel level)
 	LogLines.push_back(std::string(message));
 
 	while (LogLines.size() > 10)
-	{
 		LogLines.pop_front();
-	}
 }
 
-static Logger GlobalLogger(GameLogger);
-
+Logger GlobalLogger(GameLogger);
 Logger& GetLogger()
 {
 	return GlobalLogger;
@@ -115,7 +114,7 @@ void GameDraw()
 	rlImGuiEnd();
 
 	int y = GetScreenHeight() - 200;
-	DrawRectangle(5, y-5, 600, 210, ColorAlpha(BLACK, 0.25f));
+	DrawRectangle(5, y - 5, 600, 210, ColorAlpha(BLACK, 0.25f));
 	for (auto& line : LogLines)
 	{
 		DrawText(line.c_str(), 10, y, 10, WHITE);
