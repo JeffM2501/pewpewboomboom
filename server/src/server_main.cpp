@@ -1,8 +1,8 @@
+#include "external/fix_win32_compatibility.h"
 
 #include <stdio.h>
 
 #include "enet.h"
-#include "external/fix_win32_compatibility.h"
 
 #include "time_utils.h"
 #include "log_system.h"
@@ -10,8 +10,13 @@
 #include "packet_processor.h"
 #include "text_utils.h"
 #include "constants.h"
+#include "raylib.h"
 
 bool Running = true;
+
+bool HadAJoin = false;
+
+size_t PeerCount = 0;
 
 ENetHost* ServerHost = nullptr;
 uint64_t ServerStartTimeMs = 0;
@@ -82,7 +87,8 @@ void ServerNetUpdate(double deltaTime)
 		{
 		case ENET_EVENT_TYPE_CONNECT:
 			ServerLogger.Log(LogLevel::Info, "A new client connected from %x:%d", event.peer->address.host, event.peer->address.port);
-
+			HadAJoin = true;
+			PeerCount++;
 			break;
 
 		case ENET_EVENT_TYPE_RECEIVE:
@@ -99,12 +105,21 @@ void ServerNetUpdate(double deltaTime)
 			ServerLogger.Log(LogLevel::Info, "%x disconnected.", event.peer->data);
 
 			/* Reset the peer's client information. */
-
 			event.peer->data = nullptr;
+			PeerCount--;
+			if (PeerCount == 0)
+			{
+				Running = false;
+			}
 			break;
 
 		case ENET_EVENT_TYPE_DISCONNECT_TIMEOUT:
 			ServerLogger.Log(LogLevel::Info, "%x disconnected (timeout).", event.peer->data);
+            PeerCount--;
+            if (PeerCount == 0)
+            {
+                Running = false;
+            }
 			break;
 		}
 	}
@@ -132,14 +147,14 @@ void ProcessC2S_JoinRequest(ENetPeer* sender, const C2S_JoinRequest* join)
 {
     S2C_JoinResponse responce;
 	
-	CopyFixedSizeString(responce.actualName, join->desriredName, kMaxPlayers);
+	CopyFixedSizeString(responce.actualName, "Steve", kMaxPlayers);
 	responce.result = S2C_JoinResponse::Result::Success;
 	responce.playerId = uint64_t(sender->connectID);
-	responce.spawnX = 100;
-	responce.spawnY = 100;
+	responce.spawnX = float(GetRandomValue(-50,50));
+	responce.spawnY = float(GetRandomValue(-50, 50));
     Proessor.SendPacket(sender, 0, responce);
 
-    ServerLogger.Log(LogLevel::Info, "%x sent Join Response, ID %d name %s", responce.playerId, responce.actualName);
+    ServerLogger.Log(LogLevel::Info, "%x sent Join Response, ID %d name %s", sender->address.host, responce.playerId, responce.actualName);
 }
 
 int main(int argc, char* argv[])

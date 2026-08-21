@@ -1,12 +1,16 @@
-#include "net_connection.h"
+#include "external/fix_win32_compatibility.h"
 
-#include <cstdio>
+#include "net_connection.h"
 #include "enet.h"
+#include <cstdio>
+#
 #include "protocol.h"
 #include "time_utils.h"
 #include "packet_processor.h"
 #include "text_utils.h"
 #include "game.h"
+
+#include "raylib.h"
 
 namespace NetConnection
 {
@@ -27,6 +31,20 @@ namespace NetConnection
 
 	uint64_t PlayerID = uint64_t(-1);
 
+	Vector2 Spawn = { 0,0 };
+
+	static Events ConnectionEvents;
+
+	Events& GetEvents()
+	{
+		return ConnectionEvents;
+	}
+
+	Vector2 GetSpawn()
+	{
+		return Spawn;
+	}
+
 	void ProcessS2C_Pong(ENetPeer* sender, const S2C_Pong* pong)
 	{
         uint64_t nowMs = GetTimeMs();
@@ -36,13 +54,15 @@ namespace NetConnection
         GetLogger().Log(LogLevel::Info, "[Client] Received S2C_Pong packet! RTT Latency: %llu ms (Server Uptime: %llu ms)", rtt, pong->serverTimeMs);
 	}
 
-    void ProcessS2C_JoinResponce(ENetPeer* sender, const S2C_JoinResponse* responce)
+    void ProcessS2C_JoinResponse(ENetPeer* sender, const S2C_JoinResponse* responce)
     {
-        uint64_t nowMs = GetTimeMs();
-        uint64_t rtt = (nowMs >= pong->clientTimeMs) ? (nowMs - pong->clientTimeMs) : 0;
-        LastRTT = rtt;
+		CopyFixedSizeString(PlayerName, responce->actualName, kMaxNameSize);
+		PlayerID = responce->playerId;
+		Spawn.x = responce->spawnX;
+		Spawn.y = responce->spawnY;
 
-        GetLogger().Log(LogLevel::Info, "[Client] Received S2C_Pong packet! RTT Latency: %llu ms (Server Uptime: %llu ms)", rtt, pong->serverTimeMs);
+		ConnectionEvents.OnJoin.Invoke(PlayerID);
+		ConnectionEvents.OnSpawn.Invoke(Spawn);
     }
 
 	void Init()
@@ -50,6 +70,7 @@ namespace NetConnection
 		enet_initialize();
 
 		Processor.RegisterProcessor<S2C_Pong>(PacketType::S2C_Pong, ProcessS2C_Pong);
+		Processor.RegisterProcessor<S2C_JoinResponse>(PacketType::S2C_JoinResponse, ProcessS2C_JoinResponse);
 	}
 
 	void Shutdown()
@@ -137,6 +158,9 @@ namespace NetConnection
 
 					Processor.SendPacket(ServerPeer, 0, ping);
 					GetLogger().Log(LogLevel::Info, "[Client] Connected to server. Sent C2S_Ping packet on Channel 0 (timestamp: %llu ms).", ping.clientTimeMs);
+
+                    bool valid = true;
+                    ConnectionEvents.OnConnect.Invoke(valid);
 
 					C2S_JoinRequest join;
 					CopyFixedSizeString(join.desriredName, PlayerName, sizeof(PlayerName));

@@ -1,5 +1,10 @@
 #pragma once
+
+#include "external/fix_win32_compatibility.h"
+#include "raylib.h"
+
 #include <cstdint>
+#include "event_source.h"
 
 enum class ConnectionState
 {
@@ -27,4 +32,15 @@ namespace NetConnection
 	ConnectionState GetState();
 
 	uint64_t GetRTT();
+
+	Vector2 GetSpawn();
+
+	struct Events
+	{
+		EventSoure<bool> OnConnect;
+		EventSoure<uint64_t> OnJoin;
+		EventSoure<Vector2> OnSpawn;
+	};
+
+	Events& GetEvents();
 }

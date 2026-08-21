@@ -8,4 +8,5 @@ inline void CopyFixedSizeString(char* destination, const char* source, size_t ma
         len = maxLen - 1;
 
     strncpy(destination, source, len);
+    destination[len] = '\0';
 }

@@ -43,56 +43,6 @@ Logger& GetLogger()
 	return GlobalLogger;
 }
 
-#include <mutex>
-#include <deque>
-#include <set>
-#include <vector>
-
-std::mutex  KeyLock;
-
-struct KeyEvent
-{
-	KeyboardKey Key;
-	bool Down;
-};
-std::set<KeyboardKey> DownKeys;
-std::deque<KeyEvent> KeyEvents;
-
-void PollRealInput()
-{
-	std::vector<KeyboardKey> deadKeys;
-	for (const KeyboardKey& key : DownKeys)
-	{
-		if (!IsKeyDown(key))
-		{
-			std::lock_guard<std::mutex> lock(KeyLock);
-			KeyEvents.push_back(KeyEvent{ key, false });
-			deadKeys.push_back(key);
-		}
-	}
-
-	for (auto key : deadKeys)
-		DownKeys.erase(key);
-
-	while (int key = GetKeyPressed() != 0)
-	{
-		std::lock_guard<std::mutex> lock(KeyLock);
-		DownKeys.insert((KeyboardKey)key);
-		KeyEvents.push_back(KeyEvent{ (KeyboardKey)key, true });
-	}
-}
-
-KeyEvent PollKeyEvents()
-{
-	std::lock_guard<std::mutex> lock(KeyLock);
-	if (KeyEvents.empty())
-		return KeyEvent{ KEY_NULL, false };
-
-	KeyEvent front = KeyEvents.front();
-	KeyEvents.pop_front();
-	return front;
-}
-
 void GameInit()
 {
 	SetConfigFlags(FLAG_VSYNC_HINT | FLAG_WINDOW_RESIZABLE);
@@ -116,6 +66,8 @@ void GameInit()
 
 	GenTextureMipmaps(&CubeMaterial.maps[MATERIAL_MAP_DIFFUSE].texture);
 	SetTextureFilter(CubeMaterial.maps[MATERIAL_MAP_DIFFUSE].texture, TEXTURE_FILTER_TRILINEAR);
+
+	NetConnection::GetEvents().OnSpawn.Add([](Vector2& spawn, void*) { CubeTransform = MatrixTranslate(spawn.x, 0, spawn.y); });
 }
 
 void GameCleanup()
@@ -132,8 +84,8 @@ void GameCleanup()
 bool GameUpdate()
 {
 	NetConnection::Update();
-	Matrix rotation = MatrixRotateXYZ({ 0.0f, GetFrameTime(), 0.0f });
-	CubeTransform = MatrixMultiply(CubeTransform, rotation);
+	if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT))
+		UpdateCamera(&ViewCamera, CAMERA_THIRD_PERSON);
 	return true;
 }
 
@@ -143,6 +95,7 @@ void GameDraw()
 	ClearBackground(GRAY);
 
 	BeginMode3D(ViewCamera);
+	DrawGrid(100, 1);
 	DrawMesh(CubeMesh, CubeMaterial, CubeTransform);
 	EndMode3D();
 
@@ -153,7 +106,7 @@ void GameDraw()
 	else
 	{
 		char statusText[128];
-		snprintf(statusText, sizeof(statusText), "Connected | RTT: %llu ms", (unsigned long long)NetConnection::GetRTT());
+		snprintf(statusText, sizeof(statusText), "Connected | Name %s", NetConnection::GetPlayerName());
 		DrawText(statusText, 10, 10, 20, DARKGRAY);
 	}
 
