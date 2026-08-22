@@ -22,6 +22,10 @@ namespace NetConnection
 	bool WasTimeout = false;
 	uint64_t LastRTT = 0;
 
+	uint64_t ServerTickBase = 0;
+	uint64_t ServerTickSyncTimeMs = 0;
+	uint64_t ClientLastProcessedServerTick = 0;
+
 	PacketProcessor Processor;
 
 	uint64_t ConnectionStartTime = 0;
@@ -59,7 +63,29 @@ namespace NetConnection
 		uint64_t rtt = (nowMs >= pong->clientTimeMs) ? (nowMs - pong->clientTimeMs) : 0;
 		LastRTT = rtt;
 
-		GetLogger().Log(LogLevel::Info, "[Client] Received S2C_Pong packet! RTT Latency: %llu ms (Server Uptime: %llu ms)", rtt, pong->serverTimeMs);
+		uint64_t latency = rtt / 2;
+		ServerTickBase = pong->serverTick;
+		ServerTickSyncTimeMs = pong->clientTimeMs + latency;
+
+		GetLogger().Log(LogLevel::Info, "[Client] Received S2C_Pong packet! RTT Latency: %llu ms (Server Uptime: %llu ms, Server Tick: %llu)", rtt, pong->serverTimeMs, pong->serverTick);
+	}
+
+	uint64_t GetCurrentServerTick()
+	{
+		if (ServerTickSyncTimeMs == 0)
+		{
+			return 0;
+		}
+
+		uint64_t nowMs = GetTimeMs();
+		if (nowMs < ServerTickSyncTimeMs)
+		{
+			return ServerTickBase;
+		}
+
+		double elapsedSec = (nowMs - ServerTickSyncTimeMs) / 1000.0;
+		uint64_t ticksElapsed = static_cast<uint64_t>(elapsedSec * kDefaultTickRate);
+		return ServerTickBase + ticksElapsed;
 	}
 
 	void ProcessS2C_JoinResponse(ENetPeer* sender, const S2C_JoinResponse* responce)
@@ -111,6 +137,9 @@ namespace NetConnection
 	void Disconnect()
 	{
 		PlayerID = uint64_t(-1);
+		ServerTickBase = 0;
+		ServerTickSyncTimeMs = 0;
+		ClientLastProcessedServerTick = 0;
 
 		if (ServerPeer)
 		{
@@ -200,6 +229,21 @@ namespace NetConnection
 				{
 					WasTimeout = true;
 					Disconnect();
+				}
+			}
+
+			if (CurentState == ConnectionState::Connected && ServerTickSyncTimeMs > 0)
+			{
+				uint64_t currentTick = GetCurrentServerTick();
+				if (ClientLastProcessedServerTick == 0)
+				{
+					ClientLastProcessedServerTick = currentTick;
+				}
+
+				while (ClientLastProcessedServerTick < currentTick)
+				{
+					ClientLastProcessedServerTick++;
+					ConnectionEvents.OnTick.Invoke(ClientLastProcessedServerTick);
 				}
 			}
 		}

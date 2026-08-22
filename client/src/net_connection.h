@@ -39,11 +39,14 @@ namespace NetConnection
 
 	Vector2 GetSpawn();
 
+	uint64_t GetCurrentServerTick();
+
 	struct Events
 	{
 		EventSoure<bool> OnConnect;
 		EventSoure<uint64_t> OnJoin;
 		EventSoure<Vector2> OnSpawn;
+		EventSoure<uint64_t> OnTick;
 	};
 
 	Events& GetEvents();
