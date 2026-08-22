@@ -99,7 +99,7 @@ This document contains the complete, Jira-formatted issue backlog for **PewPewBo
 * **Story**: As a network programmer, I want all network packets defined as fixed-size structs with pack alignment so they can be cast or copied directly without manual stream parsing.
 * **Technical Acceptance Criteria**:
   - [ ] Define all network packet structs in `sharedLib/include/Protocol.h` using `#pragma pack(push, 1)`.
-  - [ ] Ensure `C2S_JoinRequest` (21B) and `C2S_ChatMessage` / `S2C_ChatMessage` (129B/130B) use fixed-size character arrays (`char[16]` and `char[128]`) instead of variable-length strings.
+  - [ ] Ensure `C2S_JoinRequest` (21B), `S2C_PlayerJoined` (18B), and `C2S_ChatMessage` / `S2C_ChatMessage` (129B/130B) use fixed-size character arrays (`char[16]` and `char[128]`) instead of variable-length strings.
   - [ ] Define `S2C_WorldSnapshotHeader` (13B), `S2C_PlayerSnapshot` (28B), `S2C_BulletSnapshot` (18B), and `S2C_PowerupSnapshot` (15B).
 * **Definition of Done**: Compilation succeeds and `static_assert(sizeof(T) == ExpectedSize)` checks pass for all defined structs.
 

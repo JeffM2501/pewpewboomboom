@@ -127,7 +127,7 @@ graph TD
     end
 
     subgraph Server-to-Client
-        Server -->|JoinResponse, EventNotification, ChatMessage, PlayerDisconnected| C0
+        Server -->|JoinResponse, PlayerJoined, EventNotification, ChatMessage, PlayerDisconnected| C0
         Server -->|WorldSnapshot| C1
     end
 ```
@@ -257,6 +257,15 @@ Broadcast of a text message from a user.
 | **SenderID** | `uint8_t` | 1 | Client ID who sent the message (or `255` for Server/System). |
 | **MessageText** | `char[128]` | 128 | Null-terminated UTF-8 message text. |
 
+##### S2C_PlayerJoined (Channel 0 - Reliable)
+Broadcast when a new player connects and spawns (and sent to connecting clients for all existing players) so remote clients register the player's ID and nickname.
+
+| Field | Data Type | Bytes | Description |
+| :--- | :--- | :--- | :--- |
+| **PacketType** | `uint8_t` | 1 | Set to `PacketType::S2C_PlayerJoined` (value: 12) |
+| **PlayerID** | `uint8_t` | 1 | Unique network ID (0-31) representing the joined player. |
+| **PlayerName** | `char[16]` | 16 | Null-terminated UTF-8 string containing the user's nickname. |
+
 ---
 
 #### 3. Nested Network State Data Structures
@@ -380,7 +389,8 @@ pewpewboomboom/
 - [ ] **2.2 Packet Struct Serialization**
   - Create [sharedLib/include/Protocol.h](file:///c:/Users/jeffm/Desktop/pewpewboomboom/sharedLib/include/Protocol.h) containing the `PacketType` enum:
     ```cpp
-    enum class PacketType : uint8_t {
+    enum class PacketType : uint8_t
+    {
         C2S_JoinRequest = 0,
         S2C_JoinResponse = 1,
         C2S_InputState = 2,
@@ -392,7 +402,8 @@ pewpewboomboom/
         C2S_ChatMessage = 8,
         S2C_PlayerDisconnected = 9,
         C2S_RespawnRequest = 10,
-        S2C_ChatMessage = 11
+        S2C_ChatMessage = 11,
+        S2C_PlayerJoined = 12
     };
     ```
   - Define network packets as fixed-size structs utilizing `#pragma pack(push, 1)` or compiler alignment attributes to ensure direct memory copyability/casting without padding differences between platforms.
@@ -401,6 +412,7 @@ pewpewboomboom/
   - `S2C_WorldSnapshotHeader`: Server tick count, last processed client tick, active counts of players, bullets, and powerups.
   - `S2C_PlayerSnapshot`, `S2C_BulletSnapshot`, `S2C_PowerupSnapshot`: Individual entity state snapshots sent as separate fixed-size packets.
   - `S2C_JoinResponse`: Assigned Player ID, spawned coordinates.
+  - `S2C_PlayerJoined`: Assigned Player ID and display name for roster synchronization.
 
 ---
 
@@ -648,7 +660,7 @@ This section provides technical directives tailored for a **senior game develope
 - **Prompt 2.1 (Configuration Defs)**:
   > *"Create `sharedLib/include/Common.h`. Define `constexpr` values for `TICK_RATE = 60`, `TICK_TIME = 1.0f / 60.0f`, `MAX_PLAYERS = 32`, `MAX_BULLETS = 256`, `MAP_BOUNDS = 2000.0f`, `TANK_RADIUS = 24.0f`, and `BULLET_RADIUS = 4.0f`."*
 - **Prompt 2.2 (Fixed-Size Packets Definition)**:
-  > *"Define all network packet structures in `sharedLib/include/Protocol.h` using `#pragma pack(push, 1)`. Ensure all packet structs have fixed known sizes, including C2S_JoinRequest (21B) and C2S_ChatMessage (129B) which should use fixed character arrays (`char[16]` and `char[128]`) instead of dynamic serialization."*
+  > *"Define all network packet structures in `sharedLib/include/Protocol.h` using `#pragma pack(push, 1)`. Ensure all packet structs have fixed known sizes, including C2S_JoinRequest (21B), S2C_PlayerJoined (18B), and C2S_ChatMessage (129B) which should use fixed character arrays (`char[16]` and `char[128]`) instead of dynamic serialization."*
 - **Prompt 2.3 (Packet Size Validation & Handler Registry)**:
   > *"In `sharedLib/src/packet_processor.cpp`, implement validation logic to assert that incoming ENet packets exactly match the expected `sizeof(T)` for their designated PacketType. Register callbacks that accept direct struct pointers and reject malformed/wrong-sized packets."*
 
@@ -827,3 +839,4 @@ public:
 #### Concrete Usage Patterns
 * **Chat Messages**: Always transmitted as a fixed `S2C_ChatMessage` struct (130 bytes), containing `[PacketType: 1B] [SenderID: 1B] [MessageText: char[128]]`.
 * **Join Requests**: Always transmitted as a fixed `C2S_JoinRequest` struct (21 bytes), containing `[PacketType: 1B] [ProtocolVersion: 4B] [PlayerName: char[16]]`.
+* **Player Introductions**: Always transmitted as a fixed `S2C_PlayerJoined` struct (18 bytes), containing `[PacketType: 1B] [PlayerID: 1B] [PlayerName: char[16]]`.

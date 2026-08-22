@@ -42,6 +42,9 @@ Logger& GetLogger()
 	return GlobalLogger;
 }
 
+
+void ProcessNetTick(uint64_t tick, void* sender);
+
 void GameInit()
 {
 	SetConfigFlags(FLAG_VSYNC_HINT | FLAG_WINDOW_RESIZABLE);
@@ -51,6 +54,8 @@ void GameInit()
 	rlImGuiSetup(true);
 
 	NetConnection::Init();
+
+	NetConnection::GetEvents().OnTick.Add(ProcessNetTick);
 
 	ViewCamera.fovy = 45.0f;
 	ViewCamera.position = { 3.0f, 3.0f, 3.0f };
@@ -122,6 +127,14 @@ void GameDraw()
 	}
 
 	EndDrawing();
+}
+
+void ProcessNetTick(uint64_t tick, void*)
+{
+	if (!NetConnection::IsReady())
+		return;
+
+	// poll input
 }
 
 int main()

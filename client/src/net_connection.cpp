@@ -15,6 +15,8 @@
 
 namespace NetConnection
 {
+	constexpr uint64_t InvalidPlayerId = uint64_t(-1);
+
 	ConnectionState CurentState = ConnectionState::Disconnected;
 	ENetHost* ClientHost = nullptr;
 	ENetPeer* ServerPeer = nullptr;
@@ -34,7 +36,7 @@ namespace NetConnection
 
 	FixedSizeString<kMaxPlayers> PlayerName = "PlayerMcPlayerface";
 
-	uint64_t PlayerID = uint64_t(-1);
+	uint64_t PlayerID = InvalidPlayerId;
 
 	Vector2 Spawn = { 0,0 };
 
@@ -164,6 +166,11 @@ namespace NetConnection
 	ConnectionState GetState()
 	{
 		return CurentState;
+	}
+
+	bool IsReady()
+	{
+		return CurentState == ConnectionState::Connected && PlayerID != InvalidPlayerId;
 	}
 
 	bool HadTimeout()

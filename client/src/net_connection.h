@@ -34,6 +34,7 @@ namespace NetConnection
 	bool HadTimeout();
 
 	ConnectionState GetState();
+	bool IsReady();
 
 	uint64_t GetRTT();
 
