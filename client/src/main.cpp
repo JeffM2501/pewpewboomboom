@@ -43,7 +43,7 @@ Logger& GetLogger()
 }
 
 
-void ProcessNetTick(uint64_t tick, void* sender);
+void ProcessNetTick(const uint64_t& tick, void* sender);
 
 void GameInit()
 {
@@ -71,7 +71,7 @@ void GameInit()
 	GenTextureMipmaps(&CubeMaterial.maps[MATERIAL_MAP_DIFFUSE].texture);
 	SetTextureFilter(CubeMaterial.maps[MATERIAL_MAP_DIFFUSE].texture, TEXTURE_FILTER_TRILINEAR);
 
-	NetConnection::GetEvents().OnSpawn.Add([](Vector2& spawn, void*) { CubeTransform = MatrixTranslate(spawn.x, 0, spawn.y); });
+	NetConnection::GetEvents().OnSpawn.Add([](const Vector2& spawn, void*) { CubeTransform = MatrixTranslate(spawn.x, 0, spawn.y); });
 }
 
 void GameCleanup()
@@ -118,7 +118,18 @@ void GameDraw()
 	NetConnectionDialog::ShowDialog();
 	rlImGuiEnd();
 
-	int y = GetScreenHeight() - 200;
+	// playerlist
+	int x = GetScreenWidth() - 300;
+	DrawRectangle(x, 0, 300, 300, ColorAlpha(BLACK, 0.5f));
+	int y = 5;
+	NetConnection::GetPlayerList().DoForEachPlayer([&y, &x](PlayerState* player)
+		{
+			DrawText(player->Name.Data(), x+5, y, 20, WHITE);
+			y += 20;
+		});
+
+	// log
+	y = GetScreenHeight() - 200;
 	DrawRectangle(5, y - 5, 600, 210, ColorAlpha(BLACK, 0.25f));
 	for (auto& line : LogLines)
 	{
@@ -129,7 +140,7 @@ void GameDraw()
 	EndDrawing();
 }
 
-void ProcessNetTick(uint64_t tick, void*)
+void ProcessNetTick(const uint64_t &tick, void*)
 {
 	if (!NetConnection::IsReady())
 		return;

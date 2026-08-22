@@ -21,3 +21,11 @@ void PlayerList::UpdatePlayerInfo(uint64_t playerId)
 {
 
 }
+
+void PlayerList::DoForEachPlayer(std::function<void(PlayerState*)> callback)
+{
+    for (auto& [id, state] : Players)
+    {
+        callback(state.get());
+    }
+}

@@ -96,9 +96,25 @@ namespace NetConnection
 		PlayerID = responce->playerId;
 		Spawn = DataUtils::UnpackVector2(responce->spawn);
 
+        auto localPlayerInfo = Players.AddPlayer(PlayerID);
+        localPlayerInfo->Name = PlayerName;
+
 		ConnectionEvents.OnJoin.Invoke(PlayerID);
 		ConnectionEvents.OnSpawn.Invoke(Spawn);
 	}
+
+	void ProcessS2C_PlayerJoined(ENetPeer* sender, const S2C_PlayerJoined* joinInfo)
+	{
+		auto localPlayerInfo = Players.AddPlayer(joinInfo->playerId);
+		localPlayerInfo->Name = joinInfo->name;
+		ConnectionEvents.OnPlayerJoin.Invoke(joinInfo->playerId);
+	}
+
+    void ProcessS2C_PlayerDisconnected(ENetPeer* sender, const S2C_PlayerDisconnected* disconnectInfo)
+    {
+		Players.RemovePlayer(disconnectInfo->playerId);
+		ConnectionEvents.OnPlayerDisconnect.Invoke(disconnectInfo->playerId);
+    }
 
 	void Init()
 	{
@@ -106,6 +122,8 @@ namespace NetConnection
 
 		Processor.RegisterProcessor<S2C_Pong>(PacketType::S2C_Pong, ProcessS2C_Pong);
 		Processor.RegisterProcessor<S2C_JoinResponse>(PacketType::S2C_JoinResponse, ProcessS2C_JoinResponse);
+		Processor.RegisterProcessor<S2C_PlayerJoined>(PacketType::S2C_PlayerJoined, ProcessS2C_PlayerJoined);
+		Processor.RegisterProcessor<S2C_PlayerDisconnected>(PacketType::S2C_PlayerDisconnected, ProcessS2C_PlayerDisconnected);
 	}
 
 	void Shutdown()

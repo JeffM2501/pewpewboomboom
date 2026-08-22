@@ -16,9 +16,10 @@ enum class PacketType : uint8_t
 	S2C_WorldSnapshot = 7,
 	S2C_EventNotification = 8,
 	C2S_ChatMessage = 9,
-	S2C_PlayerDisconnected = 10,
-	C2S_RespawnRequest = 11,
-	S2C_ChatMessage = 12
+	S2C_PlayerJoined = 10,
+	S2C_PlayerDisconnected = 11,
+	C2S_RespawnRequest = 12,
+	S2C_ChatMessage = 13
 };
 
 #pragma pack(push, 1)
@@ -64,9 +65,30 @@ struct S2C_JoinResponse
 	uint8_t type = static_cast<uint8_t>(PacketType::S2C_JoinResponse);
 	Result result = Result::Failure;
 
-	size_t playerId = 0;
+	uint64_t playerId = 0;
 	float spawn[2] = { 0.0f, 0.0f };
 
 	char actualName[kMaxNameSize] = {};
 };
+
+struct S2C_PlayerJoined
+{
+    uint8_t type = static_cast<uint8_t>(PacketType::S2C_PlayerJoined);
+	uint64_t playerId;
+	char name[kMaxNameSize] = {};
+};
+
+struct S2C_PlayerDisconnected
+{
+    uint8_t type = static_cast<uint8_t>(PacketType::S2C_PlayerDisconnected);
+
+	uint64_t playerId;
+    enum class Reason : uint8_t
+    {
+        Dissconnect = 0,
+        Quit = 1
+    };
+	Reason reason = Reason::Quit;
+};
+
 #pragma pack(pop)

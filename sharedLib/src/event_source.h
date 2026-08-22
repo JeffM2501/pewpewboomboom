@@ -8,7 +8,7 @@ template<class T>
 class EventSoure
 {
 public:
-    using EventFunction = std::function<void(T&, void* sender)>;
+    using EventFunction = std::function<void(const T&, void* sender)>;
 private:
     struct EventHandler
     {
@@ -29,7 +29,7 @@ public:
         std::remove_if(EventHandlers.begin(), EventHandlers.End(), [id](const EventHandler& handler) { return handler.ID == id; });
     }
 
-    inline void Invoke(T& value, void* sender = nullptr)
+    inline void Invoke(const T& value, void* sender = nullptr)
     {
         for (auto& handler : EventHandlers)
         {

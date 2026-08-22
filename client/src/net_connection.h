@@ -46,6 +46,8 @@ namespace NetConnection
 	{
 		EventSoure<bool> OnConnect;
 		EventSoure<uint64_t> OnJoin;
+		EventSoure<uint64_t> OnPlayerJoin;
+		EventSoure<uint64_t> OnPlayerDisconnect;
 		EventSoure<Vector2> OnSpawn;
 		EventSoure<uint64_t> OnTick;
 	};

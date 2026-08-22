@@ -76,17 +76,25 @@ void ServerCleanup()
 	enet_deinitialize();
 }
 
-void RemovePlayer(ENetPeer* peer)
+void RemovePlayer(ENetPeer* peer, bool isDisconnect)
 {
 	auto it = ServerPlayers.find(peer->connectID);
 	if (it != ServerPlayers.end())
 	{
+		auto playerID = it->second.PlayerID;
+
 		ServerLogger.Log(LogLevel::Info, "Removing player %s (ID: %llu) from server.", it->second.Name, it->second.PlayerID);
 		ServerPlayers.erase(it);
 
-		// send a remove player to all other players
+        for (auto& [id, playerInfo] : ServerPlayers)
+        {
+            S2C_PlayerDisconnected deadPlayer;
+            deadPlayer.playerId = playerID;
+            deadPlayer.reason = isDisconnect ? S2C_PlayerDisconnected::Reason::Dissconnect : S2C_PlayerDisconnected::Reason::Quit;
+            Proessor.SendPacket(playerInfo.Peer, 0, deadPlayer);
+        }
 	}
-	else
+	else if (isDisconnect)
 	{
 		ServerLogger.Log(LogLevel::Warning, "Attempted to remove unknown player with connectID %u.", peer->connectID);
 	}
@@ -123,7 +131,7 @@ void ServerNetUpdate(double deltaTime)
 
 		case ENET_EVENT_TYPE_DISCONNECT:
 			ServerLogger.Log(LogLevel::Info, "%x disconnected.", event.peer->data);
-			RemovePlayer(event.peer);
+			RemovePlayer(event.peer, true);
 			/* Reset the peer's client information. */
 			event.peer->data = nullptr;
 
@@ -135,7 +143,7 @@ void ServerNetUpdate(double deltaTime)
 
 		case ENET_EVENT_TYPE_DISCONNECT_TIMEOUT:
 			ServerLogger.Log(LogLevel::Info, "%x disconnected (timeout).", event.peer->data);
-			RemovePlayer(event.peer);
+			RemovePlayer(event.peer, true);
 			if (ServerPlayers.empty())
 			{
 				Running = false;
@@ -160,7 +168,7 @@ void ProcessC2S_Ping(ENetPeer* sender, const C2S_Ping* ping)
 void ProcessC2S_Goodbye(ENetPeer* sender, const C2S_Goodbye* goodbye)
 {
 	ServerLogger.Log(LogLevel::Info, "%x sent goodbye, reason %d.", sender->address.host, goodbye->reason);
-
+	RemovePlayer(sender, false);
 	enet_peer_disconnect_now(sender, 0);
 }
 
@@ -179,7 +187,7 @@ void ProcessC2S_JoinRequest(ENetPeer* sender, const C2S_JoinRequest* join)
 	}
 
 	it->second.PlayerID = uint64_t(sender->connectID);
-	it->second.Name = "Steve";
+    it->second.Name = join->desriredName;
 
 	it->second.Transform.Position.x = float(GetRandomValue(-50, 50));
 	it->second.Transform.Position.y = float(GetRandomValue(-50, 50));
@@ -195,10 +203,32 @@ void ProcessC2S_JoinRequest(ENetPeer* sender, const C2S_JoinRequest* join)
 
 	// send the world snapshot
 
-	// send the player list as snapshots
+	// send the player list to them
+	for (auto& [id, playerInfo] : ServerPlayers)
+	{
+		if (id == it->second.PlayerID)
+			continue;
+
+		S2C_PlayerJoined remotePlayer;
+		remotePlayer.playerId = id;
+		playerInfo.Name.CopyToBuffer(remotePlayer.name);
+		Proessor.SendPacket(sender, 0, remotePlayer);
+	}
+
+	// send them player updates of all current players
+	
 
 	// send them to all other players
+    for (auto& [id, playerInfo] : ServerPlayers)
+    {
+        if (id == it->second.PlayerID)
+            continue;
 
+        S2C_PlayerJoined newPlayer;
+		newPlayer.playerId = it->second.PlayerID;
+		it->second.Name.CopyToBuffer(newPlayer.name);
+        Proessor.SendPacket(playerInfo.Peer, 0, newPlayer);
+    }
 }
 
 int main(int argc, char* argv[])

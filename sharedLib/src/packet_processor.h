@@ -34,9 +34,9 @@ public:
     void ProcessPacket(ENetPacket* packet, ENetPeer* sender);
 
     template<class T>
-    void SendPacket(ENetPeer* peer, int channel, T& data)
+    void SendPacket(ENetPeer* peer, int channel, T& data, bool reliable = true)
     {
-        ENetPacket* packet = enet_packet_create(&data, sizeof(T), ENET_PACKET_FLAG_RELIABLE);
+        ENetPacket* packet = enet_packet_create(&data, sizeof(T), reliable ? ENET_PACKET_FLAG_RELIABLE : 0);
         enet_peer_send(peer, channel, packet);
     }
 };
