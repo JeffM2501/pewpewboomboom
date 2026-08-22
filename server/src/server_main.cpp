@@ -12,6 +12,8 @@
 #include "constants.h"
 #include "raylib.h"
 
+#include "player_state.h"
+
 bool Running = true;
 
 ENetHost* ServerHost = nullptr;
@@ -25,18 +27,7 @@ static constexpr int ServerTickTimeMS = static_cast<int>(1.0f / ServerTickTime *
 
 FixedTickAccumulator ServerTick(ServerTickTime);
 
-struct ServerPlayer
-{
-	uint64_t PlayerID = uint64_t(-1);
-	ENetPeer* Peer = nullptr;
-	char Name[kMaxNameSize] = {};
-	int Team = -1;
-	float Position[3] = { 0.0f, 0.0f, 0.0f };
-	float Rotation[2] = { 0.0f, 0.0f };
-	float Velocity[3] = { 0.0f, 0.0f, 0.0f };
-};
-
-std::unordered_map<enet_uint32, ServerPlayer> ServerPlayers;
+std::unordered_map<enet_uint32, PlayerState> ServerPlayers;
 
 void ProcessC2S_Ping(ENetPeer* sender, const C2S_Ping* ping);
 void ProcessC2S_Goodbye(ENetPeer* sender, const C2S_Goodbye* goodbye);
@@ -113,7 +104,7 @@ void ServerNetUpdate(double deltaTime)
 		case ENET_EVENT_TYPE_CONNECT:
 			ServerLogger.Log(LogLevel::Info, "A new client connected from %x:%d", event.peer->address.host, event.peer->address.port);
 
-			ServerPlayers.emplace(event.peer->connectID, ServerPlayer{ uint64_t(event.peer->connectID), event.peer });
+			ServerPlayers.emplace(event.peer->connectID, PlayerState{ uint64_t(event.peer->connectID), event.peer });
 			break;
 
 		case ENET_EVENT_TYPE_RECEIVE:
@@ -183,18 +174,16 @@ void ProcessC2S_JoinRequest(ENetPeer* sender, const C2S_JoinRequest* join)
 	}
 
 	it->second.PlayerID = uint64_t(sender->connectID);
-	CopyFixedSizeString(it->second.Name, "Steve", kMaxPlayers);
+	it->second.Name = "Steve";
 
-	it->second.Position[0] = float(GetRandomValue(-50, 50));
-	it->second.Position[1] = 0;
-	it->second.Position[2] = float(GetRandomValue(-50, 50));
+	it->second.Transform.Position.x = float(GetRandomValue(-50, 50));
+	it->second.Transform.Position.y = float(GetRandomValue(-50, 50));
 
 	responce.result = S2C_JoinResponse::Result::Success;
-	CopyFixedSizeString(responce.actualName, it->second.Name, kMaxPlayers);
+	it->second.Name.CopyToBuffer(responce.actualName);
 
 	responce.playerId = it->second.PlayerID;
-	responce.spawnX = it->second.Position[0];
-	responce.spawnY = it->second.Position[1];
+	DataUtils::PackVector2(it->second.Transform.Position, responce.spawn);
 
 	Proessor.SendPacket(sender, 0, responce);
 	ServerLogger.Log(LogLevel::Info, "%x sent Join Response, ID %d name %s", sender->address.host, responce.playerId, responce.actualName);

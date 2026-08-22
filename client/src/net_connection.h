@@ -3,8 +3,11 @@
 #include "external/fix_win32_compatibility.h"
 #include "raylib.h"
 
+#include <vector>
 #include <cstdint>
 #include "event_source.h"
+#include "text_utils.h"
+#include "constants.h"
 
 enum class ConnectionState
 {
@@ -19,7 +22,7 @@ namespace NetConnection
 	void Init();
 	void Shutdown();
 
-	char* GetPlayerName();
+	FixedSizeString<kMaxPlayers>& GetPlayerName();
 
 	void BeginConnect(const char* address, uint16_t port);
 

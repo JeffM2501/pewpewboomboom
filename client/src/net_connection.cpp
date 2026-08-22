@@ -9,6 +9,7 @@
 #include "packet_processor.h"
 #include "text_utils.h"
 #include "game.h"
+#include "data_utils.h"
 
 #include "raylib.h"
 
@@ -27,7 +28,7 @@ namespace NetConnection
 
 	uint64_t ConnectionTimeout = 10 * 1000;
 
-	char PlayerName[kMaxNameSize] = "PlayerMcPlayerface";
+	FixedSizeString<kMaxPlayers> PlayerName = "PlayerMcPlayerface";
 
 	uint64_t PlayerID = uint64_t(-1);
 
@@ -47,23 +48,22 @@ namespace NetConnection
 
 	void ProcessS2C_Pong(ENetPeer* sender, const S2C_Pong* pong)
 	{
-        uint64_t nowMs = GetTimeMs();
-        uint64_t rtt = (nowMs >= pong->clientTimeMs) ? (nowMs - pong->clientTimeMs) : 0;
-        LastRTT = rtt;
+		uint64_t nowMs = GetTimeMs();
+		uint64_t rtt = (nowMs >= pong->clientTimeMs) ? (nowMs - pong->clientTimeMs) : 0;
+		LastRTT = rtt;
 
-        GetLogger().Log(LogLevel::Info, "[Client] Received S2C_Pong packet! RTT Latency: %llu ms (Server Uptime: %llu ms)", rtt, pong->serverTimeMs);
+		GetLogger().Log(LogLevel::Info, "[Client] Received S2C_Pong packet! RTT Latency: %llu ms (Server Uptime: %llu ms)", rtt, pong->serverTimeMs);
 	}
 
-    void ProcessS2C_JoinResponse(ENetPeer* sender, const S2C_JoinResponse* responce)
-    {
-		CopyFixedSizeString(PlayerName, responce->actualName, kMaxNameSize);
+	void ProcessS2C_JoinResponse(ENetPeer* sender, const S2C_JoinResponse* responce)
+	{
+		PlayerName = responce->actualName;
 		PlayerID = responce->playerId;
-		Spawn.x = responce->spawnX;
-		Spawn.y = responce->spawnY;
+		Spawn = DataUtils::UnpackVector2(responce->spawn);
 
 		ConnectionEvents.OnJoin.Invoke(PlayerID);
 		ConnectionEvents.OnSpawn.Invoke(Spawn);
-    }
+	}
 
 	void Init()
 	{
@@ -79,7 +79,7 @@ namespace NetConnection
 		enet_deinitialize();
 	}
 
-	char* GetPlayerName()
+	FixedSizeString<kMaxPlayers>& GetPlayerName()
 	{
 		return PlayerName;
 	}
@@ -109,7 +109,7 @@ namespace NetConnection
 		{
 			C2S_Goodbye bye;
 			Processor.SendPacket(ServerPeer, 0, bye);
-            enet_host_flush(ClientHost);
+			enet_host_flush(ClientHost);
 
 			enet_peer_disconnect_now(ServerPeer, 0);
 			ServerPeer = nullptr;
@@ -117,7 +117,7 @@ namespace NetConnection
 
 		if (ClientHost)
 		{
-			
+
 			enet_host_destroy(ClientHost);
 			ClientHost = nullptr;
 		}
@@ -159,8 +159,8 @@ namespace NetConnection
 					Processor.SendPacket(ServerPeer, 0, ping);
 					GetLogger().Log(LogLevel::Info, "[Client] Connected to server. Sent C2S_Ping packet on Channel 0 (timestamp: %llu ms).", ping.clientTimeMs);
 
-                    bool valid = true;
-                    ConnectionEvents.OnConnect.Invoke(valid);
+					bool valid = true;
+					ConnectionEvents.OnConnect.Invoke(valid);
 
 					C2S_JoinRequest join;
 					CopyFixedSizeString(join.desriredName, PlayerName, sizeof(PlayerName));

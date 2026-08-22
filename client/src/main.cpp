@@ -105,7 +105,7 @@ void GameDraw()
 	else
 	{
 		char statusText[128];
-		snprintf(statusText, sizeof(statusText), "Connected | Name %s", NetConnection::GetPlayerName());
+		snprintf(statusText, sizeof(statusText), "Connected | Name %s", NetConnection::GetPlayerName().Data());
 		DrawText(statusText, 10, 10, 20, DARKGRAY);
 	}
 

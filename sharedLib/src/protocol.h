@@ -64,8 +64,7 @@ struct S2C_JoinResponse
 	Result result = Result::Failure;
 
 	size_t playerId = 0;
-	float spawnX = 0.0f;
-	float spawnY = 0.0f;
+	float spawn[2] = { 0.0f, 0.0f };
 
 	char actualName[kMaxNameSize] = {};
 };

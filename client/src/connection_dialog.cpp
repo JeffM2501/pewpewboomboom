@@ -26,14 +26,14 @@ namespace NetConnectionDialog
 				ImGui::TextUnformatted("Name");
 				ImGui::TableNextColumn();
 				ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
-				ImGui::InputText("##Name", NetConnection::GetPlayerName(), kMaxNameSize);
+				ImGui::InputText("##Name", NetConnection::GetPlayerName().Buffer(), kMaxNameSize);
 
-                ImGui::TableNextRow();
+				ImGui::TableNextRow();
 				ImGui::TableNextColumn();
-                ImGui::TextUnformatted("Host");
-                ImGui::TableNextColumn();
+				ImGui::TextUnformatted("Host");
+				ImGui::TableNextColumn();
 				ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
-                ImGui::InputText("##Host", HostBuffer, sizeof(HostBuffer));
+				ImGui::InputText("##Host", HostBuffer, sizeof(HostBuffer));
 
 				ImGui::TableNextRow();
 				ImGui::TableNextColumn();
@@ -57,7 +57,7 @@ namespace NetConnectionDialog
 			{
 				ImGui::TextUnformatted("Disconnected");
 				if (NetConnection::HadTimeout())
-					ImGui::TextColored(ImVec4(1,0,0,1), "ERROR: Timeout");
+					ImGui::TextColored(ImVec4(1, 0, 0, 1), "ERROR: Timeout");
 			}
 		}
 		ImGui::End();
