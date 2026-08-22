@@ -8,6 +8,7 @@
 #include "event_source.h"
 #include "text_utils.h"
 #include "constants.h"
+#include "player_list.h"
 
 enum class ConnectionState
 {
@@ -46,4 +47,6 @@ namespace NetConnection
 	};
 
 	Events& GetEvents();
+
+	PlayerList& GetPlayerList();
 }

@@ -33,6 +33,8 @@ void ProcessC2S_Ping(ENetPeer* sender, const C2S_Ping* ping);
 void ProcessC2S_Goodbye(ENetPeer* sender, const C2S_Goodbye* goodbye);
 void ProcessC2S_JoinRequest(ENetPeer* sender, const C2S_JoinRequest* goodbye);
 
+uint64_t CurrentServerTick = 0;
+
 void ServerSetup()
 {
 	ENetAddress address = { 0 };
@@ -92,6 +94,8 @@ void RemovePlayer(ENetPeer* peer)
 
 void ServerNetUpdate(double deltaTime)
 {
+	CurrentServerTick++;
+
 	ENetEvent event;
 
 	ServerLogger.Log(LogLevel::Verbose, "ServerNetUpdate: Waiting for events dt(%0.1f)ms", deltaTime * 1000);
@@ -146,6 +150,7 @@ void ProcessC2S_Ping(ENetPeer* sender, const C2S_Ping* ping)
 	S2C_Pong pong;
 	pong.clientTimeMs = ping->clientTimeMs;
 	pong.serverTimeMs = GetTimeMs() - ServerStartTimeMs;
+	pong.serverTick = CurrentServerTick;
 
 	Proessor.SendPacket(sender, 0, pong);
 

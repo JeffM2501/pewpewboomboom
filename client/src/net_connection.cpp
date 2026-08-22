@@ -36,6 +36,13 @@ namespace NetConnection
 
 	static Events ConnectionEvents;
 
+	static PlayerList Players;
+
+	PlayerList& GetPlayerList()
+	{
+		return Players;
+	}
+
 	Events& GetEvents()
 	{
 		return ConnectionEvents;
