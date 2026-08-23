@@ -1,8 +1,8 @@
 #include "player_list.h"
 
-PlayerState* PlayerList::AddPlayer(uint64_t playerId)
+ClientPlayerState* PlayerList::AddPlayer(uint64_t playerId)
 {
-    PlayerState* newPlayer = Players.insert_or_assign(playerId, std::move(std::make_unique<PlayerState>())).first->second.get();
+    ClientPlayerState* newPlayer = Players.insert_or_assign(playerId, std::move(std::make_unique<ClientPlayerState>())).first->second.get();
     newPlayer->PlayerID = playerId;
 
     return newPlayer;
@@ -22,7 +22,7 @@ void PlayerList::UpdatePlayerInfo(uint64_t playerId)
 
 }
 
-void PlayerList::DoForEachPlayer(std::function<void(PlayerState*)> callback)
+void PlayerList::DoForEachPlayer(std::function<void(ClientPlayerState*)> callback)
 {
     for (auto& [id, state] : Players)
     {

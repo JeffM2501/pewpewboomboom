@@ -10,6 +10,7 @@
 #include "constants.h"
 #include "player_list.h"
 #include "packet_processor.h"
+#include "time_utils.h"
 
 enum class ConnectionState
 {
@@ -72,6 +73,11 @@ private:
 
 	Events ConnectionEvents;
 	PlayerList Players;
+
+	FixedTickAccumulator PingAccumualtor;
+
+	void SendPing();
+	void SendJoin();
 
 	static void ProcessS2C_Pong(PacketProcessor& processor, ENetPeer* sender, const S2C_Pong* pong);
 	static void ProcessS2C_JoinResponse(PacketProcessor& processor, ENetPeer* sender, const S2C_JoinResponse* responce);

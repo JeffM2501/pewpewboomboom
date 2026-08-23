@@ -116,16 +116,6 @@ void GameDraw()
 	GameGui::Show();
 	rlImGuiEnd();
 
-	// playerlist
-	int x = GetScreenWidth() - 300;
-	DrawRectangle(x, 0, 300, 300, ColorAlpha(BLACK, 0.5f));
-	int y = 5;
-	Network.GetPlayerList().DoForEachPlayer([&y, &x](PlayerState* player)
-		{
-			DrawText(player->Name.Data(), x+5, y, 20, WHITE);
-			y += 20;
-		});
-
 	EndDrawing();
 }
 

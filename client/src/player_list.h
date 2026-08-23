@@ -6,15 +6,23 @@
 #include <memory>
 #include <functional>
 
+class ClientPlayerState : public PlayerState
+{
+public:
+    bool IsLocalPlayer = false;
+};
+
 class PlayerList
 {
 private:
-    std::unordered_map<uint64_t, std::unique_ptr<PlayerState>> Players;
+    std::unordered_map<uint64_t, std::unique_ptr<ClientPlayerState>> Players;
 public:
 
-    PlayerState* AddPlayer(uint64_t playerId);
+    ClientPlayerState* AddPlayer(uint64_t playerId);
     void RemovePlayer(uint64_t playerId);
     void UpdatePlayerInfo(uint64_t playerId);
 
-    void DoForEachPlayer(std::function<void(PlayerState*)> callback);
+    void DoForEachPlayer(std::function<void(ClientPlayerState*)> callback);
+
+    size_t Size() { return Players.size(); }
 };

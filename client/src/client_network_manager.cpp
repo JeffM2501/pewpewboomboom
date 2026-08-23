@@ -13,6 +13,7 @@
 ClientNetworkManager Network;
 
 ClientNetworkManager::ClientNetworkManager()
+	: PingAccumualtor(0.5f, 2)
 {
 	enet_initialize();
 
@@ -132,22 +133,13 @@ void ClientNetworkManager::Update()
 			{
 				CurrentState = ConnectionState::Connected;
 
-				// Send C2S_Ping on channel 0 reliably upon connection
-				C2S_Ping ping;
-				ping.type = static_cast<uint8_t>(PacketType::C2S_Ping);
-				ping.clientTimeMs = GetTimeMs();
-
-				SendPacket(ServerPeer, 0, ping);
-				GetLogger().Log(LogLevel::Info, "[Client] Connected to server. Sent C2S_Ping packet on Channel 0 (timestamp: %llu ms).", ping.clientTimeMs);
+				GetLogger().Log(LogLevel::Info, "[Client] Connected to server.");
+				SendPing();
 
 				bool valid = true;
 				ConnectionEvents.OnConnect.Invoke(valid);
 
-				C2S_JoinRequest join;
-				CopyFixedSizeString(join.desriredName, PlayerName, sizeof(PlayerName));
-				SendPacket(ServerPeer, 0, join);
-
-				GetLogger().Log(LogLevel::Info, "[Client] Sent C2S_JoinRequest packet on Channel 0, desired name %s.", PlayerName.Data());
+				SendJoin();
 			}
 			else if (event.type == ENET_EVENT_TYPE_RECEIVE)
 			{
@@ -192,6 +184,11 @@ void ClientNetworkManager::Update()
 			}
 		}
 	}
+
+	PingAccumualtor.ProcessTicks([this](double)
+		{
+			SendPing();
+		});
 }
 
 ClientNetworkManager::Events& ClientNetworkManager::GetEvents()
@@ -202,6 +199,30 @@ ClientNetworkManager::Events& ClientNetworkManager::GetEvents()
 PlayerList& ClientNetworkManager::GetPlayerList()
 {
 	return Players;
+}
+
+void ClientNetworkManager::SendPing()
+{
+	if (CurrentState == ConnectionState::Disconnected)
+		return;
+
+    // Send C2S_Ping on channel 0 reliably upon connection
+    C2S_Ping ping;
+    ping.type = static_cast<uint8_t>(PacketType::C2S_Ping);
+    ping.clientTimeMs = GetTimeMs();
+
+    SendPacket(ServerPeer, 0, ping);
+
+	GetLogger().Log(LogLevel::Verbose, "[Client] Sent C2S_Ping packet on Channel 0 (timestamp: %llu ms).", ping.clientTimeMs);
+}
+
+void ClientNetworkManager::SendJoin()
+{
+    C2S_JoinRequest join;
+    CopyFixedSizeString(join.desriredName, PlayerName, sizeof(PlayerName));
+    SendPacket(ServerPeer, 0, join);
+
+    GetLogger().Log(LogLevel::Info, "[Client] Sent C2S_JoinRequest packet on Channel 0, desired name %s.", PlayerName.Data());
 }
 
 void ClientNetworkManager::ProcessS2C_Pong(PacketProcessor& processor, ENetPeer* sender, const S2C_Pong* pong)
@@ -227,6 +248,7 @@ void ClientNetworkManager::ProcessS2C_JoinResponse(PacketProcessor& processor, E
 
 	auto localPlayerInfo = self.Players.AddPlayer(self.PlayerID);
 	localPlayerInfo->Name = self.PlayerName;
+	localPlayerInfo->IsLocalPlayer = true;
 
 	self.ConnectionEvents.OnJoin.Invoke(self.PlayerID);
 	self.ConnectionEvents.OnSpawn.Invoke(self.Spawn);
