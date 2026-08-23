@@ -18,22 +18,18 @@ Use this as a starting point or replace it with your code.
 #include "client_network_manager.h" 
 #include "connection_dialog.h" 
 
+#include "game_gui.h"
+#include "guiControls/chat_window.h"
+
 Matrix CubeTransform = MatrixIdentity();
 Mesh CubeMesh = { 0 };
 Material CubeMaterial = { 0 };
 
 Camera3D ViewCamera = { 0 };
 
-
-#include <deque>
-std::deque<std::string> LogLines;
-
 static void GameLogger(std::string_view message, LogLevel level)
 {
-	LogLines.push_back(std::string(message));
-
-	while (LogLines.size() > 10)
-		LogLines.pop_front();
+	ChatWindow::AddLogLine(message);
 }
 
 Logger GlobalLogger(GameLogger);
@@ -70,6 +66,8 @@ void GameInit()
 	SetTextureFilter(CubeMaterial.maps[MATERIAL_MAP_DIFFUSE].texture, TEXTURE_FILTER_TRILINEAR);
 
 	Network.GetEvents().OnSpawn.Add([](const Vector2& spawn, void*) { CubeTransform = MatrixTranslate(spawn.x, 0, spawn.y); });
+
+	ChatWindow::AddChatLine(nullptr, "Client Startup");
 }
 
 void GameCleanup()
@@ -114,6 +112,8 @@ void GameDraw()
 
 	rlImGuiBegin();
 	NetConnectionDialog::ShowDialog();
+
+	GameGui::Show();
 	rlImGuiEnd();
 
 	// playerlist
@@ -125,15 +125,6 @@ void GameDraw()
 			DrawText(player->Name.Data(), x+5, y, 20, WHITE);
 			y += 20;
 		});
-
-	// log
-	y = GetScreenHeight() - 200;
-	DrawRectangle(5, y - 5, 600, 210, ColorAlpha(BLACK, 0.25f));
-	for (auto& line : LogLines)
-	{
-		DrawText(line.c_str(), 10, y, 10, WHITE);
-		y += 10;
-	}
 
 	EndDrawing();
 }
