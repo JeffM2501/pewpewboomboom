@@ -44,12 +44,12 @@ namespace NetConnection
 
 	struct Events
 	{
-		EventSoure<bool> OnConnect;
-		EventSoure<uint64_t> OnJoin;
-		EventSoure<uint64_t> OnPlayerJoin;
-		EventSoure<uint64_t> OnPlayerDisconnect;
-		EventSoure<Vector2> OnSpawn;
-		EventSoure<uint64_t> OnTick;
+		EventSource<bool> OnConnect;
+		EventSource<uint64_t> OnJoin;
+		EventSource<uint64_t> OnPlayerJoin;
+		EventSource<uint64_t> OnPlayerDisconnect;
+		EventSource<Vector2> OnSpawn;
+		EventSource<uint64_t> OnTick;
 	};
 
 	Events& GetEvents();

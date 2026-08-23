@@ -1,12 +1,5 @@
-#include "external/fix_win32_compatibility.h"
-
-#include <stdio.h>
-
-#include "enet.h"
-
 #include "time_utils.h"
 #include "log_system.h"
-#include "protocol.h"
 #include "text_utils.h"
 #include "constants.h"
 #include "raylib.h"
@@ -58,29 +51,6 @@ void ServerCleanup()
 {
     NetManager.Shutdown();
     ServerLogger.Log(LogLevel::Info, "Server is shutdown...");
-}
-
-void RemovePlayer(ENetPeer* peer, bool isDisconnect)
-{
-    if (!ServerPlayerList::PlayerExists(peer))
-    {
-        return;
-    }
-
-    auto& player = ServerPlayerList::GetPlayer(peer);
-
-    auto playerID = player.PlayerID;
-
-    ServerLogger.Log(LogLevel::Info, "Removing player %s (ID: %llu) from server.", player.Name.Data(), playerID);
-    ServerPlayerList::RemovePlayer(peer);
-
-    ServerPlayerList::DoForEachPlayer([playerID, isDisconnect](auto& playerInfo)
-        {
-            S2C_PlayerDisconnected deadPlayer;
-            deadPlayer.playerId = playerID;
-            deadPlayer.reason = isDisconnect ? S2C_PlayerDisconnected::Reason::Dissconnect : S2C_PlayerDisconnected::Reason::Quit;
-            NetManager.SendPacket(playerInfo.Peer, 0, deadPlayer);
-        });
 }
 
 void ServerNetUpdate(double deltaTime)

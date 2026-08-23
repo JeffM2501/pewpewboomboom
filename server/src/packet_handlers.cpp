@@ -1,5 +1,6 @@
 #include "external/fix_win32_compatibility.h"
 #include "packet_handlers.h"
+#include "network_manager.h"
 #include "protocol.h"
 #include "player_list.h"
 #include "log_system.h"
@@ -10,8 +11,6 @@
 extern Logger ServerLogger;
 extern uint64_t ServerStartTimeMs;
 extern uint64_t CurrentServerTick;
-
-void RemovePlayer(ENetPeer* peer, bool isDisconnect);
 
 namespace PacketHandlers
 {
@@ -30,7 +29,7 @@ namespace PacketHandlers
     static void ProcessC2S_Goodbye(PacketProcessor& processor, ENetPeer* sender, const C2S_Goodbye* goodbye)
     {
         ServerLogger.Log(LogLevel::Info, "%x sent goodbye, reason %d.", sender->address.host, goodbye->reason);
-        RemovePlayer(sender, false);
+        static_cast<NetworkManager&>(processor).RemovePlayer(sender, false);
         enet_peer_disconnect_now(sender, 0);
     }
 

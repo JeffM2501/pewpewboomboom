@@ -5,7 +5,7 @@
 #include <functional>
 
 template<class T>
-class EventSoure
+class EventSource
 {
 public:
     using EventFunction = std::function<void(const T&, void* sender)>;

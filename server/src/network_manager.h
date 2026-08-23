@@ -3,6 +3,8 @@
 #include "enet.h"
 #include "packet_processor.h"
 
+#include "event_source.h"
+
 class NetworkManager : public PacketProcessor
 {
 public:
@@ -18,6 +20,11 @@ public:
     {
         return m_ServerHost;
     }
+
+    EventSource<uint64_t> PlayerConnected;
+    EventSource<uint64_t> PlayerDisconnected;
+
+    void RemovePlayer(ENetPeer* peer, bool isDisconnect);
 
 private:
     ENetHost* m_ServerHost = nullptr;

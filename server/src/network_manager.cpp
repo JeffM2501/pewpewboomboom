@@ -6,8 +6,6 @@
 extern Logger ServerLogger;
 extern bool Running;
 
-void RemovePlayer(ENetPeer* peer, bool isDisconnect);
-
 NetworkManager::NetworkManager()
 {
     PacketHandlers::RegisterAll(*this);
@@ -50,6 +48,30 @@ void NetworkManager::Shutdown()
     }
 }
 
+void  NetworkManager::RemovePlayer(ENetPeer* peer, bool isDisconnect)
+{
+    if (!ServerPlayerList::PlayerExists(peer))
+    {
+        return;
+    }
+
+    auto& player = ServerPlayerList::GetPlayer(peer);
+
+    auto playerID = player.PlayerID;
+    PlayerDisconnected.Invoke(playerID, this);
+
+    ServerLogger.Log(LogLevel::Info, "Removing player %s (ID: %llu) from server.", player.Name.Data(), playerID);
+    ServerPlayerList::RemovePlayer(peer);
+
+    ServerPlayerList::DoForEachPlayer([playerID, isDisconnect, this](auto& playerInfo)
+        {
+            S2C_PlayerDisconnected deadPlayer;
+            deadPlayer.playerId = playerID;
+            deadPlayer.reason = isDisconnect ? S2C_PlayerDisconnected::Reason::Dissconnect : S2C_PlayerDisconnected::Reason::Quit;
+            SendPacket(playerInfo.Peer, 0, deadPlayer);
+        });
+}
+
 void NetworkManager::PollEvents(int timeoutMs)
 {
     if (!m_ServerHost)
@@ -67,8 +89,8 @@ void NetworkManager::PollEvents(int timeoutMs)
             {
                 ServerLogger.Log(LogLevel::Info, "A new client connected from %x:%d", event.peer->address.host, event.peer->address.port);
 
-                ServerPlayerList::GetPlayer(event.peer);
-
+                ;
+                PlayerConnected.Invoke(ServerPlayerList::GetPlayer(event.peer).PlayerID, this);
                 break;
             }
 
