@@ -6,21 +6,22 @@
 #include <unordered_map>
 #include <functional>
 
+class NetworkManager;
+
 namespace ServerPlayerList
 {
     class ServerPlayer : public PlayerState
     {
     public:
         bool IsRobot = false;
-        std::vector<std::function<void(ServerPlayer&)>> UpdateFunctions;
+        std::vector<std::function<void(ServerPlayer&, NetworkManager&)>> UpdateFunctions;
 
         ServerPlayer(ENetPeer* peer);
 
-        void Update()
+        void Update(NetworkManager &manager)
         {
-            // TODO make this a list?
             for (auto& func : UpdateFunctions)
-                func(*this);
+                func(*this, manager);
         }
     };
 

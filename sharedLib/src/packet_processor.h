@@ -12,6 +12,9 @@ class PacketProcessor
 public:
     using PacketReadFunction = std::function<void(PacketProcessor&, ENetPeer*, const void*)>;
 
+protected:
+    ENetPeer* DefaultPeer = nullptr;
+
 private:
     struct ProcessorInfo
     {
@@ -38,6 +41,9 @@ public:
     template<class T>
     void SendPacket(ENetPeer* peer, int channel, T& data, bool reliable = true)
     {
+        if (peer == nullptr)
+            peer = DefaultPeer;
+
         ENetPacket* packet = enet_packet_create(&data, sizeof(T), reliable ? ENET_PACKET_FLAG_RELIABLE : 0);
         enet_peer_send(peer, channel, packet);
     }

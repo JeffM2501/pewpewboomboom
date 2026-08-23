@@ -3,5 +3,5 @@
 
 namespace RobotAI
 {
-    void UpdateRobot(ServerPlayerList::ServerPlayer& robot);
+    void SetupRobots();
 }

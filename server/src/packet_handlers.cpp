@@ -9,17 +9,19 @@
 #include "raylib.h"
 
 extern Logger ServerLogger;
-extern uint64_t ServerStartTimeMs;
-extern uint64_t CurrentServerTick;
+// extern uint64_t ServerStartTimeMs;
+// extern uint64_t CurrentServerTick;
 
 namespace PacketHandlers
 {
     static void ProcessC2S_Ping(PacketProcessor& processor, ENetPeer* sender, const C2S_Ping* ping)
     {
+        NetworkManager& netManager = static_cast<NetworkManager&>(processor);
+
         S2C_Pong pong;
         pong.clientTimeMs = ping->clientTimeMs;
-        pong.serverTimeMs = GetTimeMs() - ServerStartTimeMs;
-        pong.serverTick = CurrentServerTick;
+        pong.serverTimeMs = GetTimeMs() - netManager.ServerStartTimeMs;
+        pong.serverTick = netManager.CurrentServerTick;
 
         processor.SendPacket(sender, 0, pong);
 

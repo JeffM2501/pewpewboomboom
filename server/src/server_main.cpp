@@ -12,24 +12,17 @@
 
 bool Running = true;
 
-uint64_t ServerStartTimeMs = 0;
-
-
 Logger ServerLogger(ConsoleLogOutput);
-
-static constexpr double ServerTickTime = double(kDefaultTickRate);
-static constexpr int ServerTickTimeMS = static_cast<int>(1.0f / ServerTickTime * 1000.0f);
-
-FixedTickAccumulator ServerTick(ServerTickTime);
-
-uint64_t CurrentServerTick = 0;
-
 NetworkManager NetManager;
 
 void ServerSetup()
 {
-    ServerStartTimeMs = GetTimeMs();
     ServerLogger.Log(LogLevel::Info, "Server is starting up...");
+
+    NetManager.ServerEmpty.Add([](const bool&, void*)
+        {
+            Running = false;
+        });
 
     if (NetManager.Initialize(7777, kMaxPlayers))
     {
@@ -39,12 +32,6 @@ void ServerSetup()
     {
         ServerLogger.Log(LogLevel::Error, "Failed to start server on port 7777");
     }
-
-    auto& robot = ServerPlayerList::AddRobotPlayer();
-    robot.UpdateFunctions.emplace_back(RobotAI::UpdateRobot);
-    robot.Name = "Theta (Robot)";
-    robot.Team = -1;
-    robot.Transform.Position = Vector2{ 20, 20 };
 }
 
 void ServerCleanup()
@@ -53,31 +40,30 @@ void ServerCleanup()
     ServerLogger.Log(LogLevel::Info, "Server is shutdown...");
 }
 
-void ServerNetUpdate(double deltaTime)
-{
-    CurrentServerTick++;
-
-    // see if the players have update tasks
-    ServerPlayerList::DoForEachPlayer([](auto& player)
-        {
-            player.Update();
-        }, true);
-
-    ServerLogger.Log(LogLevel::Verbose, "ServerNetUpdate: Waiting for events dt(%0.1f)ms", deltaTime * 1000);
-
-    NetManager.PollEvents(ServerTickTimeMS);
-}
-
 int main(int argc, char* argv[])
 {
     ServerSetup();
+    RobotAI::SetupRobots();
+
+    FixedTickAccumulator serverTick(ServerTickTime);
 
     while (Running && NetManager.GetHost())
     {
-        ServerTick.ProcessTicks([](auto deltaTime)
+        // process things that happen on the server tick
+        serverTick.ProcessTicks([](auto deltaTime)
             {
-                ServerNetUpdate(deltaTime);
+                NetManager.NewTick();
+
+                // see if the players have updates this tick
+                ServerPlayerList::DoForEachPlayer([](auto& player)
+                    {
+                        player.Update(NetManager);
+                    }, true);
             });
+
+        // process items that can happen anytime
+
+        NetManager.PollEvents(ServerTickTimeMS);
     }
 
     ServerCleanup();

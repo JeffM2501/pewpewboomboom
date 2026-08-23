@@ -1,10 +1,9 @@
 #include "network_manager.h"
 #include "log_system.h"
-#include "player_list.h"
 #include "packet_handlers.h"
+#include "time_utils.h"
 
 extern Logger ServerLogger;
-extern bool Running;
 
 NetworkManager::NetworkManager()
 {
@@ -18,6 +17,8 @@ NetworkManager::~NetworkManager()
 
 bool NetworkManager::Initialize(int port, int maxPlayers)
 {
+    ServerStartTimeMs = GetTimeMs();
+
     ENetAddress address = { 0 };
 
     address.host = ENET_HOST_ANY;
@@ -72,6 +73,11 @@ void  NetworkManager::RemovePlayer(ENetPeer* peer, bool isDisconnect)
         });
 }
 
+void NetworkManager::NewTick()
+{
+    CurrentServerTick++;
+}
+
 void NetworkManager::PollEvents(int timeoutMs)
 {
     if (!m_ServerHost)
@@ -114,9 +120,7 @@ void NetworkManager::PollEvents(int timeoutMs)
                 event.peer->data = nullptr;
 
                 if (ServerPlayerList::Empty())
-                {
-                    Running = false;
-                }
+                    ServerEmpty.Invoke(ServerPlayerList::Empty(true));
                 break;
             }
 
@@ -125,9 +129,7 @@ void NetworkManager::PollEvents(int timeoutMs)
                 ServerLogger.Log(LogLevel::Info, "%x disconnected (timeout).", event.peer->data);
                 RemovePlayer(event.peer, true);
                 if (ServerPlayerList::Empty())
-                {
-                    Running = false;
-                }
+                    ServerEmpty.Invoke(ServerPlayerList::Empty(true));
                 break;
             }
         }
