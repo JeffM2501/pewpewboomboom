@@ -59,7 +59,7 @@ namespace NetConnection
 		return Spawn;
 	}
 
-	void ProcessS2C_Pong(ENetPeer* sender, const S2C_Pong* pong)
+	static void ProcessS2C_Pong(PacketProcessor& processor, ENetPeer* sender, const S2C_Pong* pong)
 	{
 		uint64_t nowMs = GetTimeMs();
 		uint64_t rtt = (nowMs >= pong->clientTimeMs) ? (nowMs - pong->clientTimeMs) : 0;
@@ -90,7 +90,7 @@ namespace NetConnection
 		return ServerTickBase + ticksElapsed;
 	}
 
-	void ProcessS2C_JoinResponse(ENetPeer* sender, const S2C_JoinResponse* responce)
+	static void ProcessS2C_JoinResponse(PacketProcessor& processor, ENetPeer* sender, const S2C_JoinResponse* responce)
 	{
 		PlayerName = responce->actualName;
 		PlayerID = responce->playerId;
@@ -103,14 +103,14 @@ namespace NetConnection
 		ConnectionEvents.OnSpawn.Invoke(Spawn);
 	}
 
-	void ProcessS2C_PlayerJoined(ENetPeer* sender, const S2C_PlayerJoined* joinInfo)
+	static void ProcessS2C_PlayerJoined(PacketProcessor& processor, ENetPeer* sender, const S2C_PlayerJoined* joinInfo)
 	{
 		auto localPlayerInfo = Players.AddPlayer(joinInfo->playerId);
 		localPlayerInfo->Name = joinInfo->name;
 		ConnectionEvents.OnPlayerJoin.Invoke(joinInfo->playerId);
 	}
 
-    void ProcessS2C_PlayerDisconnected(ENetPeer* sender, const S2C_PlayerDisconnected* disconnectInfo)
+	static void ProcessS2C_PlayerDisconnected(PacketProcessor& processor, ENetPeer* sender, const S2C_PlayerDisconnected* disconnectInfo)
     {
 		Players.RemovePlayer(disconnectInfo->playerId);
 		ConnectionEvents.OnPlayerDisconnect.Invoke(disconnectInfo->playerId);

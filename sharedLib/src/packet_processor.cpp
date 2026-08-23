@@ -1,6 +1,6 @@
 #include "packet_processor.h"
 
-void PacketProcessor::RegisterProcessor(PacketType packetType, std::function<void(ENetPeer*, const void*)> processor, size_t packetSize)
+void PacketProcessor::RegisterProcessorBase(PacketType packetType, PacketReadFunction processor, size_t packetSize)
 {
     Processors.insert_or_assign(uint8_t(packetType), ProcessorInfo{processor, packetSize});
 }
@@ -15,6 +15,6 @@ void PacketProcessor::ProcessPacket(ENetPacket* packet, ENetPeer* sender)
         if (processor == Processors.end() || packet->dataLength < processor->second.PacketSize)
             return;
 
-        processor->second.Processor(sender, packet->data);
+        processor->second.Processor(*this, sender, packet->data);
     }
 }

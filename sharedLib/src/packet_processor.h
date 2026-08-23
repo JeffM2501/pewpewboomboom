@@ -5,28 +5,30 @@
 #include <functional>
 #include <unordered_map>
 
-
 static constexpr size_t UnknownPacketSize = size_t(-1);
 
 class PacketProcessor
 {
+public:
+    using PacketReadFunction = std::function<void(PacketProcessor&, ENetPeer*, const void*)>;
+
 private:
     struct ProcessorInfo
     {
-        std::function<void(ENetPeer*, const void*)> Processor = nullptr;
+        PacketReadFunction Processor = nullptr;
         size_t PacketSize = UnknownPacketSize;
     };
 
     std::unordered_map<uint8_t, ProcessorInfo> Processors;
 public:
-    void RegisterProcessor(PacketType packetType, std::function<void(ENetPeer*, const void*)> processor, size_t packetSize);
+    void RegisterProcessorBase(PacketType packetType, PacketReadFunction processor, size_t packetSize);
 
     template<class T>
-    void RegisterProcessor(PacketType packetType, std::function<void(ENetPeer*, const T*)> processor)
+    void RegisterProcessor(PacketType packetType, std::function<void(PacketProcessor&, ENetPeer*, const T*)> function)
     {
-        RegisterProcessor(packetType, [processor](ENetPeer* sender, const void* pData)
+        RegisterProcessorBase(packetType, [function](PacketProcessor& processor, ENetPeer* sender, const void* pData)
             {
-                processor(sender, reinterpret_cast<const T*>(pData));
+                function(processor, sender, reinterpret_cast<const T*>(pData));
             },
             sizeof(T));
     }
