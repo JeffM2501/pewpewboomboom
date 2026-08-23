@@ -15,7 +15,7 @@ Use this as a starting point or replace it with your code.
 #include "lib.h"    
 
 #include "rlimgui.h" 
-#include "net_connection.h" 
+#include "client_network_manager.h" 
 #include "connection_dialog.h" 
 
 Matrix CubeTransform = MatrixIdentity();
@@ -53,9 +53,7 @@ void GameInit()
 
 	rlImGuiSetup(true);
 
-	NetConnection::Init();
-
-	NetConnection::GetEvents().OnTick.Add(ProcessNetTick);
+	Network.GetEvents().OnTick.Add(ProcessNetTick);
 
 	ViewCamera.fovy = 45.0f;
 	ViewCamera.position = { 3.0f, 3.0f, 3.0f };
@@ -71,13 +69,13 @@ void GameInit()
 	GenTextureMipmaps(&CubeMaterial.maps[MATERIAL_MAP_DIFFUSE].texture);
 	SetTextureFilter(CubeMaterial.maps[MATERIAL_MAP_DIFFUSE].texture, TEXTURE_FILTER_TRILINEAR);
 
-	NetConnection::GetEvents().OnSpawn.Add([](const Vector2& spawn, void*) { CubeTransform = MatrixTranslate(spawn.x, 0, spawn.y); });
+	Network.GetEvents().OnSpawn.Add([](const Vector2& spawn, void*) { CubeTransform = MatrixTranslate(spawn.x, 0, spawn.y); });
 }
 
 void GameCleanup()
 {
 	rlImGuiShutdown();
-	NetConnection::Shutdown();
+	Network.Disconnect();
 	// unload resources
 	UnloadMesh(CubeMesh);
 	UnloadTexture(CubeMaterial.maps[MATERIAL_MAP_DIFFUSE].texture);
@@ -87,7 +85,7 @@ void GameCleanup()
 
 bool GameUpdate()
 {
-	NetConnection::Update();
+	Network.Update();
 	if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT))
 		UpdateCamera(&ViewCamera, CAMERA_THIRD_PERSON);
 	return true;
@@ -103,14 +101,14 @@ void GameDraw()
 	DrawMesh(CubeMesh, CubeMaterial, CubeTransform);
 	EndMode3D();
 
-	if (NetConnection::GetState() != ConnectionState::Connected)
+	if (Network.GetState() != ConnectionState::Connected)
 	{
 		DrawText("Disconnected", 10, 10, 20, RED);
 	}
 	else
 	{
 		char statusText[128];
-		snprintf(statusText, sizeof(statusText), "Connected | Name %s", NetConnection::GetPlayerName().Data());
+		snprintf(statusText, sizeof(statusText), "Connected | Name %s", Network.GetPlayerName().Data());
 		DrawText(statusText, 10, 10, 20, DARKGRAY);
 	}
 
@@ -122,7 +120,7 @@ void GameDraw()
 	int x = GetScreenWidth() - 300;
 	DrawRectangle(x, 0, 300, 300, ColorAlpha(BLACK, 0.5f));
 	int y = 5;
-	NetConnection::GetPlayerList().DoForEachPlayer([&y, &x](PlayerState* player)
+	Network.GetPlayerList().DoForEachPlayer([&y, &x](PlayerState* player)
 		{
 			DrawText(player->Name.Data(), x+5, y, 20, WHITE);
 			y += 20;
@@ -142,7 +140,7 @@ void GameDraw()
 
 void ProcessNetTick(const uint64_t &tick, void*)
 {
-	if (!NetConnection::IsReady())
+	if (!Network.IsReady())
 		return;
 
 	// poll input

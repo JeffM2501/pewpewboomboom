@@ -1,6 +1,6 @@
 #include "connection_dialog.h"
 #include "constants.h"
-#include "net_connection.h"
+#include "client_network_manager.h"
 #include "imgui.h"
 
 namespace NetConnectionDialog
@@ -9,8 +9,10 @@ namespace NetConnectionDialog
 
 	void ShowDialog()
 	{
-		if (NetConnection::GetState() == ConnectionState::Connected)
+		if (Network.GetState() == ConnectionState::Connected)
+		{
 			return;
+		}
 
 		ImVec2 windowSize(250, 140);
 		ImVec2 windowPos((ImGui::GetIO().DisplaySize.x - windowSize.x) * 0.5f, (ImGui::GetIO().DisplaySize.y - windowSize.y) * 0.5f);
@@ -26,7 +28,7 @@ namespace NetConnectionDialog
 				ImGui::TextUnformatted("Name");
 				ImGui::TableNextColumn();
 				ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
-				ImGui::InputText("##Name", NetConnection::GetPlayerName().Buffer(), kMaxNameSize);
+				ImGui::InputText("##Name", Network.GetPlayerName().Buffer(), kMaxNameSize);
 
 				ImGui::TableNextRow();
 				ImGui::TableNextColumn();
@@ -38,10 +40,10 @@ namespace NetConnectionDialog
 				ImGui::TableNextRow();
 				ImGui::TableNextColumn();
 
-				ImGui::BeginDisabled(NetConnection::GetState() == ConnectionState::Connecting);
+				ImGui::BeginDisabled(Network.GetState() == ConnectionState::Connecting);
 				if (ImGui::Button("Connect"))
 				{
-					NetConnection::BeginConnect(HostBuffer, 7777);
+					Network.BeginConnect(HostBuffer, 7777);
 				}
 				ImGui::EndDisabled();
 
@@ -49,15 +51,17 @@ namespace NetConnectionDialog
 				ImGui::TableSetColumnIndex(0);
 				ImGui::EndTable();
 			}
-			if (NetConnection::GetState() == ConnectionState::Connecting)
+			if (Network.GetState() == ConnectionState::Connecting)
 			{
 				ImGui::TextUnformatted("Connecting...");
 			}
-			else if (NetConnection::GetState() == ConnectionState::Disconnected)
+			else if (Network.GetState() == ConnectionState::Disconnected)
 			{
 				ImGui::TextUnformatted("Disconnected");
-				if (NetConnection::HadTimeout())
+				if (Network.HadTimeout())
+				{
 					ImGui::TextColored(ImVec4(1, 0, 0, 1), "ERROR: Timeout");
+				}
 			}
 		}
 		ImGui::End();
