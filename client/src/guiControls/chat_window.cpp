@@ -26,7 +26,6 @@ namespace ChatWindow
     constexpr size_t MaxLogHistory = 10;
     constexpr size_t MaxChatHistory = 20;
 
-    constexpr uint64_t ServerChatId = uint64_t(-1);
     char PendingChatLine[kMaxChatLineSize] = { 0 };
 
     ImVec2 ChatBoxSize(600, 200);
@@ -56,6 +55,14 @@ namespace ChatWindow
             ChatLines.pop_front();
     }
 
+    void AddSystemChatLine(std::string_view data)
+    {
+        ChatLines.push_back(ChatMessage{ SystemChatId, std::string(data) });
+
+        while (ChatLines.size() > MaxChatHistory)
+            ChatLines.pop_front();
+    }
+
     void Show()
     {
         ImVec2 pos(0, float(GetScreenHeight()) - ChatBoxSize.y);
@@ -80,7 +87,11 @@ namespace ChatWindow
                                 ImGui::TableNextRow();
                                 ImGui::TableNextColumn();
                                 std::string name = "Server";
-                                if (line.PlayerId != ServerChatId)
+                                if (line.PlayerId == SystemChatId)
+                                {
+                                    name = "System";
+                                }
+                                else if (line.PlayerId != ServerChatId)
                                 {
                                     name = ChatUsers[line.PlayerId];
                                 }

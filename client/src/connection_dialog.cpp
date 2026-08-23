@@ -14,11 +14,13 @@ namespace NetConnectionDialog
 			return;
 		}
 
-		ImVec2 windowSize(250, 140);
+		ImVec2 windowSize(250, ImGui::GetTextLineHeightWithSpacing() * 8);
 		ImVec2 windowPos((ImGui::GetIO().DisplaySize.x - windowSize.x) * 0.5f, (ImGui::GetIO().DisplaySize.y - windowSize.y) * 0.5f);
 
 		ImGui::SetNextWindowSize(windowSize, ImGuiCond_Always);
 		ImGui::SetNextWindowPos(windowPos, ImGuiCond_FirstUseEver);
+		ImGui::SetNextWindowFocus();
+
 		if (ImGui::Begin("Connection", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse))
 		{
 			if (ImGui::BeginTable("Connect", 2, ImGuiTableFlags_SizingStretchProp))
@@ -41,7 +43,7 @@ namespace NetConnectionDialog
 				ImGui::TableNextColumn();
 
 				ImGui::BeginDisabled(Network.GetState() == ConnectionState::Connecting);
-				if (ImGui::Button("Connect"))
+				if (ImGui::Button("Connect") || IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_KP_ENTER))
 				{
 					Network.BeginConnect(HostBuffer, 7777);
 				}

@@ -2,5 +2,7 @@
 
 namespace GameGui
 {
+    void InstallStyle();
+
     void Show();
 };

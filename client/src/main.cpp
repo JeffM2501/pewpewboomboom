@@ -21,11 +21,9 @@ Use this as a starting point or replace it with your code.
 #include "game_gui.h"
 #include "guiControls/chat_window.h"
 
-Matrix CubeTransform = MatrixIdentity();
-Mesh CubeMesh = { 0 };
-Material CubeMaterial = { 0 };
 
-Camera3D ViewCamera = { 0 };
+Camera2D ViewCamera = { 0 };
+Texture GridTexture = { 0 };
 
 static void GameLogger(std::string_view message, LogLevel level)
 {
@@ -41,6 +39,8 @@ Logger& GetLogger()
 
 void ProcessNetTick(const uint64_t& tick, void* sender);
 
+void ProcessPlayerSpawn(Vector2 spawnPos);
+
 void GameInit()
 {
 	SetConfigFlags(FLAG_VSYNC_HINT | FLAG_WINDOW_RESIZABLE);
@@ -48,44 +48,36 @@ void GameInit()
 	SetTargetFPS(144);
 
 	rlImGuiSetup(true);
+	GameGui::InstallStyle();
 
 	Network.GetEvents().OnTick.Add(ProcessNetTick);
 
-	ViewCamera.fovy = 45.0f;
-	ViewCamera.position = { 3.0f, 3.0f, 3.0f };
-	ViewCamera.up = { 0.0f, 1.0f, 0.0f };
-	ViewCamera.target = { 0.0f, 0.0f, 0.0f };
-
 	// load resources
+	GridTexture = LoadTexture("resources/texture_01.png");
 
-	CubeMesh = GenMeshCube(1.0f, 1.0f, 1.0f);
-	CubeMaterial = LoadMaterialDefault();
-	CubeMaterial.maps[MATERIAL_MAP_DIFFUSE].texture = LoadTexture("resources/texture_01.png");
+	Network.GetEvents().OnSpawn.Add([](const Vector2& spawn, void*) { ProcessPlayerSpawn(spawn); });
 
-	GenTextureMipmaps(&CubeMaterial.maps[MATERIAL_MAP_DIFFUSE].texture);
-	SetTextureFilter(CubeMaterial.maps[MATERIAL_MAP_DIFFUSE].texture, TEXTURE_FILTER_TRILINEAR);
+	ChatWindow::AddSystemChatLine("Client Startup");
 
-	Network.GetEvents().OnSpawn.Add([](const Vector2& spawn, void*) { CubeTransform = MatrixTranslate(spawn.x, 0, spawn.y); });
-
-	ChatWindow::AddChatLine(nullptr, "Client Startup");
+	ViewCamera.zoom = 1;
 }
 
 void GameCleanup()
 {
 	rlImGuiShutdown();
 	Network.Disconnect();
+
 	// unload resources
-	UnloadMesh(CubeMesh);
-	UnloadTexture(CubeMaterial.maps[MATERIAL_MAP_DIFFUSE].texture);
+	UnloadTexture(GridTexture);
 
 	CloseWindow();
 }
 
 bool GameUpdate()
 {
+	ViewCamera.offset = Vector2{ (float)GetScreenWidth(), (float)GetScreenHeight() } / 2;
+
 	Network.Update();
-	if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT))
-		UpdateCamera(&ViewCamera, CAMERA_THIRD_PERSON);
 	return true;
 }
 
@@ -94,10 +86,17 @@ void GameDraw()
 	BeginDrawing();
 	ClearBackground(GRAY);
 
-	BeginMode3D(ViewCamera);
-	DrawGrid(100, 1);
-	DrawMesh(CubeMesh, CubeMaterial, CubeTransform);
-	EndMode3D();
+	BeginMode2D(ViewCamera);
+	Vector2 min = GetScreenToWorld2D(Vector2Zeros, ViewCamera);
+	Vector2 max = GetScreenToWorld2D(Vector2{ (float)GetScreenWidth(), (float)GetScreenHeight() }, ViewCamera);
+
+	Rectangle worldRect = { min.x, min.y, max.x - min.x, max.y - min.y };
+	DrawTexturePro(GridTexture, worldRect, worldRect, Vector2Zeros, 0, ColorAlpha(WHITE, 0.5f));
+
+	DrawCircleV(ViewCamera.target, 50, GREEN);
+	DrawText(TextFormat("x %f y %f", ViewCamera.target.x, ViewCamera.target.y), int(ViewCamera.target.x), int(ViewCamera.target.y), 20, YELLOW);
+
+	EndMode2D();
 
 	rlImGuiBegin();
 	NetConnectionDialog::ShowDialog();
@@ -113,6 +112,11 @@ void ProcessNetTick(const uint64_t &tick, void*)
 		return;
 
 	// poll input
+}
+
+void ProcessPlayerSpawn(Vector2 spawnPos)
+{
+	ViewCamera.target = spawnPos;
 }
 
 int main()
