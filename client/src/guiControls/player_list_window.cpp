@@ -28,7 +28,7 @@ namespace PlayerListWindow
                 {
                     if (!player->IsLocalPlayer)
                         return;
-                    ImGui::TextUnformatted(ICON_FA_STAR);
+                    ImGui::TextUnformatted(ICON_FA_USER_ASTRONAUT);
                     ImGui::SameLine();
 
                     ImGui::TextColored(ImVec4{ 0.5f, 1.0f, 0.5f, 1.0f }, player->Name.Data());
@@ -39,7 +39,7 @@ namespace PlayerListWindow
                     if (player->IsLocalPlayer)
                         return;
 
-                    ImGui::TextUnformatted(ICON_FA_CIRCLE);
+                    ImGui::TextUnformatted(ICON_FA_USER);
                     ImGui::SameLine();
                     ImGui::TextUnformatted(player->Name.Data());
                 });

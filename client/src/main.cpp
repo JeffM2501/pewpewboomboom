@@ -99,20 +99,8 @@ void GameDraw()
 	DrawMesh(CubeMesh, CubeMaterial, CubeTransform);
 	EndMode3D();
 
-	if (Network.GetState() != ConnectionState::Connected)
-	{
-		DrawText("Disconnected", 10, 10, 20, RED);
-	}
-	else
-	{
-		char statusText[128];
-		snprintf(statusText, sizeof(statusText), "Connected | Name %s", Network.GetPlayerName().Data());
-		DrawText(statusText, 10, 10, 20, DARKGRAY);
-	}
-
 	rlImGuiBegin();
 	NetConnectionDialog::ShowDialog();
-
 	GameGui::Show();
 	rlImGuiEnd();
 
