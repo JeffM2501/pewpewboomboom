@@ -13,6 +13,7 @@
 #include "raylib.h"
 
 #include "player_state.h"
+#include "player_list.h"
 
 bool Running = true;
 
@@ -27,13 +28,16 @@ static constexpr int ServerTickTimeMS = static_cast<int>(1.0f / ServerTickTime *
 
 FixedTickAccumulator ServerTick(ServerTickTime);
 
-std::unordered_map<enet_uint32, PlayerState> ServerPlayers;
-
 void ProcessC2S_Ping(ENetPeer* sender, const C2S_Ping* ping);
 void ProcessC2S_Goodbye(ENetPeer* sender, const C2S_Goodbye* goodbye);
 void ProcessC2S_JoinRequest(ENetPeer* sender, const C2S_JoinRequest* goodbye);
 
 uint64_t CurrentServerTick = 0;
+
+void UpdateRobot(ServerPlayerList::ServerPlayer& robot)
+{
+
+}
 
 void ServerSetup()
 {
@@ -63,6 +67,12 @@ void ServerSetup()
 	Proessor.RegisterProcessor<C2S_Ping>(PacketType::C2S_Ping, ProcessC2S_Ping);
 	Proessor.RegisterProcessor<C2S_Goodbye>(PacketType::C2S_Goodbye, ProcessC2S_Goodbye);
 	Proessor.RegisterProcessor<C2S_JoinRequest>(PacketType::C2S_JoinRequest, ProcessC2S_JoinRequest);
+
+	auto& robot = ServerPlayerList::AddRobotPlayer();
+	robot.UpdateFunctions.emplace_back(UpdateRobot);
+	robot.Name = "Theta (Robot)";
+	robot.Team = -1;
+	robot.Transform.Position = Vector2{ 20, 20 };
 }
 
 void ServerCleanup()
@@ -78,31 +88,30 @@ void ServerCleanup()
 
 void RemovePlayer(ENetPeer* peer, bool isDisconnect)
 {
-	auto it = ServerPlayers.find(peer->connectID);
-	if (it != ServerPlayers.end())
-	{
-		auto playerID = it->second.PlayerID;
+	if (!ServerPlayerList::PlayerExists(peer))
+		return;
 
-		ServerLogger.Log(LogLevel::Info, "Removing player %s (ID: %llu) from server.", it->second.Name, it->second.PlayerID);
-		ServerPlayers.erase(it);
+	auto& player = ServerPlayerList::GetPlayer(peer);
 
-        for (auto& [id, playerInfo] : ServerPlayers)
-        {
-            S2C_PlayerDisconnected deadPlayer;
-            deadPlayer.playerId = playerID;
-            deadPlayer.reason = isDisconnect ? S2C_PlayerDisconnected::Reason::Dissconnect : S2C_PlayerDisconnected::Reason::Quit;
-            Proessor.SendPacket(playerInfo.Peer, 0, deadPlayer);
-        }
-	}
-	else if (isDisconnect)
-	{
-		ServerLogger.Log(LogLevel::Warning, "Attempted to remove unknown player with connectID %u.", peer->connectID);
-	}
+	auto playerID = player.PlayerID;
+
+	ServerLogger.Log(LogLevel::Info, "Removing player %s (ID: %llu) from server.", player.Name.Data(), playerID);
+	ServerPlayerList::RemovePlayer(peer);
+
+	ServerPlayerList::DoForEachPlayer([playerID, isDisconnect](auto& playerInfo) {
+        S2C_PlayerDisconnected deadPlayer;
+        deadPlayer.playerId = playerID;
+        deadPlayer.reason = isDisconnect ? S2C_PlayerDisconnected::Reason::Dissconnect : S2C_PlayerDisconnected::Reason::Quit;
+        Proessor.SendPacket(playerInfo.Peer, 0, deadPlayer);
+		});
 }
 
 void ServerNetUpdate(double deltaTime)
 {
 	CurrentServerTick++;
+
+	// see if the players have update tasks
+	ServerPlayerList::DoForEachPlayer([](auto& player) {player.Update(); }, true);
 
 	ENetEvent event;
 
@@ -116,7 +125,8 @@ void ServerNetUpdate(double deltaTime)
 		case ENET_EVENT_TYPE_CONNECT:
 			ServerLogger.Log(LogLevel::Info, "A new client connected from %x:%d", event.peer->address.host, event.peer->address.port);
 
-			ServerPlayers.emplace(event.peer->connectID, PlayerState{ uint64_t(event.peer->connectID), event.peer });
+			ServerPlayerList::GetPlayer(event.peer);
+
 			break;
 
 		case ENET_EVENT_TYPE_RECEIVE:
@@ -135,7 +145,7 @@ void ServerNetUpdate(double deltaTime)
 			/* Reset the peer's client information. */
 			event.peer->data = nullptr;
 
-			if (ServerPlayers.empty())
+			if (ServerPlayerList::Empty())
 			{
 				Running = false;
 			}
@@ -144,7 +154,7 @@ void ServerNetUpdate(double deltaTime)
 		case ENET_EVENT_TYPE_DISCONNECT_TIMEOUT:
 			ServerLogger.Log(LogLevel::Info, "%x disconnected (timeout).", event.peer->data);
 			RemovePlayer(event.peer, true);
-			if (ServerPlayers.empty())
+			if (ServerPlayerList::Empty())
 			{
 				Running = false;
 			}
@@ -176,27 +186,27 @@ void ProcessC2S_JoinRequest(ENetPeer* sender, const C2S_JoinRequest* join)
 {
 	S2C_JoinResponse responce;
 
-	auto it = ServerPlayers.find(sender->connectID);
-	if (it == ServerPlayers.end())
-	{
-		responce.result = S2C_JoinResponse::Result::Failure;
-		ServerLogger.Log(LogLevel::Warning, "Received C2S_JoinRequest from unknown peer %x.", sender->address.host);
-		Proessor.SendPacket(sender, 0, responce);
-		enet_peer_disconnect_now(sender, 0);
-		return;
-	}
+	if (!ServerPlayerList::PlayerExists(sender))
+    {
+        responce.result = S2C_JoinResponse::Result::Failure;
+        ServerLogger.Log(LogLevel::Warning, "Received C2S_JoinRequest from unknown peer %x.", sender->address.host);
+        Proessor.SendPacket(sender, 0, responce);
+        enet_peer_disconnect_now(sender, 0);
+        return;
+    }
 
-	it->second.PlayerID = uint64_t(sender->connectID);
-    it->second.Name = join->desriredName;
+	auto& player = ServerPlayerList::GetPlayer(sender);
 
-	it->second.Transform.Position.x = float(GetRandomValue(-50, 50));
-	it->second.Transform.Position.y = float(GetRandomValue(-50, 50));
+	player.Name = join->desriredName;
+
+	player.Transform.Position.x = float(GetRandomValue(-50, 50));
+	player.Transform.Position.y = float(GetRandomValue(-50, 50));
 
 	responce.result = S2C_JoinResponse::Result::Success;
-	it->second.Name.CopyToBuffer(responce.actualName);
+	player.Name.CopyToBuffer(responce.actualName);
 
-	responce.playerId = it->second.PlayerID;
-	DataUtils::PackVector2(it->second.Transform.Position, responce.spawn);
+	responce.playerId = player.PlayerID;
+	DataUtils::PackVector2(player.Transform.Position, responce.spawn);
 
 	Proessor.SendPacket(sender, 0, responce);
 	ServerLogger.Log(LogLevel::Info, "%x sent Join Response, ID %d name %s", sender->address.host, responce.playerId, responce.actualName);
@@ -204,31 +214,27 @@ void ProcessC2S_JoinRequest(ENetPeer* sender, const C2S_JoinRequest* join)
 	// send the world snapshot
 
 	// send the player list to them
-	for (auto& [id, playerInfo] : ServerPlayers)
-	{
-		if (id == it->second.PlayerID)
-			continue;
-
-		S2C_PlayerJoined remotePlayer;
-		remotePlayer.playerId = id;
-		playerInfo.Name.CopyToBuffer(remotePlayer.name);
-		Proessor.SendPacket(sender, 0, remotePlayer);
-	}
+	ServerPlayerList::DoForEachPlayer([sender](auto& playerInfo)
+		{
+            S2C_PlayerJoined remotePlayer;
+            remotePlayer.playerId = playerInfo.PlayerID;
+            playerInfo.Name.CopyToBuffer(remotePlayer.name);
+            Proessor.SendPacket(sender, 0, remotePlayer);
+		}
+	, true, player.PlayerID);
 
 	// send them player updates of all current players
 	
 
 	// send them to all other players
-    for (auto& [id, playerInfo] : ServerPlayers)
-    {
-        if (id == it->second.PlayerID)
-            continue;
-
-        S2C_PlayerJoined newPlayer;
-		newPlayer.playerId = it->second.PlayerID;
-		it->second.Name.CopyToBuffer(newPlayer.name);
-        Proessor.SendPacket(playerInfo.Peer, 0, newPlayer);
-    }
+    ServerPlayerList::DoForEachPlayer([&player](auto& playerInfo)
+        {
+            S2C_PlayerJoined newPlayer;
+            newPlayer.playerId = player.PlayerID;
+			player.Name.CopyToBuffer(newPlayer.name);
+            Proessor.SendPacket(playerInfo.Peer, 0, newPlayer);
+        }
+    , false, player.PlayerID);
 }
 
 int main(int argc, char* argv[])
