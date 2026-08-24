@@ -2,6 +2,7 @@
 
 #include "client_network_manager.h"
 #include "constants.h"
+#include "extras/IconsFontAwesome6.h"
 
 #include <string>
 #include <deque>
@@ -110,15 +111,19 @@ namespace ChatWindow
                     }
                     ImGui::EndChild();
 
-                    ImGui::Text("%s:", Network.GetPlayerName());
+                    ImGui::AlignTextToFramePadding();
+                    ImGui::Text("%s %s:", ICON_FA_USER_ASTRONAUT, Network.GetPlayerName());
                     ImGui::SameLine();
                     ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+
                     if (ImGui::InputText("###ChatInput", PendingChatLine, kMaxChatLineSize, ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_EscapeClearsAll))
                     {
                         OnSendChatMessage.Invoke(std::string(PendingChatLine), nullptr);
-
                         PendingChatLine[0] = '\0';
                     }
+
+					if (!ImGui::IsItemFocused() && IsKeyPressed(KEY_TAB))
+						ImGui::SetKeyboardFocusHere(-1);
 
                     ImGui::EndTabItem();
                 }

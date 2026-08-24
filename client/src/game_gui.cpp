@@ -147,13 +147,15 @@ namespace GameGui
 
     void InstallStyle()
     {
-        SetDarkPastelImGuiStyle();
+      SetDarkPastelImGuiStyle();
     }
 
     void Show()
     {
+        ImGui::BeginDisabled(Network.GetState() != ConnectionState::Connected);
         ChatWindow::Show();
         PlayerListWindow::Show();
         ShowConnectionWindow();
+        ImGui::EndDisabled();
     }
 }

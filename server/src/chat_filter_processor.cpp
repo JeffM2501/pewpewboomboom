@@ -3,26 +3,8 @@
 
 bool ChatFilterProcessor::FilterMessage(PendingChatMessage& message)
 {
-    std::vector<std::string> badWords;
-    badWords.push_back("badword");
-    badWords.push_back("hack");
-    badWords.push_back("cheat");
-    bool found = false;
-    for (const auto& word : badWords)
-    {
-        size_t pos = 0;
-        while ((pos = message.Message.find(word, pos)) != std::string::npos)
-        {
-            message.Message.replace(pos, word.length(), std::string(word.length(), '*'));
-            pos += word.length();
-            found = true;
-        }
-    }
-    if (found)
-    {
-        message.WasFiltered = true;
-    }
-    return found;
+    // TODO, hook this into a chat processor
+    return false;
 }
 
 ChatFilterProcessor::ChatFilterProcessor()

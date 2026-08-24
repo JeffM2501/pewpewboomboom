@@ -15,6 +15,7 @@ Use this as a starting point or replace it with your code.
 #include "lib.h"    
 
 #include "rlimgui.h" 
+#include "imgui.h"
 #include "client_network_manager.h" 
 #include "connection_dialog.h" 
 
@@ -41,12 +42,33 @@ void ProcessNetTick(const uint64_t& tick, void* sender);
 
 void ProcessPlayerSpawn(Vector2 spawnPos);
 
+void SetupRlImGuiFonts()
+{
+	ImGuiIO& io = ImGui::GetIO();
+
+	ImFontConfig defaultConfig;
+
+	static constexpr int DefaultFonSize = 12;
+
+	defaultConfig.SizePixels = DefaultFonSize;
+#if !defined(__APPLE__)
+	if (!IsWindowState(FLAG_WINDOW_HIGHDPI))
+		defaultConfig.SizePixels = ceilf(defaultConfig.SizePixels * GetWindowScaleDPI().y);
+
+	defaultConfig.ExtraSizeScale = GetWindowScaleDPI().y;
+#endif
+
+	defaultConfig.PixelSnapH = true;
+	io.Fonts->AddFontFromFileTTF("resources/fonts/Aileron-SemiBold.otf",defaultConfig.SizePixels, &defaultConfig);
+}
+
 void GameInit()
 {
-	SetConfigFlags(FLAG_VSYNC_HINT | FLAG_WINDOW_RESIZABLE);
+	SetConfigFlags(FLAG_VSYNC_HINT | FLAG_WINDOW_RESIZABLE | FLAG_WINDOW_HIGHDPI);
 	InitWindow(1280, 800, "Example");
 	SetTargetFPS(144);
 
+	rlImGuiSetLoadFontsCallback(SetupRlImGuiFonts);
 	rlImGuiSetup(true);
 	GameGui::InstallStyle();
 
@@ -83,7 +105,7 @@ void GameCleanup()
 
 bool GameUpdate()
 {
-	ViewCamera.offset = Vector2{ (float)GetScreenWidth(), (float)GetScreenHeight() } / 2;
+	ViewCamera.offset = Vector2{ (float)GetRenderWidth(), (float)GetRenderHeight() } / 2;
 
 	Network.Update();
 	return true;
@@ -96,7 +118,7 @@ void GameDraw()
 
 	BeginMode2D(ViewCamera);
 	Vector2 min = GetScreenToWorld2D(Vector2Zeros, ViewCamera);
-	Vector2 max = GetScreenToWorld2D(Vector2{ (float)GetScreenWidth(), (float)GetScreenHeight() }, ViewCamera);
+	Vector2 max = GetScreenToWorld2D(Vector2{ (float)GetRenderWidth(), (float)GetRenderHeight() }, ViewCamera);
 
 	Rectangle worldRect = { min.x, min.y, max.x - min.x, max.y - min.y };
 	DrawTexturePro(GridTexture, worldRect, worldRect, Vector2Zeros, 0, ColorAlpha(WHITE, 0.5f));

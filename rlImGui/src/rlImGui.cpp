@@ -87,6 +87,13 @@ void ImGui_ImplRaylib_FreeBackendData()
     MemFree(ImGui::GetPlatformIO().Renderer_RenderState);
 }
 
+void(*rlFontLoadCallback)() = nullptr;
+
+void rlImGuiSetLoadFontsCallback(void(*callback)())
+{
+    rlFontLoadCallback = callback;
+}
+
 Vector2 GetDisplayScale()
 {
 #if defined(__EMSCRIPTEN__)
@@ -454,22 +461,29 @@ void rlImGuiBeginInitImGui(void)
         GlobalContext = ImGui::CreateContext(nullptr);
     SetupKeymap();
 
-    ImGuiIO& io = ImGui::GetIO();
+    if (rlFontLoadCallback != nullptr)
+    {
+        rlFontLoadCallback();
+    }
+    else
+    {
+        ImGuiIO& io = ImGui::GetIO();
 
-    ImFontConfig defaultConfig;
+        ImFontConfig defaultConfig;
 
-    static constexpr int DefaultFonSize = 13;
+        static constexpr int DefaultFonSize = 11;
 
-    defaultConfig.SizePixels = DefaultFonSize;
+        defaultConfig.SizePixels = DefaultFonSize;
 #if !defined(__APPLE__)
-    if (!IsWindowState(FLAG_WINDOW_HIGHDPI))
-        defaultConfig.SizePixels = ceilf(defaultConfig.SizePixels * GetDisplayScale().y);
+        if (!IsWindowState(FLAG_WINDOW_HIGHDPI))
+            defaultConfig.SizePixels = ceilf(defaultConfig.SizePixels * GetDisplayScale().y);
 
-    defaultConfig.RasterizerMultiply = GetDisplayScale().y;
+        defaultConfig.ExtraSizeScale = GetDisplayScale().y;
 #endif
 
-    defaultConfig.PixelSnapH = true;
-    io.Fonts->AddFontDefault(&defaultConfig);
+        defaultConfig.PixelSnapH = true;
+        io.Fonts->AddFontDefault(&defaultConfig);
+    }
 }
 
 void rlImGuiSetup(bool dark)
