@@ -19,6 +19,7 @@ private:
 public:
 
     ClientPlayerState* AddPlayer(uint64_t playerId);
+    ClientPlayerState* GetPlayer(uint64_t playerId);
     void RemovePlayer(uint64_t playerId);
     void UpdatePlayerInfo(uint64_t playerId);
 

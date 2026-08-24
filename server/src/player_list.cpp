@@ -2,6 +2,7 @@
 
 #include "player_list.h"
 #include <limits>
+#include <mutex>
 
 namespace ServerPlayerList
 {
@@ -14,13 +15,39 @@ namespace ServerPlayerList
     static uint32_t LastRobotPlayerID = 0;
     static uint32_t RobotPlayerIDMask = std::numeric_limits<uint32_t>::max();
 
+    static std::mutex PlayerListLock;
+
     std::unordered_map<uint64_t, ServerPlayer>& GetPlayerList()
     {
         return Players;
     }
 
+    ServerPlayer* GetPlayer(uint64_t playerID)
+    {
+        std::lock_guard guard(PlayerListLock);
+
+        auto itr = Players.find(playerID);
+        if (itr == Players.end())
+        {
+            return nullptr;
+        }
+
+        ServerPlayer& player = itr->second;
+
+        return &player;
+    }
+
+    bool PlayerExists(uint64_t playerID)
+    {
+        std::lock_guard guard(PlayerListLock);
+      
+        return Players.contains(playerID);
+    }
+
     ServerPlayer& GetPlayer(ENetPeer* peer)
     {
+        std::lock_guard guard(PlayerListLock);
+
         uint64_t playerId = uint64_t(peer->connectID);
 
         auto itr = Players.find(playerId);
@@ -37,13 +64,13 @@ namespace ServerPlayerList
 
     bool PlayerExists(ENetPeer* peer)
     {
-        uint64_t playerId = uint64_t(peer->connectID);
-
-        return Players.contains(playerId);
+        return PlayerExists(uint64_t(peer->connectID));
     }
 
     bool RemovePlayer(ENetPeer* peer)
     {
+        std::lock_guard guard(PlayerListLock);
+
         auto itr = Players.find(peer->connectID);
         if (itr == Players.end())
             return false;
@@ -54,6 +81,8 @@ namespace ServerPlayerList
 
     ServerPlayer& AddRobotPlayer()
     {
+        std::lock_guard guard(PlayerListLock);
+
         LastRobotPlayerID++;
         uint64_t id = RobotPlayerIDMask + LastRobotPlayerID;
 
@@ -69,6 +98,8 @@ namespace ServerPlayerList
         if (!function)
             return;
 
+        std::lock_guard guard(PlayerListLock);
+
         for (auto& [id, player] : Players)
         {
             if (id == except)
@@ -83,6 +114,8 @@ namespace ServerPlayerList
 
     bool Empty(bool includeRobots)
     {
+        std::lock_guard guard(PlayerListLock);
+
         if (includeRobots || Players.empty())
             return Players.empty();
 

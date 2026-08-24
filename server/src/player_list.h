@@ -28,7 +28,9 @@ namespace ServerPlayerList
     std::unordered_map<uint64_t, ServerPlayer> &GetPlayerList();
 
     ServerPlayer& GetPlayer(ENetPeer* peer);
+    ServerPlayer* GetPlayer(uint64_t playerID);
     bool PlayerExists(ENetPeer* peer);
+    bool PlayerExists(uint64_t playerID);
     bool RemovePlayer(ENetPeer* peer);
 
     ServerPlayer& AddRobotPlayer();

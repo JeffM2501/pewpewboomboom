@@ -2,6 +2,7 @@
 
 #include <string_view>
 #include "player_state.h"
+#include "event_source.h"
 
 namespace ChatWindow
 {
@@ -11,6 +12,8 @@ namespace ChatWindow
     void AddLogLine(std::string_view data);
     void AddChatLine(PlayerState* from, std::string_view data);
     void AddSystemChatLine(std::string_view data);
+
+    extern EventSource<std::string> OnSendChatMessage;
 
     void Show();
 }

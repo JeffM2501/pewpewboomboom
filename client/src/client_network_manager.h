@@ -31,6 +31,7 @@ public:
 		EventSource<uint64_t> OnPlayerDisconnect;
 		EventSource<Vector2> OnSpawn;
 		EventSource<uint64_t> OnTick;
+		EventSource<std::pair<uint64_t, std::string>> OnChatMessage;
 	};
 
 	ClientNetworkManager();
@@ -51,6 +52,8 @@ public:
 
 	Events& GetEvents();
 	PlayerList& GetPlayerList();
+
+	void SentChatMessage(std::string_view message);
 
 private:
 	ConnectionState CurrentState = ConnectionState::Disconnected;
@@ -78,12 +81,12 @@ private:
 
 	void SendPing();
 	void SendJoin();
-	void SentChatMessage(std::string_view message);
 
 	static void ProcessS2C_Pong(PacketProcessor& processor, ENetPeer* sender, const S2C_Pong* pong);
 	static void ProcessS2C_JoinResponse(PacketProcessor& processor, ENetPeer* sender, const S2C_JoinResponse* responce);
 	static void ProcessS2C_PlayerJoined(PacketProcessor& processor, ENetPeer* sender, const S2C_PlayerJoined* joinInfo);
 	static void ProcessS2C_PlayerDisconnected(PacketProcessor& processor, ENetPeer* sender, const S2C_PlayerDisconnected* disconnectInfo);
+	static void ProcessC2S_ChatMessage(PacketProcessor& processor, ENetPeer* sender, const C2S_ChatMessage* cahtMessage);
 };
 
 extern ClientNetworkManager Network;

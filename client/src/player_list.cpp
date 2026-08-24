@@ -8,6 +8,15 @@ ClientPlayerState* PlayerList::AddPlayer(uint64_t playerId)
     return newPlayer;
 }
 
+ClientPlayerState* PlayerList::GetPlayer(uint64_t playerId)
+{
+    auto itr = Players.find(playerId);
+    if (itr == Players.end())
+        return nullptr;
+
+    return itr->second.get();
+}
+
 void PlayerList::RemovePlayer(uint64_t playerId)
 {
     auto itr = Players.find(playerId);

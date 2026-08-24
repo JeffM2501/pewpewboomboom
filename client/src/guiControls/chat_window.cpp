@@ -14,6 +14,8 @@ namespace ChatWindow
 {
     std::deque<std::string> LogLines;
 
+    EventSource<std::string> OnSendChatMessage;
+
     struct ChatMessage
     {
         uint64_t PlayerId;
@@ -113,8 +115,8 @@ namespace ChatWindow
                     ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
                     if (ImGui::InputText("###ChatInput", PendingChatLine, kMaxChatLineSize, ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_EscapeClearsAll))
                     {
-                        AddChatLine(nullptr, PendingChatLine);
-                        // send chat message
+                        OnSendChatMessage.Invoke(std::string(PendingChatLine), nullptr);
+
                         PendingChatLine[0] = '\0';
                     }
 

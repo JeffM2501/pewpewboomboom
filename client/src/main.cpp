@@ -56,7 +56,15 @@ void GameInit()
 	GridTexture = LoadTexture("resources/texture_01.png");
 
 	Network.GetEvents().OnSpawn.Add([](const Vector2& spawn, void*) { ProcessPlayerSpawn(spawn); });
+	Network.GetEvents().OnChatMessage.Add([](const std::pair<uint64_t, std::string>& message, void*) 
+		{
+			ChatWindow::AddChatLine(Network.GetPlayerList().GetPlayer(message.first), message.second);
+		});
 
+	ChatWindow::OnSendChatMessage.Add([](const std::string& message, void*) 
+		{
+			Network.SentChatMessage(message);
+		});
 	ChatWindow::AddSystemChatLine("Client Startup");
 
 	ViewCamera.zoom = 1;

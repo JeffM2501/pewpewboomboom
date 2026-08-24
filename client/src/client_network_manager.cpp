@@ -9,6 +9,7 @@
 #include "game.h"
 #include "data_utils.h"
 #include "raylib.h"
+#include "guiControls/chat_window.h"
 
 ClientNetworkManager Network;
 
@@ -21,6 +22,7 @@ ClientNetworkManager::ClientNetworkManager()
 	RegisterProcessor<S2C_JoinResponse>(PacketType::S2C_JoinResponse, ProcessS2C_JoinResponse);
 	RegisterProcessor<S2C_PlayerJoined>(PacketType::S2C_PlayerJoined, ProcessS2C_PlayerJoined);
 	RegisterProcessor<S2C_PlayerDisconnected>(PacketType::S2C_PlayerDisconnected, ProcessS2C_PlayerDisconnected);
+	RegisterProcessor<C2S_ChatMessage>(PacketType::C2S_ChatMessage, ProcessC2S_ChatMessage);
 }
 
 ClientNetworkManager::~ClientNetworkManager()
@@ -275,4 +277,12 @@ void ClientNetworkManager::ProcessS2C_PlayerDisconnected(PacketProcessor& proces
 	ClientNetworkManager& self = static_cast<ClientNetworkManager&>(processor);
 	self.Players.RemovePlayer(disconnectInfo->playerId);
 	self.ConnectionEvents.OnPlayerDisconnect.Invoke(disconnectInfo->playerId);
+}
+
+void ClientNetworkManager::ProcessC2S_ChatMessage(PacketProcessor& processor, ENetPeer* sender, const C2S_ChatMessage* chatMessage)
+{
+	ClientNetworkManager& self = static_cast<ClientNetworkManager&>(processor);
+
+	std::pair<uint64_t, std::string> eventInfo(chatMessage->senderId, chatMessage->message);
+	self.GetEvents().OnChatMessage.Invoke(eventInfo, &self);
 }
