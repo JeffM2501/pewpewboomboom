@@ -3,11 +3,13 @@
 #include "enet.h"
 #include <deque>
 #include <string>
-
+#include <thread>
+#include <mutex>
+#include <condition_variable>
 
 #include "event_source.h"
 
-struct PendingChatMessage 
+struct PendingChatMessage
 {
   bool WasFiltered = false;
   bool ShouldSend = true;
@@ -21,7 +23,15 @@ class ChatFilterProcessor
 private:
   std::deque<PendingChatMessage> PendingMessages;
 
+  std::thread WorkerThread;
+  std::mutex QueueMutex;
+  std::condition_variable QueueCondition;
+  std::condition_variable FlushCondition;
+  int ActiveMessages = 0;
+  bool StopThread = false;
+
   bool FilterMessage(PendingChatMessage &message);
+  void WorkerLoop();
 
 public:
   EventSource<PendingChatMessage> MessageWasFiltered;

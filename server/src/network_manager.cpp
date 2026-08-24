@@ -8,6 +8,17 @@ extern Logger ServerLogger;
 NetworkManager::NetworkManager()
 {
     PacketHandlers::RegisterAll(*this);
+    ChatProcessor.SentFilteredMessage.Add([this](const PendingChatMessage& message, void*)
+        {
+            auto* player = ServerPlayerList::GetPlayer(message.SenderID);
+            if (!player)
+                return;
+
+            C2S_ChatMessage chatPacket;
+            chatPacket.senderId = player->PlayerID;
+            CopyFixedSizeString(chatPacket.message, message.Message.data(), kMaxChatLineSize);
+            Broadcast(1, chatPacket, false);
+        });
 }
 
 NetworkManager::~NetworkManager()
