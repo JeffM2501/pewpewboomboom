@@ -3,6 +3,7 @@
 #include "player_list.h"
 #include "enet.h"
 #include "packet_processor.h"
+#include "chat_filter_processor.h"
 
 #include "event_source.h"
 
@@ -24,7 +25,7 @@ public:
 
     ENetHost* GetHost() const
     {
-        return m_ServerHost;
+        return ServerHost;
     }
 
     EventSource<uint64_t> PlayerConnected;
@@ -46,6 +47,9 @@ public:
     uint64_t ServerStartTimeMs = 0;
     uint64_t CurrentServerTick = 0;
 
+    ChatFilterProcessor& GetChatProcessor() { return ChatProcessor; }
+
 private:
-    ENetHost* m_ServerHost = nullptr;
+    ENetHost* ServerHost = nullptr;
+    ChatFilterProcessor ChatProcessor;
 };

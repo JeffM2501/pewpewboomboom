@@ -78,6 +78,7 @@ private:
 
 	void SendPing();
 	void SendJoin();
+	void SentChatMessage(std::string_view message);
 
 	static void ProcessS2C_Pong(PacketProcessor& processor, ENetPeer* sender, const S2C_Pong* pong);
 	static void ProcessS2C_JoinResponse(PacketProcessor& processor, ENetPeer* sender, const S2C_JoinResponse* responce);

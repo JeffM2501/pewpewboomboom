@@ -91,4 +91,11 @@ struct S2C_PlayerDisconnected
 	Reason reason = Reason::Quit;
 };
 
+struct C2S_ChatMessage
+{
+    uint8_t type = static_cast<uint8_t>(PacketType::C2S_ChatMessage);
+	uint64_t senderId = 0;
+	char message[kMaxChatLineSize] = {};
+};
+
 #pragma pack(pop)

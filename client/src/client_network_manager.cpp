@@ -225,6 +225,14 @@ void ClientNetworkManager::SendJoin()
     GetLogger().Log(LogLevel::Info, "[Client] Sent C2S_JoinRequest packet on Channel 0, desired name %s.", PlayerName.Data());
 }
 
+void ClientNetworkManager::SentChatMessage(std::string_view message) 
+{
+    C2S_ChatMessage chat;
+    CopyFixedSizeString(chat.message, message.data(), kMaxChatLineSize);
+    chat.senderId = PlayerID;
+    SendPacket(ServerPeer, 0, chat);
+}
+
 void ClientNetworkManager::ProcessS2C_Pong(PacketProcessor& processor, ENetPeer* sender, const S2C_Pong* pong)
 {
 	ClientNetworkManager& self = static_cast<ClientNetworkManager&>(processor);

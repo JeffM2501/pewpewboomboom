@@ -90,10 +90,18 @@ namespace PacketHandlers
             , false, player.PlayerID);
     }
 
+    static void ProcessC2S_ChatMessage(PacketProcessor& processor, ENetPeer* sender, const C2S_ChatMessage* chat) 
+    {
+        NetworkManager& netManager = static_cast<NetworkManager&>(processor);
+        auto& player = ServerPlayerList::GetPlayer(sender);
+        netManager.GetChatProcessor().PushChatMessage(player.PlayerID, chat->message);
+    }
+
     void RegisterAll(PacketProcessor& processor)
     {
         processor.RegisterProcessor<C2S_Ping>(PacketType::C2S_Ping, ProcessC2S_Ping);
         processor.RegisterProcessor<C2S_Goodbye>(PacketType::C2S_Goodbye, ProcessC2S_Goodbye);
         processor.RegisterProcessor<C2S_JoinRequest>(PacketType::C2S_JoinRequest, ProcessC2S_JoinRequest);
+        processor.RegisterProcessor<C2S_ChatMessage>(PacketType::C2S_ChatMessage, ProcessC2S_ChatMessage);
     }
 }

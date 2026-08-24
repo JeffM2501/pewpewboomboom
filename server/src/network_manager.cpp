@@ -29,22 +29,22 @@ bool NetworkManager::Initialize(int port, int maxPlayers)
         return false;
     }
 
-    m_ServerHost = enet_host_create(&address,
+    ServerHost = enet_host_create(&address,
         maxPlayers,
         2,  // channels
         0,  // incoming bandwidth
         0   // outgoing bandwidth
     );
 
-    return m_ServerHost != nullptr;
+    return ServerHost != nullptr;
 }
 
 void NetworkManager::Shutdown()
 {
-    if (m_ServerHost)
+    if (ServerHost)
     {
-        enet_host_destroy(m_ServerHost);
-        m_ServerHost = nullptr;
+        enet_host_destroy(ServerHost);
+        ServerHost = nullptr;
         enet_deinitialize();
     }
 }
@@ -80,14 +80,14 @@ void NetworkManager::NewTick()
 
 void NetworkManager::PollEvents(int timeoutMs)
 {
-    if (!m_ServerHost)
+    if (!ServerHost)
     {
         return;
     }
 
     ENetEvent event;
 
-    while (enet_host_service(m_ServerHost, &event, timeoutMs) > 0)
+    while (enet_host_service(ServerHost, &event, timeoutMs) > 0)
     {
         switch (event.type)
         {
