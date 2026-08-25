@@ -13,13 +13,14 @@ enum class PacketType : uint8_t
 	C2S_JoinRequest = 4,
 	S2C_JoinResponse = 5,
 	C2S_InputState = 6,
-	S2C_WorldSnapshot = 7,
-	S2C_EventNotification = 8,
-	C2S_ChatMessage = 9,
-	S2C_PlayerJoined = 10,
-	S2C_PlayerDisconnected = 11,
-	C2S_RespawnRequest = 12,
-	S2C_ChatMessage = 13
+	S2C_SetWorldInfo = 7,
+	S2C_SetWorldObject = 8,
+	S2C_EventNotification = 9,
+	C2S_ChatMessage = 10,
+	S2C_PlayerJoined = 11,
+	S2C_PlayerDisconnected = 12,
+	C2S_RespawnRequest = 13,
+	S2C_ChatMessage = 14
 };
 
 #pragma pack(push, 1)
@@ -96,6 +97,32 @@ struct C2S_ChatMessage
     uint8_t type = static_cast<uint8_t>(PacketType::C2S_ChatMessage);
 	uint64_t senderId = 0;
 	char message[kMaxChatLineSize] = {};
+};
+
+struct S2C_SetWorldInfo
+{
+	uint8_t type = static_cast<uint8_t>(PacketType::S2C_SetWorldInfo);
+	uint64_t objectCount = 0;
+	char name[kMaxChatLineSize];
+};
+struct S2C_SetWorldObject
+{
+	uint8_t type = static_cast<uint8_t>(PacketType::S2C_SetWorldObject);
+
+	uint64_t id = 0;
+
+	enum class ObjectType : uint8_t
+	{
+		Walls,
+		Building,
+		Box,
+		Barrel,
+	};
+	ObjectType objType = ObjectType::Box;
+	float position[2] = { 0.0f, 0.0f };
+	float rotation = 0.0f;
+	float scale = 1.0f;
+	uint8_t color[4] = { 255, 255, 255, 255 };
 };
 
 #pragma pack(pop)

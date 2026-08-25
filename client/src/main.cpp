@@ -22,9 +22,15 @@ Use this as a starting point or replace it with your code.
 #include "game_gui.h"
 #include "guiControls/chat_window.h"
 
+#include "world_data.h"
+#include "rlgl.h"
+
+ClientWorld World;
+
 
 Camera2D ViewCamera = { 0 };
 Texture GridTexture = { 0 };
+Texture GroundTexture = { 0 };
 
 static void GameLogger(std::string_view message, LogLevel level)
 {
@@ -76,12 +82,16 @@ void GameInit()
 
 	// load resources
 	GridTexture = LoadTexture("resources/texture_01.png");
+	GroundTexture = LoadTexture("resources/pattern_15.png");
 
 	Network.GetEvents().OnSpawn.Add([](const Vector2& spawn, void*) { ProcessPlayerSpawn(spawn); });
 	Network.GetEvents().OnChatMessage.Add([](const std::pair<uint64_t, std::string>& message, void*) 
 		{
 			ChatWindow::AddChatLine(Network.GetPlayerList().GetPlayer(message.first), message.second);
 		});
+
+	Network.GetEvents().WorldDownloadStarted.Add([](const auto&, void*) {World.Loading = true; });
+    Network.GetEvents().WorldDownloadComplete.Add([](const auto&, void*) {World.Loading = false; });
 
 	ChatWindow::OnSendChatMessage.Add([](const std::string& message, void*) 
 		{
@@ -99,6 +109,7 @@ void GameCleanup()
 
 	// unload resources
 	UnloadTexture(GridTexture);
+    UnloadTexture(GroundTexture);
 
 	CloseWindow();
 }
@@ -106,9 +117,14 @@ void GameCleanup()
 bool GameUpdate()
 {
 	ViewCamera.offset = Vector2{ (float)GetRenderWidth(), (float)GetRenderHeight() } / 2;
-
+	ViewCamera.zoom = 16;
 	Network.Update();
 	return true;
+}
+
+inline Rectangle operator * (const Rectangle& lhs, const float& rhs)
+{
+	return Rectangle{ lhs.x * rhs, lhs.y * rhs, lhs.width * rhs, lhs.height * rhs };
 }
 
 void GameDraw()
@@ -120,11 +136,47 @@ void GameDraw()
 	Vector2 min = GetScreenToWorld2D(Vector2Zeros, ViewCamera);
 	Vector2 max = GetScreenToWorld2D(Vector2{ (float)GetRenderWidth(), (float)GetRenderHeight() }, ViewCamera);
 
-	Rectangle worldRect = { min.x, min.y, max.x - min.x, max.y - min.y };
-	DrawTexturePro(GridTexture, worldRect, worldRect, Vector2Zeros, 0, ColorAlpha(WHITE, 0.5f));
+	float groundTextureScale = 32.0f;
 
-	DrawCircleV(ViewCamera.target, 50, GREEN);
-	DrawText(TextFormat("x %f y %f", ViewCamera.target.x, ViewCamera.target.y), int(ViewCamera.target.x), int(ViewCamera.target.y), 20, YELLOW);
+	Rectangle destRect = { min.x, min.y, (max.x - min.x), (max.y - min.y) };
+    Rectangle sourceRect = destRect * (16.0f);
+
+	DrawTexturePro(GroundTexture, sourceRect, destRect, Vector2Zeros, 0, ColorAlpha(DARKGRAY, 0.5f));
+
+	if (!World.Loading)
+	{
+		for (auto& object : World.WorldObjects)
+		{
+			Rectangle bounds = { -object.scale / 2, -object.scale / 2, object.scale,object.scale };
+
+			rlPushMatrix();
+			rlTranslatef(object.position[0], object.position[1], 0);
+			rlRotatef(object.rotation, 0, 0, 1);
+			switch (object.objType)
+			{
+			case S2C_SetWorldObject::ObjectType::Walls:
+				DrawRectangleLinesEx(bounds, 2, BEIGE);
+				break;
+
+			case S2C_SetWorldObject::ObjectType::Building:
+				DrawRectangleRec(bounds, MAROON);
+				break;
+
+			case S2C_SetWorldObject::ObjectType::Box:
+				DrawRectangleRec(bounds, BROWN);
+				break;
+
+			case S2C_SetWorldObject::ObjectType::Barrel:
+				DrawCircleV(Vector2Zeros, object.scale / 2, GREEN);
+				break;
+			default:
+				break;
+			}
+			rlPopMatrix();
+		}
+	}
+
+	DrawCircleV(ViewCamera.target, 2, GREEN);
 
 	EndMode2D();
 
@@ -132,6 +184,11 @@ void GameDraw()
 	NetConnectionDialog::ShowDialog();
 	GameGui::Show();
 	rlImGuiEnd();
+
+	if (World.Loading)
+	{
+		DrawText(TextFormat("Downloading World %d/%d", World.WorldObjects.size(), World.Count), 200, 200, 20, BLUE);
+	}
 
 	EndDrawing();
 }

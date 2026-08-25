@@ -37,6 +37,8 @@ namespace PacketHandlers
 
     static void ProcessC2S_JoinRequest(PacketProcessor& processor, ENetPeer* sender, const C2S_JoinRequest* join)
     {
+        NetworkManager& netManager = static_cast<NetworkManager&>(processor);
+
         S2C_JoinResponse responce;
 
         if (!ServerPlayerList::PlayerExists(sender))
@@ -64,7 +66,8 @@ namespace PacketHandlers
         processor.SendPacket(sender, 0, responce);
         ServerLogger.Log(LogLevel::Info, "%x sent Join Response, ID %d name %s", sender->address.host, responce.playerId, responce.actualName);
 
-        // send the world snapshot
+        // tell the host that they joined, so that the world and other game specific data can be sent
+        netManager.PlayerJoined.Invoke(player.PlayerID, &netManager);
 
         // send the player list to them
         ServerPlayerList::DoForEachPlayer([sender,&processor](auto& playerInfo)

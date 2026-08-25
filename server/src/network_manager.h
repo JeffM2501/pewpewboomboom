@@ -33,7 +33,21 @@ public:
 
     EventSource<bool> ServerEmpty;
 
+    EventSource<uint64_t> PlayerJoined;
+
     void RemovePlayer(ENetPeer* peer, bool isDisconnect);
+
+    template<class T>
+    void Send(uint64_t playerID, int channel, T& data, bool reliable = true)
+    {
+        auto player = ServerPlayerList::GetPlayer(playerID);
+
+        if (player == nullptr || player->Peer == nullptr)
+            return;
+
+        ENetPacket* packet = enet_packet_create(&data, sizeof(T), reliable ? ENET_PACKET_FLAG_RELIABLE : 0);
+        enet_peer_send(player->Peer, channel, packet);
+    }
 
     template<class T>
     void Broadcast(int channel, T& data, bool reliable = true, uint64_t excludedPlayerID = uint64_t(-1))

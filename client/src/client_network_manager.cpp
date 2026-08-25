@@ -23,6 +23,8 @@ ClientNetworkManager::ClientNetworkManager()
 	RegisterProcessor<S2C_PlayerJoined>(PacketType::S2C_PlayerJoined, ProcessS2C_PlayerJoined);
 	RegisterProcessor<S2C_PlayerDisconnected>(PacketType::S2C_PlayerDisconnected, ProcessS2C_PlayerDisconnected);
 	RegisterProcessor<C2S_ChatMessage>(PacketType::C2S_ChatMessage, ProcessC2S_ChatMessage);
+	RegisterProcessor<S2C_SetWorldInfo>(PacketType::S2C_SetWorldInfo, ProcessS2C_SetWorldInfo);
+	RegisterProcessor<S2C_SetWorldObject>(PacketType::S2C_SetWorldObject, ProcessS2C_SetWorldObject);
 }
 
 ClientNetworkManager::~ClientNetworkManager()
@@ -129,6 +131,8 @@ void ClientNetworkManager::Update()
 	if (CurrentState != ConnectionState::Disconnected)
 	{
 		ENetEvent event;
+		int count = 0;
+		const int maxMessages = 10;
 		while (enet_host_service(ClientHost, &event, 0) > 0)
 		{
 			if (event.type == ENET_EVENT_TYPE_CONNECT)
@@ -158,8 +162,11 @@ void ClientNetworkManager::Update()
 				WasTimeout = true;
 			}
 
-			enet_host_flush(ClientHost);
+			count++;
+			if (count >= maxMessages)
+				break;
 		}
+		enet_host_flush(ClientHost);
 
 		if (CurrentState == ConnectionState::Connecting)
 		{
@@ -285,4 +292,23 @@ void ClientNetworkManager::ProcessC2S_ChatMessage(PacketProcessor& processor, EN
 
 	std::pair<uint64_t, std::string> eventInfo(chatMessage->senderId, chatMessage->message);
 	self.GetEvents().OnChatMessage.Invoke(eventInfo, &self);
+}
+
+void ClientNetworkManager::ProcessS2C_SetWorldObject(PacketProcessor& processor, ENetPeer* sender, const S2C_SetWorldObject* objectInfo)
+{
+    ClientNetworkManager& self = static_cast<ClientNetworkManager&>(processor);
+
+	World.AddObject(*objectInfo);
+
+	if (World.Count == World.WorldObjects.size())
+	{
+		self.GetEvents().WorldDownloadComplete.Invoke(World.Count, &self);
+	}
+}
+
+void ClientNetworkManager::ProcessS2C_SetWorldInfo(PacketProcessor& processor, ENetPeer* sender, const S2C_SetWorldInfo* worldInfo)
+{
+    World.Count = worldInfo->objectCount;
+    ClientNetworkManager& self = static_cast<ClientNetworkManager&>(processor);
+	self.GetEvents().WorldDownloadStarted.Invoke(World.Count, &self);
 }

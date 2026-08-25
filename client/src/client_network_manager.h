@@ -32,6 +32,8 @@ public:
 		EventSource<Vector2> OnSpawn;
 		EventSource<uint64_t> OnTick;
 		EventSource<std::pair<uint64_t, std::string>> OnChatMessage;
+		EventSource<uint64_t> WorldDownloadStarted;
+		EventSource<uint64_t> WorldDownloadComplete;
 	};
 
 	ClientNetworkManager();
@@ -86,7 +88,9 @@ private:
 	static void ProcessS2C_JoinResponse(PacketProcessor& processor, ENetPeer* sender, const S2C_JoinResponse* responce);
 	static void ProcessS2C_PlayerJoined(PacketProcessor& processor, ENetPeer* sender, const S2C_PlayerJoined* joinInfo);
 	static void ProcessS2C_PlayerDisconnected(PacketProcessor& processor, ENetPeer* sender, const S2C_PlayerDisconnected* disconnectInfo);
-	static void ProcessC2S_ChatMessage(PacketProcessor& processor, ENetPeer* sender, const C2S_ChatMessage* cahtMessage);
+	static void ProcessC2S_ChatMessage(PacketProcessor& processor, ENetPeer* sender, const C2S_ChatMessage* chatMessage);
+	static void ProcessS2C_SetWorldInfo(PacketProcessor& processor, ENetPeer* sender, const S2C_SetWorldInfo * worldInfo);
+	static void ProcessS2C_SetWorldObject(PacketProcessor& processor, ENetPeer* sender, const S2C_SetWorldObject* objectInfo);
 };
 
 extern ClientNetworkManager Network;

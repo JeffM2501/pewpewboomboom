@@ -80,7 +80,7 @@ void  NetworkManager::RemovePlayer(ENetPeer* peer, bool isDisconnect)
             S2C_PlayerDisconnected deadPlayer;
             deadPlayer.playerId = playerID;
             deadPlayer.reason = isDisconnect ? S2C_PlayerDisconnected::Reason::Dissconnect : S2C_PlayerDisconnected::Reason::Quit;
-            SendPacket(playerInfo.Peer, 0, deadPlayer);
+            Send(playerInfo.PlayerID, 0, deadPlayer);
         });
 }
 
@@ -105,8 +105,6 @@ void NetworkManager::PollEvents(int timeoutMs)
             case ENET_EVENT_TYPE_CONNECT:
             {
                 ServerLogger.Log(LogLevel::Info, "A new client connected from %x:%d", event.peer->address.host, event.peer->address.port);
-
-                ;
                 PlayerConnected.Invoke(ServerPlayerList::GetPlayer(event.peer).PlayerID, this);
                 break;
             }
