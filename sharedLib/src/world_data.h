@@ -1,12 +1,20 @@
 #pragma once
 
 #include "protocol.h"
+#include "raylib.h"
+
 #include <vector>
 
-class WorldData
+struct BoundingCircle
+{
+	Vector2 Center = Vector2{ 0, 0 };
+	float Radius = 0;
+};
+
+class WorldObject
 {
 public:
-    std::vector<S2C_SetWorldObject> WorldObjects;
+	virtual BoundingCircle& GetBoundingCircle() = 0;
 
-    void AddObject(const S2C_SetWorldObject& object);
+	virtual bool Intersects(const WorldObject& other) const = 0;
 };
