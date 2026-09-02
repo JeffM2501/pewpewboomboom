@@ -3,13 +3,24 @@
 
 Logger& GetLogger();
 
+class WorldData
+{
+public:
+	std::vector<S2C_SetWorldObject> WorldObjects;
+
+	void AddObject(const S2C_SetWorldObject& object)
+	{
+		WorldObjects.push_back(object);
+	}
+};
+
 class ClientWorld : public WorldData
 {
 public:
-    uint64_t Count;
+	uint64_t Count;
 
-    BoundingBox Bounds = { 0 };
+	BoundingBox Bounds = { 0 };
 
-    bool Loading = false;
+	bool Loading = false;
 };
 extern ClientWorld World;
