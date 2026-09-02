@@ -65,7 +65,7 @@ void SetupRlImGuiFonts()
 #endif
 
 	defaultConfig.PixelSnapH = true;
-	io.Fonts->AddFontFromFileTTF("resources/fonts/Aileron-SemiBold.otf",defaultConfig.SizePixels, &defaultConfig);
+	io.Fonts->AddFontFromFileTTF("resources/fonts/Aileron-SemiBold.otf", defaultConfig.SizePixels, &defaultConfig);
 }
 
 void GameInit()
@@ -85,15 +85,15 @@ void GameInit()
 	GroundTexture = LoadTexture("resources/pattern_15.png");
 
 	Network.GetEvents().OnSpawn.Add([](const Vector2& spawn, void*) { ProcessPlayerSpawn(spawn); });
-	Network.GetEvents().OnChatMessage.Add([](const std::pair<uint64_t, std::string>& message, void*) 
+	Network.GetEvents().OnChatMessage.Add([](const std::pair<uint64_t, std::string>& message, void*)
 		{
 			ChatWindow::AddChatLine(Network.GetPlayerList().GetPlayer(message.first), message.second);
 		});
 
 	Network.GetEvents().WorldDownloadStarted.Add([](const auto&, void*) {World.Loading = true; });
-    Network.GetEvents().WorldDownloadComplete.Add([](const auto&, void*) {World.Loading = false; });
+	Network.GetEvents().WorldDownloadComplete.Add([](const auto&, void*) {World.Loading = false; });
 
-	ChatWindow::OnSendChatMessage.Add([](const std::string& message, void*) 
+	ChatWindow::OnSendChatMessage.Add([](const std::string& message, void*)
 		{
 			Network.SentChatMessage(message);
 		});
@@ -109,7 +109,7 @@ void GameCleanup()
 
 	// unload resources
 	UnloadTexture(GridTexture);
-    UnloadTexture(GroundTexture);
+	UnloadTexture(GroundTexture);
 
 	CloseWindow();
 }
@@ -129,7 +129,6 @@ inline Rectangle operator * (const Rectangle& lhs, const float& rhs)
 
 void GameDraw()
 {
-	BeginDrawing();
 	ClearBackground(GRAY);
 
 	BeginMode2D(ViewCamera);
@@ -139,7 +138,7 @@ void GameDraw()
 	float groundTextureScale = 32.0f;
 
 	Rectangle destRect = { min.x, min.y, (max.x - min.x), (max.y - min.y) };
-    Rectangle sourceRect = destRect * (16.0f);
+	Rectangle sourceRect = destRect * (16.0f);
 
 	DrawTexturePro(GroundTexture, sourceRect, destRect, Vector2Zeros, 0, ColorAlpha(DARKGRAY, 0.5f));
 
@@ -189,11 +188,9 @@ void GameDraw()
 	{
 		DrawText(TextFormat("Downloading World %d/%d", World.WorldObjects.size(), World.Count), 200, 200, 20, BLUE);
 	}
-
-	EndDrawing();
 }
 
-void ProcessNetTick(const uint64_t &tick, void*)
+void ProcessNetTick(const uint64_t& tick, void*)
 {
 	if (!Network.IsReady())
 		return;
@@ -210,13 +207,15 @@ int main()
 {
 	GameInit();
 
-	while (!WindowShouldClose())
-	{
-		if (!GameUpdate())
-			break;
+	RunGameLoop([]()
+		{
+			if (!GameUpdate() || WindowShouldClose())
+				return false;
 
-		GameDraw();
-	}
+			GameDraw();
+			return true;
+		});
+
 	GameCleanup();
 
 	return 0;
