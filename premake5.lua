@@ -62,7 +62,7 @@ function check_raylib()
     if(os.isdir("raylib") == false and os.isdir("raylib-master") == false) then
         if(not os.isfile("raylib-master.zip")) then
             print("Raylib not found, downloading from github")
-            local result_str, response_code = http.download("https://github.com/raysan5/raylib/archive/refs/heads/master.zip", "raylib-master.zip", {
+            local result_str, response_code = http.download("https://github.com/JeffM2501/raylibEx/archive/refs/heads/master.zip", "raylib-master.zip", {
                 progress = download_progress,
                 headers = { "From: Premake", "Referer: Premake" }
             })
@@ -70,6 +70,7 @@ function check_raylib()
         print("Unzipping to " ..  os.getcwd())
         zip.extract("raylib-master.zip", os.getcwd())
         os.remove("raylib-master.zip")
+        os.rename("raylibEX-master", "raylib-master")
     end
 end
 
