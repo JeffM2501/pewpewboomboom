@@ -14,7 +14,7 @@ struct BoundingCircle
 class WorldObject
 {
 public:
-	virtual BoundingCircle& GetBoundingCircle() = 0;
+	virtual const BoundingCircle& GetBoundingCircle() const = 0;
 
 	virtual bool Intersects(const WorldObject& other) const = 0;
 };

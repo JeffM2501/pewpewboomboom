@@ -11,34 +11,23 @@
 #include "robot_ai.h"
 #include "world_data.h"
 #include "protocol.h"
+#include "server_world.h"
 
 bool Running = true;
 
-class WorldData
-{
-public:
-	std::vector<S2C_SetWorldObject> WorldObjects;
-
-	void AddObject(const S2C_SetWorldObject& object)
-	{
-		WorldObjects.push_back(object);
-	}
-};
 
 Logger ServerLogger(ConsoleLogOutput);
 NetworkManager NetManager;
-WorldData World;
+
+ServerWorld World(500);
 
 void SendWorldData(uint64_t playerID, void* sender)
 {
-	S2C_SetWorldInfo worldInfo;
-	worldInfo.objectCount = World.WorldObjects.size();
-	CopyFixedSizeString(worldInfo.name, "Random World", kMaxChatLineSize);
-	NetManager.Send(playerID, 0, worldInfo, true);
-
-	for (auto& object : World.WorldObjects)
+	NetManager.Send(playerID, 0, World.InfoPacket, true);
+	NetManager.Send(playerID, 0, World.Walls.Packet, true);
+	for (auto& object : World.Objects)
 	{
-		NetManager.Send(playerID, 0, object, true);
+		NetManager.Send(playerID, 0, object->Packet, true);
 	}
 }
 
@@ -46,27 +35,11 @@ void PopulateWorld()
 {
 	ServerLogger.Log(LogLevel::Info, "Generating Simple World");
 
-	int worldSize = 500;
-
-	S2C_SetWorldObject wall;
-	wall.objType = S2C_SetWorldObject::ObjectType::Walls;
-	wall.rotation = 0;
-	wall.scale = worldSize * 2.0f;
-	wall.position[0] = 0;
-	wall.position[1] = 0;
-	wall.id = 0;
-	World.WorldObjects.push_back(wall);
 
 	for (auto i = 0; i < 50; i++)
 	{
-		S2C_SetWorldObject box;
-		box.id = i + 1;
-		box.objType = S2C_SetWorldObject::ObjectType::Building;
-		box.rotation = float(GetRandomValue(-180, 180));
-		box.scale = float(GetRandomValue(10, 20));
-		box.position[0] = float(GetRandomValue(-worldSize, worldSize));
-		box.position[1] = float(GetRandomValue(-worldSize, worldSize));
-		World.WorldObjects.push_back(box);
+		auto& box = World.AddObject<ServerWorldBox>(Vector2{ float(GetRandomValue(-250, 250)), float(GetRandomValue(-250, 250)) }, float(GetRandomValue(-180, 180)), float(GetRandomValue(1, 5)), BROWN);
+		box.Packet.id = i + 1;
 	}
 }
 
