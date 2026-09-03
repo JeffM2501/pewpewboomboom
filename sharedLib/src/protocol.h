@@ -12,14 +12,14 @@ enum class PacketType : uint8_t
 	C2S_Goodbye = 3,
 	C2S_JoinRequest = 4,
 	S2C_JoinResponse = 5,
-	C2S_InputState = 6,
+	C2S_SpawnRequest = 6,
 	S2C_SetWorldInfo = 7,
 	S2C_SetWorldObject = 8,
 	S2C_EventNotification = 9,
 	C2S_ChatMessage = 10,
 	S2C_PlayerJoined = 11,
 	S2C_PlayerDisconnected = 12,
-	C2S_RespawnRequest = 13,
+	S2C_PlayerSnapshot = 13,
 	S2C_ChatMessage = 14
 };
 

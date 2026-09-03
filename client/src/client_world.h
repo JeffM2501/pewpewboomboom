@@ -85,17 +85,22 @@ public:
     void Draw() override;
 };
 
-class ClientWorld 
+class ClientWorld
 {
 public:
     std::string Name;
     uint64_t Count;
     std::unique_ptr<ClientWorldWalls> Walls;
     std::vector<std::unique_ptr<ClientWorldObject>> Objects;
-    BoundingBox Bounds = { 0 };
+
+    Vector2 WallSize = { 0,0 };
     
     void Init(const S2C_SetWorldInfo& message);
     void Receive(const S2C_SetWorldObject& message);
+
+    void Draw();
+
+	bool IsValid() const { return Walls != nullptr && Count-1 == Objects.size(); }
 
     bool Loading = false;
 

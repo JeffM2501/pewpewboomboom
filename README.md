@@ -190,7 +190,7 @@ Server response containing authorization status, assigned ID, and general map co
 | **SpawnX** | `float` | 4 | Initial coordinate X on spawning. |
 | **SpawnY** | `float` | 4 | Initial coordinate Y on spawning. |
 
-##### S2C_WorldSnapshotHeader (Channel 1 - Unreliable)
+##### S2C_SetWorldInfo (Channel 1 - Reliable)
 Broadcast at 60Hz from the server to establish the current tick's frame information and entity counts.
 
 | Field | Data Type | Bytes | Description |

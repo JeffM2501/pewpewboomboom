@@ -23,7 +23,6 @@ namespace PlayerListWindow
 
         if (ImGui::Begin("Players", nullptr, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoNavFocus | ImGuiWindowFlags_NoResize))
         {
-
             Network.GetPlayerList().DoForEachPlayer([](ClientPlayerState* player)
                 {
                     if (!player->IsLocalPlayer)
@@ -45,6 +44,5 @@ namespace PlayerListWindow
                 });
         }
         ImGui::End();
-
     }
 }

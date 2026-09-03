@@ -2,6 +2,7 @@
 
 #include "guiControls/chat_window.h"
 #include "guiControls/player_lisit_window.h"
+#include "guiControls/mini_map.h"
 
 #include "client_network_manager.h"
 
@@ -155,6 +156,7 @@ namespace GameGui
         ImGui::BeginDisabled(Network.GetState() != ConnectionState::Connected);
         ChatWindow::Show();
         PlayerListWindow::Show();
+        MiniMap::Show();
         ShowConnectionWindow();
         ImGui::EndDisabled();
     }

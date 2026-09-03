@@ -18,7 +18,7 @@ namespace NetConnectionDialog
 		ImVec2 windowPos((ImGui::GetIO().DisplaySize.x - windowSize.x) * 0.5f, (ImGui::GetIO().DisplaySize.y - windowSize.y) * 0.5f);
 
 		ImGui::SetNextWindowSize(windowSize, ImGuiCond_Always);
-		ImGui::SetNextWindowPos(windowPos, ImGuiCond_FirstUseEver);
+		ImGui::SetNextWindowPos(windowPos, ImGuiCond_Always);
 		ImGui::SetNextWindowFocus();
 
 		if (ImGui::Begin("Connection", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse))

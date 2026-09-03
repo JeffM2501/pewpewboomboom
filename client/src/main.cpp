@@ -117,7 +117,7 @@ void GameCleanup()
 bool GameUpdate()
 {
 	ViewCamera.offset = Vector2{ (float)GetRenderWidth(), (float)GetRenderHeight() } / 2;
-	ViewCamera.zoom = 8;
+	ViewCamera.zoom = 32;
 	Network.Update();
 	return true;
 }
@@ -142,18 +142,8 @@ void GameDraw()
 
 	DrawTexturePro(GroundTexture, sourceRect, destRect, Vector2Zeros, 0, ColorAlpha(DARKGRAY, 0.5f));
 
-	if (!World.Loading)
-	{
-		for (auto& object : World.Objects)
-		{
- 			rlPushMatrix();
- 			rlTranslatef(object->Bounds.Center.x, object->Bounds.Center.y, 0);
- 			rlRotatef(object->Rotation, 0, 0, 1);
-
-			object->Draw();
- 			rlPopMatrix();
-		}
-	}
+	if (World.IsValid())
+		World.Draw();
 
 	DrawCircleV(ViewCamera.target, 2, GREEN);
 
@@ -187,14 +177,28 @@ int main()
 {
 	GameInit();
 
-	RunGameLoop([]()
-		{
-			if (!GameUpdate() || WindowShouldClose())
-				return false;
+	if (true)
+	{
+		RunGameLoop([]()
+			{
+				if (!GameUpdate() || WindowShouldClose())
+					return false;
 
+				GameDraw();
+				return true;
+			});
+	}
+	else
+	{
+		while (!WindowShouldClose())
+		{
+			BeginDrawing();
+			if (!GameUpdate())
+				break;
 			GameDraw();
-			return true;
-		});
+			EndDrawing();
+		}
+	}
 
 	GameCleanup();
 

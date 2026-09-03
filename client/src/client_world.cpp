@@ -1,5 +1,6 @@
 #include "client_world.h"
 #include "raymath.h"
+#include "rlgl.h"
 
 // ClientWorldWalls
 ClientWorldWalls::ClientWorldWalls(const S2C_SetWorldObject& message) : ClientWorldObject(message)
@@ -129,6 +130,8 @@ void ClientWorld::Receive(const S2C_SetWorldObject& message)
     {
     case S2C_SetWorldObject::ObjectType::Walls:
         Walls = std::make_unique<ClientWorldWalls>(message);
+		WallSize.x = message.scale;
+        WallSize.y = message.scale;
         break;
     case S2C_SetWorldObject::ObjectType::Building:
         Objects.push_back(std::make_unique<ClientWorldBuilding>(message));
@@ -147,4 +150,17 @@ void ClientWorld::Receive(const S2C_SetWorldObject& message)
     {
         WorldFinalized.Invoke(*this);
     }
+}
+
+void ClientWorld::Draw()
+{
+	for (auto& object : Objects)
+	{
+		rlPushMatrix();
+		rlTranslatef(object->Bounds.Center.x, object->Bounds.Center.y, 0);
+		rlRotatef(object->Rotation, 0, 0, 1);
+
+		object->Draw();
+		rlPopMatrix();
+	}
 }
