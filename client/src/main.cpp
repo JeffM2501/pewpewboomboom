@@ -90,8 +90,8 @@ void GameInit()
 			ChatWindow::AddChatLine(Network.GetPlayerList().GetPlayer(message.first), message.second);
 		});
 
-	Network.GetEvents().WorldDownloadStarted.Add([](const auto&, void*) {World.Loading = true; });
-	Network.GetEvents().WorldDownloadComplete.Add([](const auto&, void*) {World.Loading = false; });
+    World.WorldStarted.Add([](const auto&, void*) {World.Loading = true; });
+    World.WorldFinalized.Add([](const auto&, void*) {World.Loading = false; });
 
 	ChatWindow::OnSendChatMessage.Add([](const std::string& message, void*)
 		{
@@ -117,7 +117,7 @@ void GameCleanup()
 bool GameUpdate()
 {
 	ViewCamera.offset = Vector2{ (float)GetRenderWidth(), (float)GetRenderHeight() } / 2;
-	ViewCamera.zoom = 16;
+	ViewCamera.zoom = 8;
 	Network.Update();
 	return true;
 }
@@ -144,34 +144,14 @@ void GameDraw()
 
 	if (!World.Loading)
 	{
-		for (auto& object : World.WorldObjects)
+		for (auto& object : World.Objects)
 		{
-			Rectangle bounds = { -object.scale / 2, -object.scale / 2, object.scale,object.scale };
+ 			rlPushMatrix();
+ 			rlTranslatef(object->Bounds.Center.x, object->Bounds.Center.y, 0);
+ 			rlRotatef(object->Rotation, 0, 0, 1);
 
-			rlPushMatrix();
-			rlTranslatef(object.position[0], object.position[1], 0);
-			rlRotatef(object.rotation, 0, 0, 1);
-			switch (object.objType)
-			{
-			case S2C_SetWorldObject::ObjectType::Walls:
-				DrawRectangleLinesEx(bounds, 2, BEIGE);
-				break;
-
-			case S2C_SetWorldObject::ObjectType::Building:
-				DrawRectangleRec(bounds, MAROON);
-				break;
-
-			case S2C_SetWorldObject::ObjectType::Box:
-				DrawRectangleRec(bounds, BROWN);
-				break;
-
-			case S2C_SetWorldObject::ObjectType::Barrel:
-				DrawCircleV(Vector2Zeros, object.scale / 2, GREEN);
-				break;
-			default:
-				break;
-			}
-			rlPopMatrix();
+			object->Draw();
+ 			rlPopMatrix();
 		}
 	}
 
@@ -186,7 +166,7 @@ void GameDraw()
 
 	if (World.Loading)
 	{
-		DrawText(TextFormat("Downloading World %d/%d", World.WorldObjects.size(), World.Count), 200, 200, 20, BLUE);
+		DrawText(TextFormat("Downloading World %d/%d", World.Objects.size(), World.Count), 200, 200, 20, BLUE);
 	}
 }
 

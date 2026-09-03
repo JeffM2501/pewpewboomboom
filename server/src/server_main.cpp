@@ -39,13 +39,13 @@ void PopulateWorld()
 	{
 		BoundingCircle bounds;
 		bounds.Center = Vector2{ float(GetRandomValue(-250, 250)), float(GetRandomValue(-250, 250)) };
-		float size = float(GetRandomValue(2, 10));
+		float size = float(GetRandomValue(5, 20));
 		bounds.Radius = sqrtf((size / 2.0f) * (size / 2.0f));
 
 		if (World.CanPlaceObject(bounds))
 		{
 			i++;
-			auto& box = World.AddObject<ServerWorldBox>(Vector2{ float(GetRandomValue(-250, 250)), float(GetRandomValue(-250, 250)) }, float(GetRandomValue(-180, 180)), float(GetRandomValue(2, 10)));
+			auto& box = World.AddObject<ServerWorldBuilding>(bounds.Center, float(GetRandomValue(-180, 180)), size);
 			box.Packet.id = i;	
 		}
 	}

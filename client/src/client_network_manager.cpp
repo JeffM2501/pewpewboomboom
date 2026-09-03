@@ -296,19 +296,10 @@ void ClientNetworkManager::ProcessC2S_ChatMessage(PacketProcessor& processor, EN
 
 void ClientNetworkManager::ProcessS2C_SetWorldObject(PacketProcessor& processor, ENetPeer* sender, const S2C_SetWorldObject* objectInfo)
 {
-    ClientNetworkManager& self = static_cast<ClientNetworkManager&>(processor);
-
-	World.AddObject(*objectInfo);
-
-	if (World.Count == World.WorldObjects.size())
-	{
-		self.GetEvents().WorldDownloadComplete.Invoke(World.Count, &self);
-	}
+    World.Receive(*objectInfo);
 }
 
 void ClientNetworkManager::ProcessS2C_SetWorldInfo(PacketProcessor& processor, ENetPeer* sender, const S2C_SetWorldInfo* worldInfo)
 {
-    World.Count = worldInfo->objectCount;
-    ClientNetworkManager& self = static_cast<ClientNetworkManager&>(processor);
-	self.GetEvents().WorldDownloadStarted.Invoke(World.Count, &self);
+	World.Init(*worldInfo);
 }

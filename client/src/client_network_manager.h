@@ -32,8 +32,6 @@ public:
 		EventSource<Vector2> OnSpawn;
 		EventSource<uint64_t> OnTick;
 		EventSource<std::pair<uint64_t, std::string>> OnChatMessage;
-		EventSource<uint64_t> WorldDownloadStarted;
-		EventSource<uint64_t> WorldDownloadComplete;
 	};
 
 	ClientNetworkManager();
