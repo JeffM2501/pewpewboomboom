@@ -35,11 +35,19 @@ void PopulateWorld()
 {
 	ServerLogger.Log(LogLevel::Info, "Generating Simple World");
 
-
-	for (auto i = 0; i < 50; i++)
+	for (auto i = 0; i < 50;)
 	{
-		auto& box = World.AddObject<ServerWorldBox>(Vector2{ float(GetRandomValue(-250, 250)), float(GetRandomValue(-250, 250)) }, float(GetRandomValue(-180, 180)), float(GetRandomValue(1, 5)), BROWN);
-		box.Packet.id = i + 1;
+		BoundingCircle bounds;
+		bounds.Center = Vector2{ float(GetRandomValue(-250, 250)), float(GetRandomValue(-250, 250)) };
+		float size = float(GetRandomValue(2, 10));
+		bounds.Radius = sqrtf((size / 2.0f) * (size / 2.0f));
+
+		if (World.CanPlaceObject(bounds))
+		{
+			i++;
+			auto& box = World.AddObject<ServerWorldBox>(Vector2{ float(GetRandomValue(-250, 250)), float(GetRandomValue(-250, 250)) }, float(GetRandomValue(-180, 180)), float(GetRandomValue(2, 10)));
+			box.Packet.id = i;	
+		}
 	}
 }
 

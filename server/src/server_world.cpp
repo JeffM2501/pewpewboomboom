@@ -24,8 +24,13 @@ ServerWorldWalls::ServerWorldWalls(float size)
 
 bool ServerWorldWalls::Intersects(const WorldObject& other) const
 {
-	Vector2 otherMin = { other.GetBoundingCircle().Center.x - other.GetBoundingCircle().Radius, other.GetBoundingCircle().Center.y - other.GetBoundingCircle().Radius };
-	Vector2 otherMax = { other.GetBoundingCircle().Center.x + other.GetBoundingCircle().Radius, other.GetBoundingCircle().Center.y + other.GetBoundingCircle().Radius };
+	return Intersects(other.GetBoundingCircle());
+}
+
+bool ServerWorldWalls::Intersects(const BoundingCircle& other) const
+{
+	Vector2 otherMin = { other.Center.x - other.Radius, other.Center.y - other.Radius };
+	Vector2 otherMax = { other.Center.x + other.Radius, other.Center.y + other.Radius };
 
 	if (otherMin.x < -Packet.scale / 2.0f || otherMax.x > Packet.scale / 2.0f || otherMin.y < -Packet.scale / 2.0f || otherMax.y > Packet.scale / 2.0f)
 	{
@@ -63,11 +68,15 @@ ServerWorldBuilding::ServerWorldBuilding(Vector2 position, float rotation, float
 
 bool ServerWorldBuilding::Intersects(const WorldObject& other) const
 {
-	const auto& otherBounds = other.GetBoundingCircle();
-	Vector2 delta = otherBounds.Center - Bounds.Center;
+	return Intersects(other.GetBoundingCircle());
+}
+
+bool ServerWorldBuilding::Intersects(const BoundingCircle& other) const
+{
+	Vector2 delta = other.Center - Bounds.Center;
 
 	Vector2 rotatedDelta = Vector2Rotate(delta, -Packet.rotation);
-	return CheckCollisionCircleRec(rotatedDelta, otherBounds.Radius, BoundingRect);
+	return CheckCollisionCircleRec(rotatedDelta, other.Radius, BoundingRect);
 }
 
 // ServerWorldBox
@@ -98,11 +107,15 @@ ServerWorldBox::ServerWorldBox(Vector2 position, float rotation, float size, Col
 
 bool ServerWorldBox::Intersects(const WorldObject& other) const
 {
-	const auto& otherBounds = other.GetBoundingCircle();
-	Vector2 delta = otherBounds.Center - Bounds.Center;
+	return Intersects(other.GetBoundingCircle());
+}
+
+bool ServerWorldBox::Intersects(const BoundingCircle& other) const
+{
+	Vector2 delta = other.Center - Bounds.Center;
 
 	Vector2 rotatedDelta = Vector2Rotate(delta, -Packet.rotation);
-	return CheckCollisionCircleRec(rotatedDelta, otherBounds.Radius, BoundingRect);
+	return CheckCollisionCircleRec(rotatedDelta, other.Radius, BoundingRect);
 }
 
 // ServerWorldBarrel
@@ -124,21 +137,25 @@ ServerWorldBarrel::ServerWorldBarrel(Vector2 position, float size, Color tint)
 
 bool ServerWorldBarrel::Intersects(const WorldObject& other) const
 {
-	const auto& otherBounds = other.GetBoundingCircle();
-	return CheckCollisionCircles(Bounds.Center, Bounds.Radius, otherBounds.Center, otherBounds.Radius);
+	return Intersects(other.GetBoundingCircle());
+}
+
+bool ServerWorldBarrel::Intersects(const BoundingCircle& other) const
+{
+	return CheckCollisionCircles(Bounds.Center, Bounds.Radius, other.Center, other.Radius);
 }
 
 // ServerWorld
-bool ServerWorld::CanPlaceObject(ServerWorldObject* object) const
+bool ServerWorld::CanPlaceObject(BoundingCircle& bounds) const
 {
-	if (Walls.Intersects(*object))
+	if (Walls.Intersects(bounds))
 	{
 		return false;
 	}
 
 	for (const auto& obj : Objects)
 	{
-		if (obj->Intersects(*object))
+		if (obj->Intersects(bounds))
 		{
 			return false;
 		}

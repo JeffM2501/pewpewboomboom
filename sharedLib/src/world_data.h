@@ -17,4 +17,5 @@ public:
 	virtual const BoundingCircle& GetBoundingCircle() const = 0;
 
 	virtual bool Intersects(const WorldObject& other) const = 0;
+	virtual bool Intersects(const BoundingCircle& other) const = 0;
 };
