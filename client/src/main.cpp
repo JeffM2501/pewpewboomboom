@@ -32,6 +32,57 @@ Camera2D ViewCamera = { 0 };
 Texture GridTexture = { 0 };
 Texture GroundTexture = { 0 };
 
+Texture PlayerTexture = { 0 };
+Vector2 PlayerTextureOrigin = { 0, 0 };
+Texture PlayerTurretTexture = { 0 };
+Vector2 PlayerTurretTextureOrigin = { 0, 0 };
+
+ClientPlayerState* LocalPlayer = nullptr;
+
+
+float CurrentAngle = 0;
+float CurrentForward = 0;
+float CurrentTurn = 0;
+bool CurrentShoot = false;
+bool CurrentBoost = false;
+
+void ResetCurrentInput()
+{
+    CurrentForward = 0;
+    CurrentTurn = 0;
+    CurrentShoot = false;
+    CurrentBoost = false;
+}
+
+void PollInputActions()
+{
+	if (IsKeyDown(KEY_W))
+		CurrentForward += 1;
+
+    if (IsKeyDown(KEY_S))
+		CurrentForward -= 1;
+
+	if (IsKeyDown(KEY_A))
+		CurrentTurn -= 1;
+	if (IsKeyDown(KEY_D))
+		CurrentTurn += 1;
+
+	if (IsKeyPressed(KEY_SPACE) || IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+	{
+		CurrentShoot = true;
+	}	
+
+	if (IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT))
+	{
+		CurrentBoost = true;
+	}
+
+    Vector2 mousePos = GetMousePosition() - Vector2{ (float)GetRenderWidth(), (float)GetRenderHeight() } / 2;
+
+	CurrentAngle = atan2f(mousePos.y, mousePos.x);
+}
+
+
 static void GameLogger(std::string_view message, LogLevel level)
 {
 	ChatWindow::AddLogLine(message);
@@ -84,6 +135,37 @@ void GameInit()
 	GridTexture = LoadTexture("resources/texture_01.png");
 	GroundTexture = LoadTexture("resources/pattern_15.png");
 
+
+    Image hullImage = LoadImage("resources/tanks/hull05_blue2.png");
+	ImageRotateCW(&hullImage);
+    PlayerTexture = LoadTextureFromImage(hullImage);
+	GenTextureMipmaps(&PlayerTexture);
+    SetTextureFilter(PlayerTexture, TEXTURE_FILTER_TRILINEAR);
+    UnloadImage(hullImage);
+
+    PlayerTextureOrigin = { PlayerTexture.width / 2.0f, PlayerTexture.height / 2.0f };
+
+    Image turretImage = LoadImage("resources/tanks/turret07_blue.png");
+	ImageRotateCW(&turretImage);
+    PlayerTurretTexture = LoadTextureFromImage(turretImage);
+	GenTextureMipmaps(&PlayerTurretTexture);
+	SetTextureFilter(PlayerTurretTexture, TEXTURE_FILTER_TRILINEAR);
+    UnloadImage(turretImage);
+
+    PlayerTurretTextureOrigin = { PlayerTurretTexture.width / 4.0f, PlayerTurretTexture.height / 2.0f };
+
+	Network.GetEvents().OnJoin.Add([](const ClientPlayerState* playerInfo, void*)
+		{
+            LocalPlayer = Network.GetPlayerList().GetPlayer(playerInfo->PlayerID);
+			ResetCurrentInput();
+		});
+
+    Network.GetEvents().OnDisconnect.Add([](const bool& timeout, void*)
+        {
+            LocalPlayer = nullptr;
+            ChatWindow::AddSystemChatLine(timeout ? "Disconnected from server due to timeout." : "Disconnected from server.");
+        });
+
 	Network.GetEvents().OnSpawn.Add([](const Vector2& spawn, void*) { ProcessPlayerSpawn(spawn); });
 	Network.GetEvents().OnChatMessage.Add([](const std::pair<uint64_t, std::string>& message, void*)
 		{
@@ -116,6 +198,8 @@ void GameCleanup()
 
 bool GameUpdate()
 {
+	PollInputActions();
+
 	ViewCamera.offset = Vector2{ (float)GetRenderWidth(), (float)GetRenderHeight() } / 2;
 	ViewCamera.zoom = 32;
 	Network.Update();
@@ -130,6 +214,10 @@ inline Rectangle operator * (const Rectangle& lhs, const float& rhs)
 void GameDraw()
 {
 	ClearBackground(GRAY);
+	if (LocalPlayer)
+	{
+		ViewCamera.target = LocalPlayer->Transform.Position;
+	}
 
 	BeginMode2D(ViewCamera);
 	Vector2 min = GetScreenToWorld2D(Vector2Zeros, ViewCamera);
@@ -145,7 +233,25 @@ void GameDraw()
 	if (World.IsValid())
 		World.Draw();
 
-	DrawCircleV(ViewCamera.target, 2, GREEN);
+    Network.GetPlayerList().DoForEachPlayer([](ClientPlayerState* player)
+        {
+            if (player)
+            {
+				float playerScale = 1.0f / 128.0f;
+
+                Color playerColor = player->IsLocalPlayer ? WHITE : RED;
+                Rectangle playerRect = { player->Transform.Position.x, player->Transform.Position.y, PlayerTexture.width * playerScale, PlayerTexture.height * playerScale };
+
+                Rectangle srcRect = { 0, 0, (float)PlayerTexture.width, (float)PlayerTexture.height };
+				DrawTexturePro(PlayerTexture, srcRect, playerRect, PlayerTextureOrigin * playerScale, player->Transform.Rotation[0], playerColor);
+
+				playerScale *= 0.75f;
+                Rectangle turretRect = { player->Transform.Position.x, player->Transform.Position.y, PlayerTurretTexture.width * playerScale, PlayerTurretTexture.height * playerScale };
+
+                srcRect = { 0, 0, (float)PlayerTurretTexture.width, (float)PlayerTurretTexture.height };
+                DrawTexturePro(PlayerTurretTexture, srcRect, turretRect, PlayerTurretTextureOrigin * playerScale, player->Transform.Rotation[1], playerColor);
+            }
+        });
 
 	EndMode2D();
 
@@ -160,45 +266,80 @@ void GameDraw()
 	}
 }
 
+void UpdateLocalPlayerState()
+{
+    if (!LocalPlayer)
+        return;
+
+    if (CurrentTurn != 0)
+		CurrentTurn = CurrentTurn / fabsf(CurrentTurn);
+
+    LocalPlayer->Transform.Rotation[0] += CurrentTurn * (90.0f/kDefaultTickRate);
+
+    Vector2 forwardDir = Vector2Rotate(Vector2{ 1, 0 }, LocalPlayer->Transform.Rotation[0] * DEG2RAD);
+	
+	if (CurrentForward != 0)
+		CurrentForward = CurrentForward / fabsf(CurrentForward);
+
+	LocalPlayer->Transform.Velocity = forwardDir * CurrentForward;
+
+    LocalPlayer->Transform.Position += LocalPlayer->Transform.Velocity * (10.0f / kDefaultTickRate);
+}
+
 void ProcessNetTick(const uint64_t& tick, void*)
 {
 	if (!Network.IsReady())
 		return;
 
-	// poll input
+	C2S_InputState inputPacket;
+
+    inputPacket.action = Action::None;
+    if (CurrentShoot)
+        inputPacket.action = Action(uint8_t(inputPacket.action) | uint8_t(Action::Shoot));
+
+    if (CurrentBoost)
+        inputPacket.action = Action(uint8_t(inputPacket.action) | uint8_t(Action::Boost));
+
+    if (CurrentForward > 0)
+        inputPacket.movement |= Movement::Up;
+    else if (CurrentForward < 0)
+        inputPacket.movement |= Movement::Down;
+	if (CurrentTurn > 0)
+        inputPacket.movement |= Movement::Right;
+    else if (CurrentTurn < 0)
+        inputPacket.movement |= Movement::Left;
+
+    inputPacket.aimDirection = CurrentAngle;	
+
+    inputPacket.clientTick = tick;
+
+    Network.SendPacket(nullptr, 1, inputPacket, false);
+
+	UpdateLocalPlayerState();
+	ResetCurrentInput();
 }
 
 void ProcessPlayerSpawn(Vector2 spawnPos)
 {
 	ViewCamera.target = spawnPos;
+    if (LocalPlayer)
+    {
+        LocalPlayer->Transform.Position = spawnPos;
+    }
 }
 
 int main()
 {
 	GameInit();
 
-	if (true)
-	{
-		RunGameLoop([]()
-			{
-				if (!GameUpdate() || WindowShouldClose())
-					return false;
+    RunGameLoop([]()
+        {
+            if (!GameUpdate() || WindowShouldClose())
+                return false;
 
-				GameDraw();
-				return true;
-			});
-	}
-	else
-	{
-		while (!WindowShouldClose())
-		{
-			BeginDrawing();
-			if (!GameUpdate())
-				break;
-			GameDraw();
-			EndDrawing();
-		}
-	}
+            GameDraw();
+            return true;
+        });
 
 	GameCleanup();
 

@@ -53,7 +53,7 @@ void ClientNetworkManager::BeginConnect(const char* address, uint16_t port)
 	enet_address_set_host(&hostAddress, address);
 	hostAddress.port = port;
 	ServerPeer = enet_host_connect(ClientHost, &hostAddress, 2, 0);
-
+    DefaultPeer = ServerPeer;
 	CurrentState = ConnectionState::Connecting;
 }
 
@@ -155,11 +155,13 @@ void ClientNetworkManager::Update()
 			else if (event.type == ENET_EVENT_TYPE_DISCONNECT)
 			{
 				CurrentState = ConnectionState::Disconnected;
+                GetEvents().OnDisconnect.Invoke(false);
 			}
 			else if (event.type == ENET_EVENT_TYPE_DISCONNECT_TIMEOUT)
 			{
 				CurrentState = ConnectionState::Disconnected;
 				WasTimeout = true;
+				GetEvents().OnDisconnect.Invoke(true);
 			}
 
 			count++;
@@ -266,8 +268,11 @@ void ClientNetworkManager::ProcessS2C_JoinResponse(PacketProcessor& processor, E
 	auto localPlayerInfo = self.Players.AddPlayer(self.PlayerID);
 	localPlayerInfo->Name = self.PlayerName;
 	localPlayerInfo->IsLocalPlayer = true;
+    localPlayerInfo->Transform.Position = self.Spawn;
+    localPlayerInfo->Transform.Rotation[0] = 0.0f;
+    localPlayerInfo->Transform.Rotation[1] = 0.0f;
 
-	self.ConnectionEvents.OnJoin.Invoke(self.PlayerID);
+	self.ConnectionEvents.OnJoin.Invoke(localPlayerInfo);
 	self.ConnectionEvents.OnSpawn.Invoke(self.Spawn);
 }
 

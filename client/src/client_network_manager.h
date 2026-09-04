@@ -26,7 +26,8 @@ public:
 	struct Events
 	{
 		EventSource<bool> OnConnect;
-		EventSource<uint64_t> OnJoin;
+		EventSource<bool> OnDisconnect;
+		EventSource<ClientPlayerState*> OnJoin;
 		EventSource<uint64_t> OnPlayerJoin;
 		EventSource<uint64_t> OnPlayerDisconnect;
 		EventSource<Vector2> OnSpawn;
