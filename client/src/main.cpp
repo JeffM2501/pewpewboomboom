@@ -21,7 +21,7 @@ Use this as a starting point or replace it with your code.
 
 #include "game_gui.h"
 #include "guiControls/chat_window.h"
-
+#include "tank_manager.h"
 #include "world_data.h"
 #include "rlgl.h"
 
@@ -45,6 +45,8 @@ float CurrentForward = 0;
 float CurrentTurn = 0;
 bool CurrentShoot = false;
 bool CurrentBoost = false;
+
+float CurrentZoom = 32.0f;
 
 void ResetCurrentInput()
 {
@@ -77,9 +79,9 @@ void PollInputActions()
 		CurrentBoost = true;
 	}
 
-    Vector2 mousePos = GetMousePosition() - Vector2{ (float)GetRenderWidth(), (float)GetRenderHeight() } / 2;
+    Vector2 mousePos = GetMousePosition() - (Vector2{ (float)GetScreenWidth(), (float)GetScreenHeight() } / 2);
 
-	CurrentAngle = atan2f(mousePos.y, mousePos.x);
+	CurrentAngle = atan2f(mousePos.y, mousePos.x) * RAD2DEG;
 }
 
 
@@ -135,8 +137,8 @@ void GameInit()
 	GridTexture = LoadTexture("resources/texture_01.png");
 	GroundTexture = LoadTexture("resources/pattern_15.png");
 
-
-    Image hullImage = LoadImage("resources/tanks/hull05_blue2.png");
+	TankManager::Init();
+    Image hullImage = LoadImage("resources/tanks/hull10_blue2.png");
 	ImageRotateCW(&hullImage);
     PlayerTexture = LoadTextureFromImage(hullImage);
 	GenTextureMipmaps(&PlayerTexture);
@@ -145,14 +147,14 @@ void GameInit()
 
     PlayerTextureOrigin = { PlayerTexture.width / 2.0f, PlayerTexture.height / 2.0f };
 
-    Image turretImage = LoadImage("resources/tanks/turret07_blue.png");
+    Image turretImage = LoadImage("resources/tanks/turret10_blue.png");
 	ImageRotateCW(&turretImage);
     PlayerTurretTexture = LoadTextureFromImage(turretImage);
 	GenTextureMipmaps(&PlayerTurretTexture);
 	SetTextureFilter(PlayerTurretTexture, TEXTURE_FILTER_TRILINEAR);
     UnloadImage(turretImage);
 
-    PlayerTurretTextureOrigin = { PlayerTurretTexture.width / 4.0f, PlayerTurretTexture.height / 2.0f };
+    PlayerTurretTextureOrigin = { PlayerTurretTexture.width / 3.0f, PlayerTurretTexture.height / 2.0f };
 
 	Network.GetEvents().OnJoin.Add([](const ClientPlayerState* playerInfo, void*)
 		{
@@ -201,7 +203,14 @@ bool GameUpdate()
 	PollInputActions();
 
 	ViewCamera.offset = Vector2{ (float)GetRenderWidth(), (float)GetRenderHeight() } / 2;
-	ViewCamera.zoom = 32;
+
+	CurrentZoom += GetMouseWheelMove() * 0.25f;
+	if (CurrentZoom < 0.25f)
+		CurrentZoom = 0.25f;
+	if (CurrentZoom > 128.0f)
+		CurrentZoom = 128.0f;
+
+	ViewCamera.zoom = CurrentZoom;
 	Network.Update();
 	return true;
 }
@@ -235,22 +244,7 @@ void GameDraw()
 
     Network.GetPlayerList().DoForEachPlayer([](ClientPlayerState* player)
         {
-            if (player)
-            {
-				float playerScale = 1.0f / 128.0f;
-
-                Color playerColor = player->IsLocalPlayer ? WHITE : RED;
-                Rectangle playerRect = { player->Transform.Position.x, player->Transform.Position.y, PlayerTexture.width * playerScale, PlayerTexture.height * playerScale };
-
-                Rectangle srcRect = { 0, 0, (float)PlayerTexture.width, (float)PlayerTexture.height };
-				DrawTexturePro(PlayerTexture, srcRect, playerRect, PlayerTextureOrigin * playerScale, player->Transform.Rotation[0], playerColor);
-
-				playerScale *= 0.75f;
-                Rectangle turretRect = { player->Transform.Position.x, player->Transform.Position.y, PlayerTurretTexture.width * playerScale, PlayerTurretTexture.height * playerScale };
-
-                srcRect = { 0, 0, (float)PlayerTurretTexture.width, (float)PlayerTurretTexture.height };
-                DrawTexturePro(PlayerTurretTexture, srcRect, turretRect, PlayerTurretTextureOrigin * playerScale, player->Transform.Rotation[1], playerColor);
-            }
+            TankManager::DrawTank(player->IsLocalPlayer ? TeamColors::Blue : TeamColors::Red, player->Transform);
         });
 
 	EndMode2D();
@@ -275,6 +269,7 @@ void UpdateLocalPlayerState()
 		CurrentTurn = CurrentTurn / fabsf(CurrentTurn);
 
     LocalPlayer->Transform.Rotation[0] += CurrentTurn * (90.0f/kDefaultTickRate);
+	LocalPlayer->Transform.Rotation[1] = CurrentAngle;
 
     Vector2 forwardDir = Vector2Rotate(Vector2{ 1, 0 }, LocalPlayer->Transform.Rotation[0] * DEG2RAD);
 	

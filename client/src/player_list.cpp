@@ -35,6 +35,7 @@ void PlayerList::DoForEachPlayer(std::function<void(ClientPlayerState*)> callbac
 {
     for (auto& [id, state] : Players)
     {
-        callback(state.get());
+        if (state != nullptr)
+            callback(state.get());
     }
 }
