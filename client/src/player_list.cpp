@@ -69,7 +69,7 @@ void ClientPlayerState::UpdateInterpolatedTransform(float deltaTime)
         return;
     }
 
-    if (TransformHistory.empty()|| TransformHistory.begin()->first > InterpStartHistoryIndex)
+    if (InterpStartHistoryIndex == 0 || TransformHistory.empty() || TransformHistory.begin()->first > InterpStartHistoryIndex)
     {
         // nothing to interpolate
         return;
