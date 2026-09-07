@@ -7,7 +7,7 @@
 #include <functional>
 
 
-static constexpr uint64_t RemotePlayerHistoryOffset = 4;
+static constexpr uint64_t RemotePlayerHistoryOffset = 6;
 class ClientPlayerState : public PlayerState
 {
 public:

@@ -121,16 +121,20 @@ void ClientPlayerState::UpdateForTick(uint64_t currentTick)
     InterpStartHistoryIndex = (currentTick >= RemotePlayerHistoryOffset) ? (currentTick - RemotePlayerHistoryOffset) : 0;
     InterpEndHistoryIndex = InterpStartHistoryIndex + 1;
 
-    uint64_t maxHistory = RemotePlayerHistoryOffset * 2;
+    uint64_t maxHistory = 32;
     if (currentTick > maxHistory)
     {
         uint64_t oldest = currentTick - maxHistory;
         for (auto itr = TransformHistory.begin(); itr != TransformHistory.end();)
         {
             if (itr->first < oldest)
+            {
                 itr = TransformHistory.erase(itr);
+            }
             else
+            {
                 break;
+            }
         }
     }
 }
