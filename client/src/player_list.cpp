@@ -82,7 +82,7 @@ void ClientPlayerState::UpdateInterpolatedTransform(float deltaTime)
     float param = Clamp(LastTickTime * kDefaultTickRate, 0.0f, 1.0f);
 
     Transform.Position = Vector2Lerp(start->second.Position, end->second.Position, param);
-    Transform.Rotation[0] = Lerp(start->second.Rotation[0], end->second.Rotation[1], param);
+    Transform.Rotation[0] = Lerp(start->second.Rotation[0], end->second.Rotation[0], param);
     Transform.Rotation[1] = Lerp(start->second.Rotation[1], end->second.Rotation[1], param); // todo, short rot lerp?
 
     LastTickTime += deltaTime;
@@ -91,8 +91,8 @@ void ClientPlayerState::UpdateInterpolatedTransform(float deltaTime)
 void ClientPlayerState::UpdateForTick(uint64_t currentTick)
 {
     LastTickTime = 0;
-    InterpStartHistoryIndex = currentTick - RemotePlayerHistoryOffset;
-    InterpEndHistoryIndex = InterpEndHistoryIndex + 1;
+    InterpStartHistoryIndex = (currentTick >= RemotePlayerHistoryOffset) ? (currentTick - RemotePlayerHistoryOffset) : 0;
+    InterpEndHistoryIndex = InterpStartHistoryIndex + 1;
 
     uint64_t maxHistory = RemotePlayerHistoryOffset * 2;
     if (currentTick > maxHistory)
