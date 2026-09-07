@@ -78,8 +78,8 @@ void ClientPlayerState::UpdateInterpolatedTransform(float deltaTime)
         return;
     }
 
-    // we hae two valid interpllation positions, smooth that sucker out
-    float param = LastTickTime / kDefaultTickRate;
+    // we have two valid interpolation positions, smooth that sucker out
+    float param = Clamp(LastTickTime * kDefaultTickRate, 0.0f, 1.0f);
 
     Transform.Position = Vector2Lerp(start->second.Position, end->second.Position, param);
     Transform.Rotation[0] = Lerp(start->second.Rotation[0], end->second.Rotation[1], param);
