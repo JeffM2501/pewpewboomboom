@@ -189,7 +189,10 @@ bool GameUpdate()
 
     Network.GetPlayerList().DoForEachPlayer([](ClientPlayerState* player)
         {
-			player->UpdateInterpolatedTransform(GetFrameTime());
+            if (!player->IsLocalPlayer)
+            {
+                player->UpdateInterpolatedTransform(GetFrameTime());
+            }
         });
 
 	Network.Update();
@@ -253,7 +256,10 @@ void UpdateRemotePlayersForTick(const uint64_t& tick)
 {
     Network.GetPlayerList().DoForEachPlayer([&](ClientPlayerState* player)
         {
-			player->UpdateForTick(tick);
+            if (!player->IsLocalPlayer)
+            {
+                player->UpdateForTick(tick);
+            }
         });
 }
 

@@ -1,6 +1,19 @@
 #include "player_list.h"
 #include "game.h"
 
+#include <cmath>
+
+static float LerpAngleDeg(float a, float b, float t)
+{
+    float diff = fmodf(b - a + 180.0f, 360.0f);
+    if (diff < 0.0f)
+    {
+        diff += 360.0f;
+    }
+    diff -= 180.0f;
+    return a + diff * t;
+}
+
 ClientPlayerState* PlayerList::AddPlayer(uint64_t playerId, bool local)
 {
     auto player = local ? std::make_unique<ClientLocalPlayerState>() : std::make_unique<ClientPlayerState>();
@@ -51,6 +64,11 @@ void ClientPlayerState::AddServerStateUpdate(uint64_t tick, PlayerTransform& tra
 
 void ClientPlayerState::UpdateInterpolatedTransform(float deltaTime)
 {
+    if (IsLocalPlayer)
+    {
+        return;
+    }
+
     if (TransformHistory.empty()|| TransformHistory.begin()->first > InterpStartHistoryIndex)
     {
         // nothing to interpolate
@@ -71,9 +89,13 @@ void ClientPlayerState::UpdateInterpolatedTransform(float deltaTime)
     if (start == TransformHistory.end() || end == TransformHistory.end())
     {
         if (start == TransformHistory.end())
+        {
             Transform = end->second;
+        }
         else
+        {
             Transform = start->second;
+        }
 
         return;
     }
@@ -82,14 +104,19 @@ void ClientPlayerState::UpdateInterpolatedTransform(float deltaTime)
     float param = Clamp(LastTickTime * kDefaultTickRate, 0.0f, 1.0f);
 
     Transform.Position = Vector2Lerp(start->second.Position, end->second.Position, param);
-    Transform.Rotation[0] = Lerp(start->second.Rotation[0], end->second.Rotation[0], param);
-    Transform.Rotation[1] = Lerp(start->second.Rotation[1], end->second.Rotation[1], param); // todo, short rot lerp?
+    Transform.Rotation[0] = LerpAngleDeg(start->second.Rotation[0], end->second.Rotation[0], param);
+    Transform.Rotation[1] = LerpAngleDeg(start->second.Rotation[1], end->second.Rotation[1], param);
 
     LastTickTime += deltaTime;
 }
 
 void ClientPlayerState::UpdateForTick(uint64_t currentTick)
 {
+    if (IsLocalPlayer)
+    {
+        return;
+    }
+
     LastTickTime = 0;
     InterpStartHistoryIndex = (currentTick >= RemotePlayerHistoryOffset) ? (currentTick - RemotePlayerHistoryOffset) : 0;
     InterpEndHistoryIndex = InterpStartHistoryIndex + 1;
