@@ -113,6 +113,7 @@ namespace PacketHandlers
         UpdatePlayerTransform(player.Transform, newInput, 1.0f/kDefaultTickRate, DefaultMovementRules);
 
         player.TransformHistory[input->clientTick] = player.Transform;
+        player.LastAckedInputTick = input->clientTick;
     }
 
     void RegisterAll(PacketProcessor& processor)

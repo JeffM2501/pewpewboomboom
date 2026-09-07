@@ -141,38 +141,44 @@ void ClientPlayerState::UpdateForTick(uint64_t currentTick)
 
 void ClientLocalPlayerState::AddServerStateUpdate(uint64_t tick, PlayerTransform& transform)
 {
-    // go find the input for this tick
-    bool foundInput = false;
-    for (auto itr = InputHistory.begin(); itr != InputHistory.end();)
-    {
-        if (itr->first <= tick)
-        {
-            itr = InputHistory.end();
-        }
-        else
-        {
-            foundInput = true;
-            break;
-        }
-    }
-    PlayerTransform newTransform = transform;
-    if (!foundInput)
+    if (tick == 0)
     {
         return;
     }
 
-    static PlayerMovementRules defaultRules;
-
-    for (auto& [futureTick, input] : InputHistory)
+    auto it = InputHistory.find(tick);
+    if (it == InputHistory.end())
     {
-        UpdatePlayerTransform(newTransform, input, 1.0f / kDefaultTickRate, defaultRules);
+        return;
     }
 
-    Vector2 delta = newTransform.Position - transform.Position;
+    // Prune acknowledged inputs older than tick
+    for (auto pruneIt = InputHistory.begin(); pruneIt != it;)
+    {
+        pruneIt = InputHistory.erase(pruneIt);
+    }
 
+    // Remove the acknowledged input at tick and retrieve iterator to unacknowledged inputs
+    auto unackedIt = InputHistory.erase(it);
+
+    // Replay unacknowledged inputs forward from the server's authoritative state
+    static PlayerMovementRules defaultRules;
+    PlayerTransform replayedTransform = transform;
+    for (auto replayIt = unackedIt; replayIt != InputHistory.end(); ++replayIt)
+    {
+        UpdatePlayerTransform(replayedTransform, replayIt->second, 1.0f / kDefaultTickRate, defaultRules);
+    }
+
+    Vector2 delta = replayedTransform.Position - Transform.Position;
     float len = Vector2Length(delta);
     if (len > 0.1f)
     {
-        GetLogger().Log(LogLevel::Warning, "Local player prediction off by %f", len);
+        GetLogger().Log(LogLevel::Warning, "Local player prediction off by %f (reconciling to tick %llu)", len, tick);
+        Transform = replayedTransform;
+    }
+
+    while (InputHistory.size() > 128)
+    {
+        InputHistory.erase(InputHistory.begin());
     }
 }

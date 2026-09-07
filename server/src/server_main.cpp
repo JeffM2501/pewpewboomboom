@@ -95,7 +95,7 @@ void SendStateUpdates()
             ServerPlayerList::DoForEachPlayer([&](auto& otherPlayer)
                 {
                     S2C_PlayerSnapshot snapshot;
-                    snapshot.serverTick = NetManager.CurrentServerTick;
+                    snapshot.serverTick = (otherPlayer.PlayerID == player.PlayerID && otherPlayer.LastAckedInputTick > 0) ? otherPlayer.LastAckedInputTick : NetManager.CurrentServerTick;
                     snapshot.playerId = otherPlayer.PlayerID;
                     snapshot.position[0] = otherPlayer.Transform.Position.x;
                     snapshot.position[1] = otherPlayer.Transform.Position.y;
