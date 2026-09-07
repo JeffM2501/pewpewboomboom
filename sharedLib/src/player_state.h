@@ -1,11 +1,12 @@
 #pragma once
 #include "external/fix_win32_compatibility.h"
 #include "text_utils.h"
-#include "raylib.h"
 #include "enet.h"
+#include "raylib.h"
 #include "data_utils.h"
 #include "constants.h"
 
+#include <map>
 
 struct PlayerTransform
 {
@@ -23,5 +24,24 @@ struct PlayerState
 	PlayerTransform Transform;
 
 	// Transform history.....
+    std::map<uint64_t, PlayerTransform> TransformHistory;
 };
+
+struct InputState
+{
+    float Foward = 0.0f;
+    float Turn = 0.0f;
+    bool Boost = false;
+    bool Shoot = false;
+    float TurretAngle = 0.0f;
+};
+
+struct PlayerMovementRules
+{
+    float MaxSpeed = 20;
+    float TurnSpeed = 90.0f; // degrees per second
+    float BoostMultiplier = 2.0f;
+};
+
+bool UpdatePlayerTransform(PlayerTransform& transform, const InputState& input, float deltaTime, PlayerMovementRules& rules);
 

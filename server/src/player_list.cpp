@@ -15,7 +15,7 @@ namespace ServerPlayerList
     static uint32_t LastRobotPlayerID = 0;
     static uint32_t RobotPlayerIDMask = std::numeric_limits<uint32_t>::max();
 
-    static std::mutex PlayerListLock;
+    static std::recursive_mutex  PlayerListLock;
 
     std::unordered_map<uint64_t, ServerPlayer>& GetPlayerList()
     {
@@ -77,6 +77,22 @@ namespace ServerPlayerList
 
         Players.erase(itr);
         return true;
+    }
+
+    size_t GetPlayerCount(bool includeRobots)
+    {
+        std::lock_guard guard(PlayerListLock);
+
+        size_t count = 0;
+        for (const auto& [id, player] : Players)
+        {
+            if (includeRobots || !player.IsRobot)
+            {
+                count++;
+            }
+        }
+
+        return count;
     }
 
     ServerPlayer& AddRobotPlayer()

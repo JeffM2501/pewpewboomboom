@@ -39,7 +39,7 @@ namespace MiniMap
 		camera.zoom = 1;
 		if (World.IsValid())
 		{
-			camera.zoom = WindowSize.x / World.WallSize.x;
+			camera.zoom = WindowSize.x / (World.WallSize.x*2.0f);
 		}
 
 		BeginMode2D(camera);

@@ -18,6 +18,8 @@ namespace TankManager
 
 	std::map<TeamColors, TankInfo> TankResources;
 
+    Texture FowardArrow = { 0 };
+
 	Texture2D LoadTextureFromFile(std::string_view path)
 	{
 		std::string resourcePath = "resources/tanks/" + std::string(path);
@@ -56,6 +58,8 @@ namespace TankManager
 		LoadTankInfo("hull10_yellow2.png", "turret10_yellow.png", TeamColors::Yellow);
 		LoadTankInfo("hull10_white2.png", "turret10_white.png", TeamColors::White);
 		LoadTankInfo("hull10_black2.png", "turret10_black.png", TeamColors::Black);
+		LoadTankInfo("hull05_green.png", "turret07_green.png", TeamColors::Green);
+		FowardArrow = LoadTextureFromFile("arrow_decorative_n.png");
 	}
 	void Cleanup()
 	{
@@ -68,10 +72,17 @@ namespace TankManager
 		TankResources.clear();
 	}
 
-	void DrawTank(TeamColors color, const PlayerTransform& transform)
+	void DrawTank(TeamColors color, const PlayerTransform& transform, bool showArrow)
 	{
 		TankInfo& tankInfo = TankResources[color];
 		Rectangle playerRect = { transform.Position.x, transform.Position.y, tankInfo.BodyTexture.width * tankInfo.BodyScale, tankInfo.BodyTexture.height * tankInfo.BodyScale };
+
+		if (showArrow)
+		{
+            Rectangle forwardRect = { transform.Position.x, transform.Position.y, 2.0f, 2.0f };
+            Vector2 forwardOrigin = { -playerRect.width/1.5f, forwardRect.height / 2 };
+            DrawTexturePro(FowardArrow, Rectangle{ 0,0,float(FowardArrow.width), float(FowardArrow.height) }, forwardRect, forwardOrigin, transform.Rotation[0], ColorAlpha(WHITE, 0.25f));
+		}
 
 		Rectangle srcRect = { 0, 0, (float)tankInfo.BodyTexture.width, (float)tankInfo.BodyTexture.height };
 		DrawTexturePro(tankInfo.BodyTexture, srcRect, playerRect, tankInfo.BodyOrigin, transform.Rotation[0], WHITE);

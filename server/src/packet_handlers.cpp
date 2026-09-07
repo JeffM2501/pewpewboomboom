@@ -79,9 +79,6 @@ namespace PacketHandlers
             }
             , true, player.PlayerID);
 
-        // send them player updates of all current players
-        
-
         // send them to all other players
         ServerPlayerList::DoForEachPlayer([&player,&processor](auto& playerInfo)
             {
@@ -99,6 +96,24 @@ namespace PacketHandlers
         auto& player = ServerPlayerList::GetPlayer(sender);
         netManager.GetChatProcessor().PushChatMessage(player.PlayerID, chat->message);
     }
+    
+    PlayerMovementRules DefaultMovementRules;
+
+    static void ProcessC2S_InputState(PacketProcessor& processor, ENetPeer* sender, const C2S_InputState* input)
+    {
+        auto& player = ServerPlayerList::GetPlayer(sender);
+
+        InputState newInput;
+        newInput.Foward = input->forward;
+        newInput.Turn = input->turn;
+        newInput.TurretAngle = input->aimDirection;
+        newInput.Shoot = input->shoot;
+        newInput.Boost = input->boost;
+
+        UpdatePlayerTransform(player.Transform, newInput, 1.0f/kDefaultTickRate, DefaultMovementRules);
+
+        player.TransformHistory[input->clientTick] = player.Transform;
+    }
 
     void RegisterAll(PacketProcessor& processor)
     {
@@ -106,5 +121,6 @@ namespace PacketHandlers
         processor.RegisterProcessor<C2S_Goodbye>(PacketType::C2S_Goodbye, ProcessC2S_Goodbye);
         processor.RegisterProcessor<C2S_JoinRequest>(PacketType::C2S_JoinRequest, ProcessC2S_JoinRequest);
         processor.RegisterProcessor<C2S_ChatMessage>(PacketType::C2S_ChatMessage, ProcessC2S_ChatMessage);
+        processor.RegisterProcessor<C2S_InputState>(PacketType::C2S_InputState, ProcessC2S_InputState);
     }
 }

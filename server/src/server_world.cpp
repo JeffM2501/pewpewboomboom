@@ -32,7 +32,7 @@ bool ServerWorldWalls::Intersects(const BoundingCircle& other) const
 	Vector2 otherMin = { other.Center.x - other.Radius, other.Center.y - other.Radius };
 	Vector2 otherMax = { other.Center.x + other.Radius, other.Center.y + other.Radius };
 
-	if (otherMin.x < -Packet.scale / 2.0f || otherMax.x > Packet.scale / 2.0f || otherMin.y < -Packet.scale / 2.0f || otherMax.y > Packet.scale / 2.0f)
+	if (otherMin.x < -Packet.scale || otherMax.x > Packet.scale || otherMin.y < -Packet.scale || otherMax.y > Packet.scale)
 	{
 		return true;
 	}

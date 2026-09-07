@@ -10,6 +10,7 @@ enum class TeamColors
 	Yellow = 3,
 	White = 4,
 	Black = 5,
+    Green = 6,
 };
 
 namespace TankManager
@@ -17,5 +18,5 @@ namespace TankManager
 	void Init();
 	void Cleanup();
 
-	void DrawTank(TeamColors color, const PlayerTransform& transform);
+	void DrawTank(TeamColors color, const PlayerTransform& transform, bool showArrow = false);
 }

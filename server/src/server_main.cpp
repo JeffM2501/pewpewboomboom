@@ -35,17 +35,20 @@ void PopulateWorld()
 {
 	ServerLogger.Log(LogLevel::Info, "Generating Simple World");
 
-	for (auto i = 0; i < 50;)
+	int wallSize = int(World.Walls.GetBoundingCircle().Radius) * 2;
+
+	for (auto i = 0; i < 100;)
 	{
 		BoundingCircle bounds;
-		bounds.Center = Vector2{ float(GetRandomValue(-250, 250)), float(GetRandomValue(-250, 250)) };
+
+		bounds.Center = Vector2{ float(GetRandomValue(-wallSize, wallSize)), float(GetRandomValue(-wallSize, wallSize)) };
 		float size = float(GetRandomValue(5, 20));
 		bounds.Radius = sqrtf((size / 2.0f) * (size / 2.0f));
 
 		if (World.CanPlaceObject(bounds))
 		{
 			i++;
-			auto& box = World.AddObject<ServerWorldBuilding>(bounds.Center, float(GetRandomValue(-180, 180)), size);
+			auto& box = World.AddObject<ServerWorldBuilding>(bounds.Center, GetRandomValue(0, 8) * 45.0f, size);
 			box.Packet.id = i;	
 		}
 	}
@@ -81,6 +84,30 @@ void ServerCleanup()
 	ServerLogger.Log(LogLevel::Info, "Server is shutdown...");
 }
 
+void SendStateUpdates()
+{
+    ServerPlayerList::DoForEachPlayer([&](auto& player)
+        {
+            S2C_BeginStateSnapshot beginSnapshot;
+            beginSnapshot.snapshotTick = NetManager.CurrentServerTick;
+            beginSnapshot.playerCount = uint8_t(ServerPlayerList::GetPlayerCount());
+            NetManager.Send(player.PlayerID, 1, beginSnapshot, false);
+            ServerPlayerList::DoForEachPlayer([&](auto& otherPlayer)
+                {
+                    S2C_PlayerSnapshot snapshot;
+                    snapshot.serverTick = NetManager.CurrentServerTick;
+                    snapshot.playerId = otherPlayer.PlayerID;
+                    snapshot.position[0] = otherPlayer.Transform.Position.x;
+                    snapshot.position[1] = otherPlayer.Transform.Position.y;
+                    snapshot.rotation[0] = otherPlayer.Transform.Rotation[0];
+                    snapshot.rotation[1] = otherPlayer.Transform.Rotation[1];
+                    snapshot.velocity[0] = otherPlayer.Transform.Velocity.x;
+                    snapshot.velocity[1] = otherPlayer.Transform.Velocity.y;
+                    NetManager.Send(player.PlayerID, 1, snapshot, false);
+                }, true);
+        }, false);
+}
+
 int main(int argc, char* argv[])
 {
 	ServerSetup();
@@ -100,6 +127,8 @@ int main(int argc, char* argv[])
 					{
 						player.Update(NetManager);
 					}, true);
+
+                SendStateUpdates();
 			});
 
 		// process items that can happen anytime

@@ -14,7 +14,7 @@ bool ClientWorldWalls::Intersects(const BoundingCircle& other) const
     Vector2 otherMin = { other.Center.x - other.Radius, other.Center.y - other.Radius };
     Vector2 otherMax = { other.Center.x + other.Radius, other.Center.y + other.Radius };
 
-    if (otherMin.x < -Bounds.Radius / 2.0f || otherMax.x > Bounds.Radius / 2.0f || otherMin.y < -Bounds.Radius / 2.0f || otherMax.y > Bounds.Radius / 2.0f)
+    if (otherMin.x < -Bounds.Radius || otherMax.x > Bounds.Radius || otherMin.y < -Bounds.Radius || otherMax.y > Bounds.Radius)
     {
         return true;
     }
@@ -154,7 +154,12 @@ void ClientWorld::Receive(const S2C_SetWorldObject& message)
 
 void ClientWorld::Draw()
 {
-	for (auto& object : Objects)
+    if (Walls)
+    {
+        Walls->Draw();
+    }
+
+    for (auto& object : Objects)
 	{
 		rlPushMatrix();
 		rlTranslatef(object->Bounds.Center.x, object->Bounds.Center.y, 0);

@@ -68,6 +68,8 @@ private:
 	uint64_t ServerTickSyncTimeMs = 0;
 	uint64_t ClientLastProcessedServerTick = 0;
 
+	uint64_t LastReceivedServerTick = 0;
+
 	uint64_t ConnectionStartTime = 0;
 	uint64_t ConnectionTimeout = 10 * 1000;
 
@@ -90,6 +92,9 @@ private:
 	static void ProcessC2S_ChatMessage(PacketProcessor& processor, ENetPeer* sender, const C2S_ChatMessage* chatMessage);
 	static void ProcessS2C_SetWorldInfo(PacketProcessor& processor, ENetPeer* sender, const S2C_SetWorldInfo * worldInfo);
 	static void ProcessS2C_SetWorldObject(PacketProcessor& processor, ENetPeer* sender, const S2C_SetWorldObject* objectInfo);
+
+    static void ProcessS2C_BeginStateSnapshot(PacketProcessor& processor, ENetPeer* sender, const S2C_BeginStateSnapshot* snapshot);
+    static void ProcessS2C_PlayerSnapshot(PacketProcessor& processor, ENetPeer* sender, const S2C_PlayerSnapshot* snapshot);
 };
 
 extern ClientNetworkManager Network;

@@ -1,14 +1,52 @@
 #include "robot_ai.h"
 #include "network_manager.h"
+#include "player_state.h"
 
 namespace RobotAI
 {
+    constexpr uint64_t AIStateInfoID = 10;
+
+    class AIStateInfo : public ServerPlayerList::ServerPlayerExtraData
+    {
+    public:
+        float ForwardTime = 0;
+        float TurnTime = 0;
+        bool LastTurnPositive = 0;
+
+        InputState Input;
+    };
+
+
+    static PlayerMovementRules MovementRules;
     void UpdateRobot(ServerPlayerList::ServerPlayer& robot, NetworkManager& manager)
     {
         auto tick = manager.CurrentServerTick;
 
+        float deltaTime = (1.0f / kDefaultTickRate);
 
-        //manager.SendPacket(nullptr)
+        AIStateInfo* aiInfo = static_cast<AIStateInfo*>(robot.ExtensionData[AIStateInfoID].get());
+
+        aiInfo->ForwardTime -= deltaTime;
+        if (aiInfo->ForwardTime <= 0)
+        {
+            aiInfo->ForwardTime = GetRandomValue(1, 5);
+            aiInfo->Input.Foward = GetRandomValue(100, 200) / 1000.0f;
+        }
+
+        aiInfo->TurnTime -= deltaTime;
+        if (aiInfo->TurnTime <= 0)
+        {
+            aiInfo->TurnTime = GetRandomValue(1, 5);
+            aiInfo->Input.Turn = GetRandomValue(-1000, 1000) / 1000.0f;
+
+            aiInfo->LastTurnPositive = !aiInfo->LastTurnPositive;
+        }
+
+        aiInfo->Input.TurretAngle = robot.Transform.Rotation[1] + ((aiInfo->LastTurnPositive ? 1 : -1) * 45 * deltaTime);
+
+        UpdatePlayerTransform(robot.Transform, aiInfo->Input, deltaTime, MovementRules);
+        robot.LastAckedInputTick = tick;
+        robot.TransformHistory[tick] = robot.Transform;
     }
 
     void SetupRobots()
@@ -18,5 +56,7 @@ namespace RobotAI
         robot.Name = "Theta (Robot)";
         robot.Team = -1;
         robot.Transform.Position = Vector2{ 20, 20 };
+
+        robot.ExtensionData.insert_or_assign(AIStateInfoID, std::make_unique<AIStateInfo>());
     }
 }

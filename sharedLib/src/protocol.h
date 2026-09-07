@@ -21,8 +21,9 @@ enum class PacketType : uint8_t
 	C2S_ChatMessage = 10,
 	S2C_PlayerJoined = 11,
 	S2C_PlayerDisconnected = 12,
-	S2C_PlayerSnapshot = 13,
-	S2C_ChatMessage = 14
+    S2C_BeginStateSnapshot = 13,
+	S2C_PlayerSnapshot = 14,
+	S2C_ChatMessage = 15
 };
 
 #pragma pack(push, 1)
@@ -172,15 +173,15 @@ struct enable_bitmask_operators<Action> : std::true_type {};
 
 struct C2S_InputState
 {
-    uint8_t type = static_cast<uint8_t>(PacketType::C2S_InputState);
-    uint64_t clientTick = 0;
+	uint8_t type = static_cast<uint8_t>(PacketType::C2S_InputState);
+	uint64_t clientTick = 0;
 
-   
-
-	Movement movement = Movement::None;
+	float forward = 0.0f;
+	float turn = 0.0f;
 	float aimDirection = 0.0f;
 
-    Action action = Action::None;
+	bool shoot = false;
+	bool boost = false;
 };
 
 struct S2C_SetWorldInfo
@@ -210,4 +211,20 @@ struct S2C_SetWorldObject
 	uint8_t color[4] = { 255, 255, 255, 255 };
 };
 
+struct S2C_BeginStateSnapshot
+{
+    uint8_t type = static_cast<uint8_t>(PacketType::S2C_BeginStateSnapshot);
+    uint64_t snapshotTick = 0;
+    uint8_t playerCount = 0;
+};
+
+struct S2C_PlayerSnapshot
+{
+    uint8_t type = static_cast<uint8_t>(PacketType::S2C_PlayerSnapshot);
+	uint64_t serverTick = 0;
+    uint64_t playerId = 0;
+    float position[2] = { 0.0f, 0.0f };
+    float rotation[2] = { 0.0f, 0.0f };
+    float velocity[2] = { 0.0f, 0.0f };
+};
 #pragma pack(pop)

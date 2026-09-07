@@ -23,6 +23,7 @@ Use this as a starting point or replace it with your code.
 #include "guiControls/chat_window.h"
 #include "tank_manager.h"
 #include "world_data.h"
+#include "player_state.h"
 #include "rlgl.h"
 
 ClientWorld World;
@@ -32,56 +33,48 @@ Camera2D ViewCamera = { 0 };
 Texture GridTexture = { 0 };
 Texture GroundTexture = { 0 };
 
-Texture PlayerTexture = { 0 };
-Vector2 PlayerTextureOrigin = { 0, 0 };
-Texture PlayerTurretTexture = { 0 };
-Vector2 PlayerTurretTextureOrigin = { 0, 0 };
-
 ClientPlayerState* LocalPlayer = nullptr;
 
+InputState CurrentInputState = { 0 };
 
-float CurrentAngle = 0;
-float CurrentForward = 0;
-float CurrentTurn = 0;
-bool CurrentShoot = false;
-bool CurrentBoost = false;
+PlayerMovementRules MovementRules;
 
-float CurrentZoom = 32.0f;
+float CurrentZoom = 24.0f;
 
 void ResetCurrentInput()
 {
-    CurrentForward = 0;
-    CurrentTurn = 0;
-    CurrentShoot = false;
-    CurrentBoost = false;
+    CurrentInputState.Boost = false;
+    CurrentInputState.Shoot = false;
+    CurrentInputState.Foward = 0;
+    CurrentInputState.Turn = 0;
 }
 
 void PollInputActions()
 {
 	if (IsKeyDown(KEY_W))
-		CurrentForward += 1;
+		CurrentInputState.Foward += 1;
 
     if (IsKeyDown(KEY_S))
-		CurrentForward -= 1;
+		CurrentInputState.Foward -= 1;
 
 	if (IsKeyDown(KEY_A))
-		CurrentTurn -= 1;
+		CurrentInputState.Turn -= 1;
 	if (IsKeyDown(KEY_D))
-		CurrentTurn += 1;
+		CurrentInputState.Turn += 1;
 
 	if (IsKeyPressed(KEY_SPACE) || IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
 	{
-		CurrentShoot = true;
+		CurrentInputState.Shoot = true;
 	}	
 
 	if (IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT))
 	{
-		CurrentBoost = true;
+		CurrentInputState.Boost = true;
 	}
 
     Vector2 mousePos = GetMousePosition() - (Vector2{ (float)GetScreenWidth(), (float)GetScreenHeight() } / 2);
 
-	CurrentAngle = atan2f(mousePos.y, mousePos.x) * RAD2DEG;
+	CurrentInputState.TurretAngle = atan2f(mousePos.y, mousePos.x) * RAD2DEG;
 }
 
 
@@ -95,7 +88,6 @@ Logger& GetLogger()
 {
 	return GlobalLogger;
 }
-
 
 void ProcessNetTick(const uint64_t& tick, void* sender);
 
@@ -138,23 +130,6 @@ void GameInit()
 	GroundTexture = LoadTexture("resources/pattern_15.png");
 
 	TankManager::Init();
-    Image hullImage = LoadImage("resources/tanks/hull10_blue2.png");
-	ImageRotateCW(&hullImage);
-    PlayerTexture = LoadTextureFromImage(hullImage);
-	GenTextureMipmaps(&PlayerTexture);
-    SetTextureFilter(PlayerTexture, TEXTURE_FILTER_TRILINEAR);
-    UnloadImage(hullImage);
-
-    PlayerTextureOrigin = { PlayerTexture.width / 2.0f, PlayerTexture.height / 2.0f };
-
-    Image turretImage = LoadImage("resources/tanks/turret10_blue.png");
-	ImageRotateCW(&turretImage);
-    PlayerTurretTexture = LoadTextureFromImage(turretImage);
-	GenTextureMipmaps(&PlayerTurretTexture);
-	SetTextureFilter(PlayerTurretTexture, TEXTURE_FILTER_TRILINEAR);
-    UnloadImage(turretImage);
-
-    PlayerTurretTextureOrigin = { PlayerTurretTexture.width / 3.0f, PlayerTurretTexture.height / 2.0f };
 
 	Network.GetEvents().OnJoin.Add([](const ClientPlayerState* playerInfo, void*)
 		{
@@ -244,7 +219,7 @@ void GameDraw()
 
     Network.GetPlayerList().DoForEachPlayer([](ClientPlayerState* player)
         {
-            TankManager::DrawTank(player->IsLocalPlayer ? TeamColors::Blue : TeamColors::Red, player->Transform);
+            TankManager::DrawTank(player->IsLocalPlayer ? TeamColors::Green : TeamColors::Red, player->Transform, player->IsLocalPlayer);
         });
 
 	EndMode2D();
@@ -265,20 +240,7 @@ void UpdateLocalPlayerState()
     if (!LocalPlayer)
         return;
 
-    if (CurrentTurn != 0)
-		CurrentTurn = CurrentTurn / fabsf(CurrentTurn);
-
-    LocalPlayer->Transform.Rotation[0] += CurrentTurn * (90.0f/kDefaultTickRate);
-	LocalPlayer->Transform.Rotation[1] = CurrentAngle;
-
-    Vector2 forwardDir = Vector2Rotate(Vector2{ 1, 0 }, LocalPlayer->Transform.Rotation[0] * DEG2RAD);
-	
-	if (CurrentForward != 0)
-		CurrentForward = CurrentForward / fabsf(CurrentForward);
-
-	LocalPlayer->Transform.Velocity = forwardDir * CurrentForward;
-
-    LocalPlayer->Transform.Position += LocalPlayer->Transform.Velocity * (10.0f / kDefaultTickRate);
+    UpdatePlayerTransform(LocalPlayer->Transform, CurrentInputState, 1.0f/kDefaultTickRate, MovementRules);
 }
 
 void ProcessNetTick(const uint64_t& tick, void*)
@@ -288,23 +250,13 @@ void ProcessNetTick(const uint64_t& tick, void*)
 
 	C2S_InputState inputPacket;
 
-    inputPacket.action = Action::None;
-    if (CurrentShoot)
-        inputPacket.action = Action(uint8_t(inputPacket.action) | uint8_t(Action::Shoot));
+	inputPacket.shoot = CurrentInputState.Shoot;
+    inputPacket.boost = CurrentInputState.Boost;
 
-    if (CurrentBoost)
-        inputPacket.action = Action(uint8_t(inputPacket.action) | uint8_t(Action::Boost));
+    inputPacket.forward = CurrentInputState.Foward;
+    inputPacket.turn = CurrentInputState.Turn;
 
-    if (CurrentForward > 0)
-        inputPacket.movement |= Movement::Up;
-    else if (CurrentForward < 0)
-        inputPacket.movement |= Movement::Down;
-	if (CurrentTurn > 0)
-        inputPacket.movement |= Movement::Right;
-    else if (CurrentTurn < 0)
-        inputPacket.movement |= Movement::Left;
-
-    inputPacket.aimDirection = CurrentAngle;	
+    inputPacket.aimDirection = CurrentInputState.TurretAngle;
 
     inputPacket.clientTick = tick;
 

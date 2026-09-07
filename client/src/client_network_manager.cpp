@@ -25,6 +25,8 @@ ClientNetworkManager::ClientNetworkManager()
 	RegisterProcessor<C2S_ChatMessage>(PacketType::C2S_ChatMessage, ProcessC2S_ChatMessage);
 	RegisterProcessor<S2C_SetWorldInfo>(PacketType::S2C_SetWorldInfo, ProcessS2C_SetWorldInfo);
 	RegisterProcessor<S2C_SetWorldObject>(PacketType::S2C_SetWorldObject, ProcessS2C_SetWorldObject);
+    RegisterProcessor<S2C_BeginStateSnapshot>(PacketType::S2C_BeginStateSnapshot, ProcessS2C_BeginStateSnapshot);
+    RegisterProcessor<S2C_PlayerSnapshot>(PacketType::S2C_PlayerSnapshot, ProcessS2C_PlayerSnapshot);
 }
 
 ClientNetworkManager::~ClientNetworkManager()
@@ -307,4 +309,43 @@ void ClientNetworkManager::ProcessS2C_SetWorldObject(PacketProcessor& processor,
 void ClientNetworkManager::ProcessS2C_SetWorldInfo(PacketProcessor& processor, ENetPeer* sender, const S2C_SetWorldInfo* worldInfo)
 {
 	World.Init(*worldInfo);
+}
+
+void ClientNetworkManager::ProcessS2C_BeginStateSnapshot(PacketProcessor& processor, ENetPeer* sender, const S2C_BeginStateSnapshot* snapshot)
+{
+    ClientNetworkManager& self = static_cast<ClientNetworkManager&>(processor);
+
+	if (self.LastReceivedServerTick > snapshot->snapshotTick)
+		return;
+
+	self.LastReceivedServerTick = snapshot->snapshotTick;
+}
+
+void ClientNetworkManager::ProcessS2C_PlayerSnapshot(PacketProcessor& processor, ENetPeer* sender, const S2C_PlayerSnapshot* snapshot)
+{
+    ClientNetworkManager& self = static_cast<ClientNetworkManager&>(processor);
+
+	auto* player = self.GetPlayerList().GetPlayer(snapshot->playerId);
+	if (player)
+	{
+		PlayerTransform newTransform;
+        newTransform.Position = DataUtils::UnpackVector2(snapshot->position);
+        newTransform.Rotation[0] = snapshot->rotation[0];
+        newTransform.Rotation[1] = snapshot->rotation[1];
+        newTransform.Velocity = DataUtils::UnpackVector2(snapshot->velocity);
+
+        if (snapshot->serverTick == self.LastReceivedServerTick)
+        {
+			if (!player->IsLocalPlayer)
+            {
+                player->Transform = newTransform;
+            }
+			else
+			{
+				// reconcole the input state at this tick with the inputs
+			}
+        }
+       
+        player->TransformHistory[snapshot->serverTick] = newTransform;
+	}
 }
