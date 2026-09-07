@@ -315,28 +315,30 @@ void ClientNetworkManager::ProcessS2C_BeginStateSnapshot(PacketProcessor& proces
 {
     ClientNetworkManager& self = static_cast<ClientNetworkManager&>(processor);
 
-	if (self.LastReceivedServerTick > snapshot->snapshotTick)
-		return;
-
-	self.LastReceivedServerTick = snapshot->snapshotTick;
+    if (snapshot->snapshotTick > self.LastReceivedServerTick)
+    {
+        self.LastReceivedServerTick = snapshot->snapshotTick;
+    }
 }
 
 void ClientNetworkManager::ProcessS2C_PlayerSnapshot(PacketProcessor& processor, ENetPeer* sender, const S2C_PlayerSnapshot* snapshot)
 {
     ClientNetworkManager& self = static_cast<ClientNetworkManager&>(processor);
 
-	auto* player = self.GetPlayerList().GetPlayer(snapshot->playerId);
-	if (player)
-	{
-		PlayerTransform newTransform;
+    auto* player = self.GetPlayerList().GetPlayer(snapshot->playerId);
+    if (player)
+    {
+        PlayerTransform newTransform;
         newTransform.Position = DataUtils::UnpackVector2(snapshot->position);
         newTransform.Rotation[0] = snapshot->rotation[0];
         newTransform.Rotation[1] = snapshot->rotation[1];
         newTransform.Velocity = DataUtils::UnpackVector2(snapshot->velocity);
 
-        if (snapshot->serverTick == self.LastReceivedServerTick)
+        if (snapshot->serverTick > self.LastReceivedServerTick)
         {
-			player->AddServerStateUpdate(snapshot->serverTick, newTransform);
+            self.LastReceivedServerTick = snapshot->serverTick;
         }
-	}
+
+        player->AddServerStateUpdate(snapshot->serverTick, newTransform);
+    }
 }
