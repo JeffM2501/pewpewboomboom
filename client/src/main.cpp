@@ -186,6 +186,12 @@ bool GameUpdate()
 		CurrentZoom = 128.0f;
 
 	ViewCamera.zoom = CurrentZoom;
+
+    Network.GetPlayerList().DoForEachPlayer([](ClientPlayerState* player)
+        {
+			player->UpdateInterpolatedTransform(GetFrameTime());
+        });
+
 	Network.Update();
 	return true;
 }
@@ -243,6 +249,14 @@ void UpdateLocalPlayerState()
     UpdatePlayerTransform(LocalPlayer->Transform, CurrentInputState, 1.0f/kDefaultTickRate, MovementRules);
 }
 
+void UpdateRemotePlayersForTick(const uint64_t& tick)
+{
+    Network.GetPlayerList().DoForEachPlayer([&](ClientPlayerState* player)
+        {
+			player->UpdateForTick(tick);
+        });
+}
+
 void ProcessNetTick(const uint64_t& tick, void*)
 {
 	if (!Network.IsReady())
@@ -267,6 +281,7 @@ void ProcessNetTick(const uint64_t& tick, void*)
 
 	UpdateLocalPlayerState();
 	ResetCurrentInput();
+	UpdateRemotePlayersForTick(tick);
 }
 
 void ProcessPlayerSpawn(Vector2 spawnPos)
