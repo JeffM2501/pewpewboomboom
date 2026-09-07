@@ -267,7 +267,7 @@ void ClientNetworkManager::ProcessS2C_JoinResponse(PacketProcessor& processor, E
 	self.PlayerID = responce->playerId;
 	self.Spawn = DataUtils::UnpackVector2(responce->spawn);
 
-	auto localPlayerInfo = self.Players.AddPlayer(self.PlayerID);
+	auto localPlayerInfo = self.Players.AddPlayer(self.PlayerID, true);
 	localPlayerInfo->Name = self.PlayerName;
 	localPlayerInfo->IsLocalPlayer = true;
     localPlayerInfo->Transform.Position = self.Spawn;
@@ -336,16 +336,7 @@ void ClientNetworkManager::ProcessS2C_PlayerSnapshot(PacketProcessor& processor,
 
         if (snapshot->serverTick == self.LastReceivedServerTick)
         {
-			if (!player->IsLocalPlayer)
-            {
-                player->Transform = newTransform;
-            }
-			else
-			{
-				// reconcole the input state at this tick with the inputs
-			}
+			player->AddServerStateUpdate(snapshot->serverTick, newTransform);
         }
-       
-        player->TransformHistory[snapshot->serverTick] = newTransform;
 	}
 }

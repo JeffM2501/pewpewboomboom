@@ -33,7 +33,7 @@ Camera2D ViewCamera = { 0 };
 Texture GridTexture = { 0 };
 Texture GroundTexture = { 0 };
 
-ClientPlayerState* LocalPlayer = nullptr;
+ClientLocalPlayerState* LocalPlayer = nullptr;
 
 InputState CurrentInputState = { 0 };
 
@@ -133,7 +133,7 @@ void GameInit()
 
 	Network.GetEvents().OnJoin.Add([](const ClientPlayerState* playerInfo, void*)
 		{
-            LocalPlayer = Network.GetPlayerList().GetPlayer(playerInfo->PlayerID);
+            LocalPlayer = static_cast<ClientLocalPlayerState*>(Network.GetPlayerList().GetPlayer(playerInfo->PlayerID));
 			ResetCurrentInput();
 		});
 
@@ -261,6 +261,9 @@ void ProcessNetTick(const uint64_t& tick, void*)
     inputPacket.clientTick = tick;
 
     Network.SendPacket(nullptr, 1, inputPacket, false);
+
+	// push the input to history for reconcile
+	LocalPlayer->InputHistory[tick] = CurrentInputState;
 
 	UpdateLocalPlayerState();
 	ResetCurrentInput();

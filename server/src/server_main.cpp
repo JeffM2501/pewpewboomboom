@@ -108,6 +108,29 @@ void SendStateUpdates()
         }, false);
 }
 
+void UpdatePlayerHistories()
+{
+	uint64_t oldestTickToKeep = NetManager.CurrentServerTick;
+	uint64_t maxTickHistory = 2 * kDefaultTickRate;
+
+	if (oldestTickToKeep < maxTickHistory)
+		oldestTickToKeep = 0;
+	else
+		oldestTickToKeep -= maxTickHistory;
+
+	ServerPlayerList::DoForEachPlayer([&](ServerPlayerList::ServerPlayer& player)
+		{
+			for (auto itr = player.TransformHistory.begin(); itr != player.TransformHistory.end();)
+			{
+				if (itr->first < oldestTickToKeep)
+					itr = player.TransformHistory.erase(itr);
+				else
+					break;
+			}
+		}
+	, true);
+}
+
 int main(int argc, char* argv[])
 {
 	ServerSetup();
@@ -128,6 +151,7 @@ int main(int argc, char* argv[])
 						player.Update(NetManager);
 					}, true);
 
+				UpdatePlayerHistories();
                 SendStateUpdates();
 			});
 
