@@ -50,6 +50,7 @@ public:
 	uint64_t GetRTT() const;
 	Vector2 GetSpawn() const;
 	uint64_t GetCurrentServerTick() const;
+	double GetCurrentServerTickFractional() const;
 
 	Events& GetEvents();
 	PlayerList& GetPlayerList();

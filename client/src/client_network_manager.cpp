@@ -128,6 +128,24 @@ uint64_t ClientNetworkManager::GetCurrentServerTick() const
 	return ServerTickBase + ticksElapsed;
 }
 
+double ClientNetworkManager::GetCurrentServerTickFractional() const
+{
+	if (ServerTickSyncTimeMs == 0)
+	{
+		return 0.0;
+	}
+
+	uint64_t nowUs = GetTimeUs();
+	uint64_t syncUs = ServerTickSyncTimeMs * 1000ULL;
+	if (nowUs < syncUs)
+	{
+		return static_cast<double>(ServerTickBase);
+	}
+
+	double elapsedSec = static_cast<double>(nowUs - syncUs) / 1000000.0;
+	return static_cast<double>(ServerTickBase) + (elapsedSec * static_cast<double>(kDefaultTickRate));
+}
+
 void ClientNetworkManager::Update()
 {
 	if (CurrentState != ConnectionState::Disconnected)
@@ -254,8 +272,39 @@ void ClientNetworkManager::ProcessS2C_Pong(PacketProcessor& processor, ENetPeer*
 	self.LastRTT = rtt;
 
 	uint64_t latency = rtt / 2;
-	self.ServerTickBase = pong->serverTick;
-	self.ServerTickSyncTimeMs = pong->clientTimeMs + latency;
+	uint64_t newSyncTimeMs = pong->clientTimeMs + latency;
+
+	if (self.ServerTickSyncTimeMs == 0)
+	{
+		self.ServerTickBase = pong->serverTick;
+		self.ServerTickSyncTimeMs = newSyncTimeMs;
+	}
+	else
+	{
+		// Calculate what the server tick would be right now using the new pong data
+		double currentEstTick = self.GetCurrentServerTickFractional();
+		double pongElapsedSec = (nowMs >= newSyncTimeMs) ? static_cast<double>(nowMs - newSyncTimeMs) / 1000.0 : 0.0;
+		double newEstTick = static_cast<double>(pong->serverTick) + (pongElapsedSec * static_cast<double>(kDefaultTickRate));
+
+		// If offset is huge (> 1.0s / 20 ticks) e.g. after long stalls, snap immediately; otherwise smooth gently
+		double tickDelta = newEstTick - currentEstTick;
+		if (std::abs(tickDelta) > 20.0)
+		{
+			self.ServerTickBase = pong->serverTick;
+			self.ServerTickSyncTimeMs = newSyncTimeMs;
+		}
+		else
+		{
+			// Blend the clock forward/backward smoothly by adjusting ServerTickSyncTimeMs
+			// A 20% blend factor gradually eliminates clock drift over several pings without jumping
+			double smoothEstTick = currentEstTick + (tickDelta * 0.20);
+			self.ServerTickBase = static_cast<uint64_t>(smoothEstTick);
+			double fractionalTickRemaining = smoothEstTick - static_cast<double>(self.ServerTickBase);
+			uint64_t offsetUs = static_cast<uint64_t>((fractionalTickRemaining / static_cast<double>(kDefaultTickRate)) * 1000000.0);
+			uint64_t nowUs = GetTimeUs();
+			self.ServerTickSyncTimeMs = (nowUs >= offsetUs) ? (nowUs - offsetUs) / 1000ULL : nowMs;
+		}
+	}
 
 	GetLogger().Log(LogLevel::Info, "[Client] Received S2C_Pong packet! RTT Latency: %llu ms (Server Uptime: %llu ms, Server Tick: %llu)", rtt, pong->serverTimeMs, pong->serverTick);
 }

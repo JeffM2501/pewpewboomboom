@@ -30,13 +30,13 @@ namespace RobotAI
         if (aiInfo->ForwardTime <= 0)
         {
             aiInfo->ForwardTime = GetRandomValue(1, 5);
-            aiInfo->Input.Foward = GetRandomValue(100, 200) / 1000.0f;
+            aiInfo->Input.Foward = GetRandomValue(-1000, 1000) / 1000.0f;
         }
 
         aiInfo->TurnTime -= deltaTime;
         if (aiInfo->TurnTime <= 0)
         {
-            aiInfo->TurnTime = GetRandomValue(1, 5);
+            aiInfo->TurnTime = GetRandomValue(1, 10);
             aiInfo->Input.Turn = GetRandomValue(-1000, 1000) / 1000.0f;
 
             aiInfo->LastTurnPositive = !aiInfo->LastTurnPositive;

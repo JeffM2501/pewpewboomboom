@@ -187,11 +187,15 @@ bool GameUpdate()
 
 	ViewCamera.zoom = CurrentZoom;
 
-    Network.GetPlayerList().DoForEachPlayer([](ClientPlayerState* player)
+    double currentServerTick = Network.GetCurrentServerTickFractional();
+    double renderTick = (currentServerTick >= static_cast<double>(RemotePlayerHistoryOffset)) ? (currentServerTick - static_cast<double>(RemotePlayerHistoryOffset)) : 0.0;
+    float dt = GetFrameTime();
+
+    Network.GetPlayerList().DoForEachPlayer([renderTick, dt](ClientPlayerState* player)
         {
             if (!player->IsLocalPlayer)
             {
-                player->UpdateInterpolatedTransform(GetFrameTime());
+                player->UpdateInterpolatedTransform(renderTick, dt);
             }
         });
 

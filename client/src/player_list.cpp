@@ -62,52 +62,78 @@ void ClientPlayerState::AddServerStateUpdate(uint64_t tick, PlayerTransform& tra
     TransformHistory[tick] = transform;
 }
 
-void ClientPlayerState::UpdateInterpolatedTransform(float deltaTime)
+static Vector2 CubicHermiteSpline(Vector2 p0, Vector2 v0, Vector2 p1, Vector2 v1, float t, float dt)
+{
+    float t2 = t * t;
+    float t3 = t2 * t;
+
+    float h00 = 2.0f * t3 - 3.0f * t2 + 1.0f;
+    float h10 = t3 - 2.0f * t2 + t;
+    float h01 = -2.0f * t3 + 3.0f * t2;
+    float h11 = t3 - t2;
+
+    Vector2 m0 = v0 * dt;
+    Vector2 m1 = v1 * dt;
+
+    return (p0 * h00) + (m0 * h10) + (p1 * h01) + (m1 * h11);
+}
+
+void ClientPlayerState::UpdateInterpolatedTransform(double renderTick, float deltaTime)
 {
     if (IsLocalPlayer)
     {
         return;
     }
 
-    if (InterpStartHistoryIndex == 0 || TransformHistory.empty() || TransformHistory.begin()->first > InterpStartHistoryIndex)
-    {
-        // nothing to interpolate
-        return;
-    }
-
-    auto start = TransformHistory.find(InterpStartHistoryIndex);
-    auto end = TransformHistory.find(InterpEndHistoryIndex);
-
-
-    // we can't find the history items
-    if (start == TransformHistory.end() && end == TransformHistory.end())
+    if (TransformHistory.empty())
     {
         return;
     }
 
-    // only one is valid, so just use that
-    if (start == TransformHistory.end() || end == TransformHistory.end())
+    // If renderTick is behind the oldest snapshot in history, clamp to the oldest snapshot
+    if (renderTick <= static_cast<double>(TransformHistory.begin()->first))
     {
-        if (start == TransformHistory.end())
-        {
-            Transform = end->second;
-        }
-        else
-        {
-            Transform = start->second;
-        }
-
+        Transform = TransformHistory.begin()->second;
         return;
     }
 
-    // we have two valid interpolation positions, smooth that sucker out
-    float param = Clamp(LastTickTime * kDefaultTickRate, 0.0f, 1.0f);
+    // Find upper bracket (first snapshot with tick > renderTick)
+    uint64_t targetTickFloor = static_cast<uint64_t>(renderTick);
+    auto upper = TransformHistory.upper_bound(targetTickFloor);
 
-    Transform.Position = Vector2Lerp(start->second.Position, end->second.Position, param);
-    Transform.Rotation[0] = LerpAngleDeg(start->second.Rotation[0], end->second.Rotation[0], param);
-    Transform.Rotation[1] = LerpAngleDeg(start->second.Rotation[1], end->second.Rotation[1], param);
+    // If renderTick is ahead of all received snapshots, extrapolate smoothly from the newest snapshot
+    if (upper == TransformHistory.end())
+    {
+        auto newest = std::prev(TransformHistory.end());
+        double overTicks = renderTick - static_cast<double>(newest->first);
+        float dt = static_cast<float>(overTicks / static_cast<double>(kDefaultTickRate));
 
-    LastTickTime += deltaTime;
+        Transform = newest->second;
+        Transform.Position = Transform.Position + (newest->second.Velocity * dt);
+        return;
+    }
+
+    // Lower bracket is immediately preceding the upper bracket
+    auto lower = std::prev(upper);
+
+    uint64_t t0 = lower->first;
+    uint64_t t1 = upper->first;
+
+    if (t1 <= t0)
+    {
+        Transform = lower->second;
+        return;
+    }
+
+    // Normalized interpolation factor between surrounding snapshots
+    float param = static_cast<float>((renderTick - static_cast<double>(t0)) / static_cast<double>(t1 - t0));
+    param = Clamp(param, 0.0f, 1.0f);
+
+    float intervalDt = static_cast<float>(t1 - t0) / static_cast<float>(kDefaultTickRate);
+    Transform.Position = CubicHermiteSpline(lower->second.Position, lower->second.Velocity, upper->second.Position, upper->second.Velocity, param, intervalDt);
+    Transform.Rotation[0] = LerpAngleDeg(lower->second.Rotation[0], upper->second.Rotation[0], param);
+    Transform.Rotation[1] = LerpAngleDeg(lower->second.Rotation[1], upper->second.Rotation[1], param);
+    Transform.Velocity = Vector2Lerp(lower->second.Velocity, upper->second.Velocity, param);
 }
 
 void ClientPlayerState::UpdateForTick(uint64_t currentTick)
@@ -117,7 +143,6 @@ void ClientPlayerState::UpdateForTick(uint64_t currentTick)
         return;
     }
 
-    LastTickTime = 0;
     InterpStartHistoryIndex = (currentTick >= RemotePlayerHistoryOffset) ? (currentTick - RemotePlayerHistoryOffset) : 0;
     InterpEndHistoryIndex = InterpStartHistoryIndex + 1;
 

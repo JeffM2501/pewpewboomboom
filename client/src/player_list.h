@@ -17,7 +17,7 @@ public:
     uint64_t InterpEndHistoryIndex = 0;
     float LastTickTime = 0;
 
-    void UpdateInterpolatedTransform(float deltaTime);
+    void UpdateInterpolatedTransform(double renderTick, float deltaTime);
 
     void UpdateForTick(uint64_t currentTick);
 
