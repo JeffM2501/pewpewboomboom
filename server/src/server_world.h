@@ -7,55 +7,59 @@
 
 class ServerWorldObject : public WorldObject
 {
-protected:
-	BoundingCircle Bounds;
-
 public:
 	S2C_SetWorldObject Packet;
 
-	const BoundingCircle& GetBoundingCircle() const override { return Bounds; }
+	virtual const BoundingCircle& GetBoundingCircle() const = 0;
+	virtual const WorldObjectCollider& GetCollider() const = 0;
 };
 
 class ServerWorldWalls : public ServerWorldObject
 {
+	WallColliderObject Collider;
+	BoundingCircle Bounds;
 public:
 	ServerWorldWalls(float size);
 
-	bool Intersects(const WorldObject& other) const;
-	bool Intersects(const BoundingCircle& other) const override;
+	const WorldObjectCollider& GetCollider() const override { return Collider; }
+
+	const BoundingCircle& GetBoundingCircle() const override { return Bounds; }
 };
 
 class ServerWorldBuilding : public ServerWorldObject
 {
 private:
 	Rectangle BoundingRect = { 0 };
-
+	RectangleColliderObject Collider;
 public:
 	ServerWorldBuilding(Vector2 position, float rotation, float size = 10, Color tint = BEIGE);
-	bool Intersects(const WorldObject& other) const override;
-	bool Intersects(const BoundingCircle& other) const override;
+	const WorldObjectCollider& GetCollider() const override { return Collider; }
+	const BoundingCircle& GetBoundingCircle() const override { return Collider.Bounds; }
+	float GetRotation() const override { return Collider.Rotation; }
 };
 
 class ServerWorldBox : public ServerWorldObject
 {
 private:
 	Rectangle BoundingRect = { 0 };
-
+	RectangleColliderObject Collider;
 public:
 	ServerWorldBox(Vector2 position, float rotation, float size = 2, Color tint = BROWN);
-	bool Intersects(const WorldObject& other) const override;
-	bool Intersects(const BoundingCircle& other) const override;
+	const WorldObjectCollider& GetCollider() const override { return Collider; }
+	const BoundingCircle& GetBoundingCircle() const override { return Collider.Bounds; }
+	float GetRotation() const override { return Collider.Rotation; }
 };
 
 class ServerWorldBarrel : public ServerWorldObject
 {
+	CircleColliderObject Collider;
 public:
 	ServerWorldBarrel(Vector2 position, float size = 1, Color tint = GREEN);
-	bool Intersects(const WorldObject& other) const override;
-	bool Intersects(const BoundingCircle& other) const override;
+	const WorldObjectCollider& GetCollider() const override { return Collider; }
+	const BoundingCircle& GetBoundingCircle() const override { return Collider.Bounds; }
 };
 
-class ServerWorld
+class ServerWorld : public WorldObjectItterator
 {
 public:
 	S2C_SetWorldInfo InfoPacket;
@@ -81,4 +85,6 @@ public:
 	}
 
 	bool CanPlaceObject(BoundingCircle& bounds) const;
+
+    void DoForEachObject(BoundingCircle& area, std::function<void(WorldObject& object)> func) override;
 };

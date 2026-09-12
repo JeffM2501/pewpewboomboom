@@ -353,21 +353,21 @@ pewpewboomboom/
 ### Phase 1: Setup & Networking Foundations
 **Goal**: Integrate ENet into the project build system, initialize ENet on client and server, and establish a successful connection handshake.
 
-- [*] **1.1 ENet Premake Setup**
+- [x] **1.1 ENet Premake Setup**
   - Embed enet as a single header library into the sharedLib code
   - Link ENet to both `client` and `server` build scripts.
-- [*] **1.2 Headless Server Initialization**
+- [x] **1.2 Headless Server Initialization**
   - Modify [server/src/main.cpp](file:///c:/Users/jeffm/Desktop/pewpewboomboom/server/src/main.cpp).
   - Add initialization of ENet: `enet_initialize()`.
   - Create an ENet host: `enet_host_create()` listening on a configurable port (default: `7777`).
   - Create a basic server tick loop that polls ENet events (`enet_host_service`) and logs client connection and disconnection events.
-- [*] **1.3 Client Connection System**
+- [x] **1.3 Client Connection System**
   - Modify [client/src/main.cpp](file:///c:/Users/jeffm/Desktop/pewpewboomboom/client/src/main.cpp).
   - Add initialization of ENet: `enet_initialize()`.
   - Create an ENet client host: `enet_host_create(NULL, 1, 2, 0, 0)`.
   - Add a connection routine targeting `localhost:7777` using `enet_host_connect()`.
   - Print connection success/failure logs to console and display status on screen using raylib text rendering.
-- [*] **1.4 Simple Echo Handshake**
+- [x] **1.4 Simple Echo Handshake**
   - Define a test packet in the shared module.
   - Send a "Hello Server" message from the client upon successful connection.
   - The server receives it, prints the message, and sends back an echo packet ("Hello Client").
@@ -378,7 +378,7 @@ pewpewboomboom/
 ### Phase 2: Network Protocol & Shared Data Structures
 **Goal**: Standardize the message format, sequence ordering, and serialization utility logic.
 
-- [*] **2.1 Configuration Constant Defs**
+- [x] **2.1 Configuration Constant Defs**
   - Create [sharedLib/include/Common.h](file:///c:/Users/jeffm/Desktop/pewpewboomboom/sharedLib/include/Common.h).
   - Define global variables and constants:
     - `TICK_RATE = 60` (ticks per second)
@@ -386,7 +386,7 @@ pewpewboomboom/
     - `MAX_PLAYERS = 32`
     - `MAX_PROJECTILES = 128`
     - `MAP_WIDTH = 2000`, `MAP_HEIGHT = 2000`
-- [ ] **2.2 Packet Struct Serialization**
+- [x] **2.2 Packet Struct Serialization**
   - Create [sharedLib/include/Protocol.h](file:///c:/Users/jeffm/Desktop/pewpewboomboom/sharedLib/include/Protocol.h) containing the `PacketType` enum:
     ```cpp
     enum class PacketType : uint8_t
@@ -407,7 +407,7 @@ pewpewboomboom/
     };
     ```
   - Define network packets as fixed-size structs utilizing `#pragma pack(push, 1)` or compiler alignment attributes to ensure direct memory copyability/casting without padding differences between platforms.
-- [ ] **2.3 Define Core Data Packets**
+- [x] **2.3 Define Core Data Packets**
   - `C2S_InputState`: Tick count, flags (WASD, shoot), turret angle, selected weapon.
   - `S2C_WorldSnapshotHeader`: Server tick count, last processed client tick, active counts of players, bullets, and powerups.
   - `S2C_PlayerSnapshot`, `S2C_BulletSnapshot`, `S2C_PowerupSnapshot`: Individual entity state snapshots sent as separate fixed-size packets.
@@ -419,7 +419,7 @@ pewpewboomboom/
 ### Phase 3: Fixed-Tick Server Simulation & Client Skeleton
 **Goal**: Implement a robust game loop ticking at exactly 60Hz on the server, and prepare the client to render networked entities visually using primitive shapes.
 
-- [ ] **3.1 Server Fixed-Tick Loop**
+- [x] **3.1 Server Fixed-Tick Loop**
   - Implement a high-precision accumulator-based game loop in the server:
     ```cpp
     double accumulator = 0.0;
@@ -436,10 +436,10 @@ pewpewboomboom/
         enet_host_service(host, &event, 1); // poll events between steps
     }
     ```
-- [ ] **3.2 Server World State Structure**
+- [x] **3.2 Server World State Structure**
   - In [server/include/World.h](file:///c:/Users/jeffm/Desktop/pewpewboomboom/server/include/World.h), maintain a map or array of connected player objects, bullets, and powerup structures.
   - On each `ServerTick`, advance the simulation time (tick count) and serialize the state to send a `S2C_WorldSnapshot` to all connected ENet peers.
-- [ ] **3.3 Client Scene Skeleton**
+- [x] **3.3 Client Scene Skeleton**
   - Transition the client from the default 3D template to a 2D viewport.
   - Implement a connection configuration screen using simple raylib GUI elements (TextBox for IP address, Button for "Connect").
   - Once connected, draw a grid representing the arena background, and draw simple rectangles for any tanks/projectiles reported in the latest `S2C_WorldSnapshot` packet.

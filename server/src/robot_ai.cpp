@@ -29,14 +29,14 @@ namespace RobotAI
         aiInfo->ForwardTime -= deltaTime;
         if (aiInfo->ForwardTime <= 0)
         {
-            aiInfo->ForwardTime = GetRandomValue(1, 5);
+            aiInfo->ForwardTime = float(GetRandomValue(1, 5));
             aiInfo->Input.Foward = GetRandomValue(100, 200) / 1000.0f;
         }
 
         aiInfo->TurnTime -= deltaTime;
         if (aiInfo->TurnTime <= 0)
         {
-            aiInfo->TurnTime = GetRandomValue(1, 5);
+            aiInfo->TurnTime = float(GetRandomValue(1, 5));
             aiInfo->Input.Turn = GetRandomValue(-1000, 1000) / 1000.0f;
 
             aiInfo->LastTurnPositive = !aiInfo->LastTurnPositive;
@@ -44,7 +44,7 @@ namespace RobotAI
 
         aiInfo->Input.TurretAngle = robot.Transform.Rotation[1] + ((aiInfo->LastTurnPositive ? 1 : -1) * 45 * deltaTime);
 
-        UpdatePlayerTransform(robot.Transform, aiInfo->Input, deltaTime, MovementRules);
+        robot.Transform.Position = UpdatePlayerTransform(robot.Transform, aiInfo->Input, deltaTime, MovementRules);
         robot.LastAckedInputTick = tick;
         robot.TransformHistory[tick] = robot.Transform;
     }

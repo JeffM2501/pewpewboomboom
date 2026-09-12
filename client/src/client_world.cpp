@@ -5,30 +5,19 @@
 // ClientWorldWalls
 ClientWorldWalls::ClientWorldWalls(const S2C_SetWorldObject& message) : ClientWorldObject(message)
 {
+    Collider.Size.x = message.scale;
+    Collider.Size.y = message.scale;
+
     Bounds.Radius = message.scale;
-    Bounds.Center = Vector2{ 0, 0 };
-}
-
-bool ClientWorldWalls::Intersects(const BoundingCircle& other) const
-{
-    Vector2 otherMin = { other.Center.x - other.Radius, other.Center.y - other.Radius };
-    Vector2 otherMax = { other.Center.x + other.Radius, other.Center.y + other.Radius };
-
-    if (otherMin.x < -Bounds.Radius || otherMax.x > Bounds.Radius || otherMin.y < -Bounds.Radius || otherMax.y > Bounds.Radius)
-    {
-        return true;
-    }
-
-    return false;
 }
 
 void ClientWorldWalls::Draw()
 {
     Rectangle rect{
-        -Bounds.Radius,
-        -Bounds.Radius,
-        Bounds.Radius * 2.0f,
-        Bounds.Radius * 2.0f
+        -(Collider.Size.x),
+        -(Collider.Size.y),
+        Collider.Size.x * 2.0f,
+        Collider.Size.y * 2.0f
     };
     DrawRectangleLinesEx(rect, 10, Tint);
 }
@@ -36,32 +25,23 @@ void ClientWorldWalls::Draw()
 // ClientWorldBuilding
 ClientWorldBuilding::ClientWorldBuilding(const S2C_SetWorldObject& message) : ClientWorldObject(message)
 {
-    Size.x = message.scale;
-    Size.y = message.scale;
-}
+    Collider.Size.x = message.scale;
+    Collider.Size.y = message.scale;
 
-bool ClientWorldBuilding::Intersects(const BoundingCircle& other) const
-{
-    Vector2 delta = other.Center - Bounds.Center;
+    Collider.Bounds.Center.x = message.position[0];
+    Collider.Bounds.Center.y = message.position[1];
+    Collider.Bounds.Radius = Vector2Length(Vector2(message.scale, message.scale));
 
-    Rectangle rect{
-       -Size.x,
-       -Size.y,
-       Size.x * 2.0f,
-       Size.y * 2.0f
-    };
-
-    Vector2 rotatedDelta = Vector2Rotate(delta, -Rotation);
-    return CheckCollisionCircleRec(rotatedDelta, other.Radius, rect);
+    Collider.Rotation = message.rotation;
 }
 
 void ClientWorldBuilding::Draw()
 {
     Rectangle rect{
-      -Size.x,
-      -Size.y,
-      Size.x * 2.0f,
-      Size.y * 2.0f
+      -Collider.Size.x,
+      -Collider.Size.y,
+      Collider.Size.x * 2.0f,
+      Collider.Size.y * 2.0f
     };
     DrawRectangleRec(rect, Tint);
 }
@@ -69,32 +49,23 @@ void ClientWorldBuilding::Draw()
 // ClientWorldBox
 ClientWorldBox::ClientWorldBox(const S2C_SetWorldObject& message) : ClientWorldObject(message)
 {
-    Size.x = message.scale;
-    Size.y = message.scale;
-}
+    Collider.Size.x = message.scale;
+    Collider.Size.y = message.scale;
 
-bool ClientWorldBox::Intersects(const BoundingCircle& other) const
-{
-    Vector2 delta = other.Center - Bounds.Center;
+    Collider.Bounds.Center.x = message.position[0];
+    Collider.Bounds.Center.y = message.position[1];
+    Collider.Bounds.Radius = Vector2Length(Vector2(message.scale, message.scale));
 
-    Rectangle rect{
-       -Size.x,
-       -Size.y,
-       Size.x * 2.0f,
-       Size.y * 2.0f
-    };
-
-    Vector2 rotatedDelta = Vector2Rotate(delta, -Rotation);
-    return CheckCollisionCircleRec(rotatedDelta, other.Radius, rect);
+    Collider.Rotation = message.rotation;
 }
 
 void ClientWorldBox::Draw()
 {
     Rectangle rect{
-     -Size.x,
-     -Size.y,
-     Size.x * 2.0f,
-     Size.y * 2.0f
+     -Collider.Size.x,
+     -Collider.Size.y,
+     Collider.Size.x * 2.0f,
+     Collider.Size.y * 2.0f
     };
     DrawRectangleRec(rect, Tint);
 }
@@ -102,16 +73,14 @@ void ClientWorldBox::Draw()
 // ClientWorldBarrel
 ClientWorldBarrel::ClientWorldBarrel(const S2C_SetWorldObject& message) : ClientWorldObject(message)
 {
-}
-
-bool ClientWorldBarrel::Intersects(const BoundingCircle& other) const
-{
-    return CheckCollisionCircles(Bounds.Center, Bounds.Radius, other.Center, other.Radius);
+    Collider.Bounds.Center.x = message.position[0];
+    Collider.Bounds.Center.y = message.position[1];
+    Collider.Bounds.Radius = Vector2Length(Vector2(message.scale, message.scale));
 }
 
 void ClientWorldBarrel::Draw()
 {
-    DrawCircleV(Bounds.Center, Bounds.Radius, Tint);
+    DrawCircleV(Collider.Bounds.Center, Collider.Bounds.Radius, Tint);
 }
 
 // ClientWorld
@@ -162,10 +131,19 @@ void ClientWorld::Draw()
     for (auto& object : Objects)
 	{
 		rlPushMatrix();
-		rlTranslatef(object->Bounds.Center.x, object->Bounds.Center.y, 0);
-		rlRotatef(object->Rotation, 0, 0, 1);
+		rlTranslatef(object->GetBoundingCircle().Center.x, object->GetBoundingCircle().Center.y, 0);
+		rlRotatef(object->GetRotation(), 0, 0, 1);
 
 		object->Draw();
 		rlPopMatrix();
 	}
+}
+
+void ClientWorld::DoForEachObject(BoundingCircle& area, std::function<void(WorldObject& object)> func)
+{
+    for (auto& object : Objects)
+    {
+        if (CheckCollisionCircles(area.Center, area.Radius, object->GetBoundingCircle().Center, object->GetBoundingCircle().Radius))
+            func(*object.get());
+    }
 }

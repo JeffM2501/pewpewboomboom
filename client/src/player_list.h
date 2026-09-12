@@ -38,6 +38,7 @@ class PlayerList
 {
 private:
     std::unordered_map<uint64_t, std::unique_ptr<ClientPlayerState>> Players;
+    ClientLocalPlayerState* LocalPlayer = nullptr;
 public:
 
     ClientPlayerState* AddPlayer(uint64_t playerId, bool local = false);
@@ -48,4 +49,6 @@ public:
     void DoForEachPlayer(std::function<void(ClientPlayerState*)> callback);
 
     size_t Size() { return Players.size(); }
+
+    ClientLocalPlayerState* GetLocalPlayer() const { return LocalPlayer; }
 };

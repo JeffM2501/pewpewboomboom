@@ -110,7 +110,7 @@ namespace PacketHandlers
         newInput.Shoot = input->shoot;
         newInput.Boost = input->boost;
 
-        UpdatePlayerTransform(player.Transform, newInput, 1.0f/kDefaultTickRate, DefaultMovementRules);
+        player.Transform.Position = UpdatePlayerTransform(player.Transform, newInput, 1.0f/kDefaultTickRate, DefaultMovementRules);
 
         player.TransformHistory[input->clientTick] = player.Transform;
         player.LastAckedInputTick = input->clientTick;

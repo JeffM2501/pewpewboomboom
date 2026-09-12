@@ -14,7 +14,7 @@ float ClampInput(float input)
     return input;
 }
 
-bool UpdatePlayerTransform(PlayerTransform& transform, const InputState& input, float deltaTime, PlayerMovementRules& rules)
+Vector2 UpdatePlayerTransform(PlayerTransform& transform, const InputState& input, float deltaTime, PlayerMovementRules& rules)
 {
     float turn = ClampInput(input.Turn);
     float foward = ClampInput(input.Foward);
@@ -30,6 +30,5 @@ bool UpdatePlayerTransform(PlayerTransform& transform, const InputState& input, 
     if (input.Boost)
         speedMultiplier = rules.BoostMultiplier;
 
-    transform.Position += transform.Velocity * (rules.MaxSpeed * deltaTime) * speedMultiplier;
-    return true;
+    return transform.Position + transform.Velocity * (rules.MaxSpeed * deltaTime) * speedMultiplier;
 }

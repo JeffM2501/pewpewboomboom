@@ -43,5 +43,5 @@ struct PlayerMovementRules
     float BoostMultiplier = 2.0f;
 };
 
-bool UpdatePlayerTransform(PlayerTransform& transform, const InputState& input, float deltaTime, PlayerMovementRules& rules);
+Vector2 UpdatePlayerTransform(PlayerTransform& transform, const InputState& input, float deltaTime, PlayerMovementRules& rules);
 

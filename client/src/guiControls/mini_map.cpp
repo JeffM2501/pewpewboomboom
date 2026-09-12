@@ -15,6 +15,25 @@ namespace MiniMap
 
 	static RenderTexture2D MiniMapTexture = { 0 };
 
+	float MapZoom = 2.0f;
+
+	void ZoomIn()
+	{
+		MapZoom += 0.25f;
+	}
+
+    void ZoomOut()
+	{
+		MapZoom -= 0.25f;
+		if (MapZoom < 1)
+			MapZoom = 1;
+	}
+
+	void ResetZoom()
+	{
+		MapZoom = 2.0f;
+	}
+
 	void UpdateMiniMapTexture()
 	{
 		if (MiniMapTexture.texture.width != int(WindowSize.x))
@@ -36,11 +55,19 @@ namespace MiniMap
 		camera.offset = { WindowSize.x * 0.5f, WindowSize.y * 0.5f };
 		camera.target = { 0,0 };
 
+		auto localPlayer = Network.GetPlayerList().GetLocalPlayer();
+		if (localPlayer)
+		{
+			camera.target = localPlayer->Transform.Position;
+		}
+
 		camera.zoom = 1;
 		if (World.IsValid())
 		{
 			camera.zoom = WindowSize.x / (World.WallSize.x*2.0f);
 		}
+
+		camera.zoom *= MapZoom;
 
 		BeginMode2D(camera);
 		if (World.IsValid())

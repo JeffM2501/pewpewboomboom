@@ -21,13 +21,13 @@ Use this as a starting point or replace it with your code.
 
 #include "game_gui.h"
 #include "guiControls/chat_window.h"
+#include "guiControls/mini_map.h"
 #include "tank_manager.h"
 #include "world_data.h"
 #include "player_state.h"
 #include "rlgl.h"
 
 ClientWorld World;
-
 
 Camera2D ViewCamera = { 0 };
 Texture GridTexture = { 0 };
@@ -39,7 +39,7 @@ InputState CurrentInputState = { 0 };
 
 PlayerMovementRules MovementRules;
 
-float CurrentZoom = 24.0f;
+float CurrentZoom = 16.0f;
 
 void ResetCurrentInput()
 {
@@ -76,7 +76,6 @@ void PollInputActions()
 
 	CurrentInputState.TurretAngle = atan2f(mousePos.y, mousePos.x) * RAD2DEG;
 }
-
 
 static void GameLogger(std::string_view message, LogLevel level)
 {
@@ -177,6 +176,14 @@ bool GameUpdate()
 {
 	PollInputActions();
 
+	if (IsKeyPressed(KEY_PAGE_UP))
+		MiniMap::ZoomIn();
+    if (IsKeyPressed(KEY_PAGE_DOWN	))
+        MiniMap::ZoomOut();
+    if (IsKeyPressed(KEY_HOME))
+        MiniMap::ResetZoom();
+
+
 	ViewCamera.offset = Vector2{ (float)GetRenderWidth(), (float)GetRenderHeight() } / 2;
 
 	CurrentZoom += GetMouseWheelMove() * 0.25f;
@@ -249,7 +256,9 @@ void UpdateLocalPlayerState()
     if (!LocalPlayer)
         return;
 
-    UpdatePlayerTransform(LocalPlayer->Transform, CurrentInputState, 1.0f/kDefaultTickRate, MovementRules);
+    auto newPos = UpdatePlayerTransform(LocalPlayer->Transform, CurrentInputState, 1.0f/kDefaultTickRate, MovementRules);
+
+	LocalPlayer->Transform.Position = newPos;
 }
 
 void UpdateRemotePlayersForTick(const uint64_t& tick)

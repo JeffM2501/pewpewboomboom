@@ -12,80 +12,78 @@
 class ClientWorldObject : public WorldObject
 {
 public:
-    BoundingCircle Bounds;
     Color Tint = WHITE;
-    float Rotation = 0.0f;
-
 
     ClientWorldObject(const S2C_SetWorldObject& message)
     {
-        Bounds.Center.x = message.position[0];
-        Bounds.Center.y = message.position[1];
-        Bounds.Radius = sqrtf(message.scale*message.scale + message.scale*message.scale);
-        Rotation = message.rotation;
-
         Tint = Color{ message.color[0], message.color[1], message.color[2], message.color[3] };
     }
 
-    const BoundingCircle& GetBoundingCircle() const override { return Bounds; }
+    virtual const BoundingCircle& GetBoundingCircle() const = 0;
+
+    virtual const WorldObjectCollider& GetCollider() const = 0;
 
     virtual void Draw() = 0;
-
-    bool Intersects(const WorldObject& other) const override
-    {
-        const BoundingCircle& circle = other.GetBoundingCircle();
-        return Intersects(circle);
-    }
-
-    virtual bool Intersects(const BoundingCircle& other) const = 0;
 };
 
 class ClientWorldWalls : public ClientWorldObject
 {
+protected:
+    WallColliderObject Collider;
+    BoundingCircle Bounds;
 public:
     ClientWorldWalls(const S2C_SetWorldObject& message);
 
-    bool Intersects(const BoundingCircle& other) const override;
+    const WorldObjectCollider& GetCollider() const override {  return Collider; }
+
+    const BoundingCircle& GetBoundingCircle() const override { return Bounds; }
 
     void Draw() override;
 };
 
 class ClientWorldBuilding : public ClientWorldObject
 {
-    Vector2 Size = { 0, 0 };
+    RectangleColliderObject Collider;
 
 public:
     ClientWorldBuilding(const S2C_SetWorldObject& message);
 
-    bool Intersects(const BoundingCircle& other) const override;
+    const WorldObjectCollider& GetCollider() const override { return Collider; }
+    const BoundingCircle& GetBoundingCircle() const override { return Collider.Bounds; }
+
+    float GetRotation() const override { return Collider.Rotation; }
 
     void Draw() override;
 };
 
 class ClientWorldBox : public ClientWorldObject
 {
-    Vector2 Size = { 0, 0 };
-    float Rotation = 0.0f;
+    RectangleColliderObject Collider;
 
 public:
     ClientWorldBox(const S2C_SetWorldObject& message);
 
-    bool Intersects(const BoundingCircle& other) const override;
+    const WorldObjectCollider& GetCollider() const override { return Collider; }
+    const BoundingCircle& GetBoundingCircle() const override { return Collider.Bounds; }
+
+    float GetRotation() const override { return Collider.Rotation; }
 
     void Draw() override;
 };
 
 class ClientWorldBarrel : public ClientWorldObject
 {
+    CircleColliderObject Collider;
 public:
     ClientWorldBarrel(const S2C_SetWorldObject& message);
 
-    bool Intersects(const BoundingCircle& other) const override;
+    const WorldObjectCollider& GetCollider() const override { return Collider; }
+    const BoundingCircle& GetBoundingCircle() const override { return Collider.Bounds; }
 
     void Draw() override;
 };
 
-class ClientWorld
+class ClientWorld : public WorldObjectItterator
 {
 public:
     std::string Name;
@@ -106,4 +104,6 @@ public:
 
     EventSource<ClientWorld> WorldStarted;
     EventSource<ClientWorld> WorldFinalized;
+
+    void DoForEachObject(BoundingCircle& area, std::function<void(WorldObject& object)> func) override;
 };

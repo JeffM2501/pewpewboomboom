@@ -21,6 +21,9 @@ ClientPlayerState* PlayerList::AddPlayer(uint64_t playerId, bool local)
     ClientPlayerState* newPlayer = Players.insert_or_assign(playerId, std::move(player)).first->second.get();
     newPlayer->PlayerID = playerId;
 
+    if (local)
+        LocalPlayer = static_cast<ClientLocalPlayerState*>(newPlayer);
+
     return newPlayer;
 }
 
@@ -166,7 +169,7 @@ void ClientLocalPlayerState::AddServerStateUpdate(uint64_t tick, PlayerTransform
     PlayerTransform replayedTransform = transform;
     for (auto replayIt = unackedIt; replayIt != InputHistory.end(); ++replayIt)
     {
-        UpdatePlayerTransform(replayedTransform, replayIt->second, 1.0f / kDefaultTickRate, defaultRules);
+        replayedTransform.Position = UpdatePlayerTransform(replayedTransform, replayIt->second, 1.0f / kDefaultTickRate, defaultRules);
     }
 
     Vector2 delta = replayedTransform.Position - Transform.Position;
