@@ -1,11 +1,11 @@
 #pragma once
 
 #include "player_state.h"
+#include "client_world.h"
 
 #include <unordered_map>
 #include <memory>
 #include <functional>
-
 
 static constexpr uint64_t RemotePlayerHistoryOffset = 6;
 class ClientPlayerState : public PlayerState
@@ -32,6 +32,8 @@ public:
     std::map<uint64_t, InputState> InputHistory;
 
     void AddServerStateUpdate(uint64_t tick, PlayerTransform& transform) override;
+
+    ClientWorld* World = nullptr;
 };
 
 class PlayerList

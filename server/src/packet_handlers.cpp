@@ -7,6 +7,7 @@
 #include "time_utils.h"
 #include "data_utils.h"
 #include "raylib.h"
+#include "world_data.h"
 
 extern Logger ServerLogger;
 // extern uint64_t ServerStartTimeMs;
@@ -101,6 +102,8 @@ namespace PacketHandlers
 
     static void ProcessC2S_InputState(PacketProcessor& processor, ENetPeer* sender, const C2S_InputState* input)
     {
+        NetworkManager& netManager = static_cast<NetworkManager&>(processor);
+
         auto& player = ServerPlayerList::GetPlayer(sender);
 
         InputState newInput;
@@ -110,7 +113,12 @@ namespace PacketHandlers
         newInput.Shoot = input->shoot;
         newInput.Boost = input->boost;
 
-        player.Transform.Position = UpdatePlayerTransform(player.Transform, newInput, 1.0f/kDefaultTickRate, DefaultMovementRules);
+        auto newPos = UpdatePlayerTransform(player.Transform, newInput, 1.0f/kDefaultTickRate, DefaultMovementRules);
+        
+        if (netManager.ProcessPlayerUpdate)
+            newPos = netManager.ProcessPlayerUpdate(player.Transform.Position, newPos, player);
+
+        player.Transform.Position = newPos;
 
         player.TransformHistory[input->clientTick] = player.Transform;
         player.LastAckedInputTick = input->clientTick;

@@ -115,7 +115,7 @@ void SetupRlImGuiFonts()
 void GameInit()
 {
 	SetConfigFlags(FLAG_VSYNC_HINT | FLAG_WINDOW_RESIZABLE | FLAG_WINDOW_HIGHDPI);
-	InitWindow(1280, 800, "Example");
+	InitWindow(1280, 800, "Pew Pew Boom Boom");
 	SetTargetFPS(144);
 
 	rlImGuiSetLoadFontsCallback(SetupRlImGuiFonts);
@@ -133,6 +133,7 @@ void GameInit()
 	Network.GetEvents().OnJoin.Add([](const ClientPlayerState* playerInfo, void*)
 		{
             LocalPlayer = static_cast<ClientLocalPlayerState*>(Network.GetPlayerList().GetPlayer(playerInfo->PlayerID));
+			LocalPlayer->World = &World;
 			ResetCurrentInput();
 		});
 
@@ -258,6 +259,9 @@ void UpdateLocalPlayerState()
 
     auto newPos = UpdatePlayerTransform(LocalPlayer->Transform, CurrentInputState, 1.0f/kDefaultTickRate, MovementRules);
 
+	BoundingCircle pos = { LocalPlayer->Transform.Position, 10 };
+
+	newPos = World.Collide(LocalPlayer->Transform.Position, newPos, 1, pos);
 	LocalPlayer->Transform.Position = newPos;
 }
 

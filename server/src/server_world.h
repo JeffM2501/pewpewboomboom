@@ -16,9 +16,10 @@ public:
 
 class ServerWorldWalls : public ServerWorldObject
 {
+public:
 	WallColliderObject Collider;
 	BoundingCircle Bounds;
-public:
+
 	ServerWorldWalls(float size);
 
 	const WorldObjectCollider& GetCollider() const override { return Collider; }

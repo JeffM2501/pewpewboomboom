@@ -7,14 +7,14 @@ bool WorldObjectCollider::Intersects(const WorldObject& other) const
     return Intersects(circle);
 }
 
-Vector2 WorldObjectItterator::Collide(Vector2 startPos, Vector2 desiredPos, BoundingCircle& bounds)
+Vector2 WorldObjectItterator::Collide(Vector2 startPos, Vector2 desiredPos, float colliderRadius, BoundingCircle& bounds)
 {
     Vector2 endPos = desiredPos;
-    DoForEachObject(bounds, [&endPos, startPos, bounds](WorldObject& object)
+    DoForEachObject(bounds, [&endPos, startPos, colliderRadius](WorldObject& object)
         {
             Vector2 intersction;
             Vector2 normal;
-            object.GetCollider().IntersectPath(endPos, startPos, bounds.Radius, intersction, normal);
+            object.GetCollider().IntersectPath(endPos, startPos, colliderRadius, intersction, normal);
         });
 
     return endPos;
@@ -31,7 +31,7 @@ bool RectangleColliderObject::Intersects(const BoundingCircle& other) const
        Size.y * 2.0f
     };
 
-    Vector2 rotatedDelta = Vector2Rotate(delta, -Rotation);
+    Vector2 rotatedDelta = Vector2Rotate(delta, -Rotation * DEG2RAD);
     return CheckCollisionCircleRec(rotatedDelta, other.Radius, rect);
 }
 
@@ -46,12 +46,12 @@ bool RectangleColliderObject::IntersectPath(Vector2& currentPosition, Vector2 in
        Size.y * 2.0f
     };
 
-    Vector2 rotatedDelta = Vector2Rotate(delta, -Rotation);
+    Vector2 rotatedDelta = Vector2Rotate(delta, -Rotation * DEG2RAD);
 
-    bool hit = IntersectBBoxCylinder(rect, delta, initalPosition, radius, intersectionPoint, hitNormal);
+    bool hit = IntersectBBoxCylinder(rect, rotatedDelta, initalPosition, radius, intersectionPoint, hitNormal);
     if (hit)
     {
-        currentPosition = Bounds.Center + delta;
+        currentPosition = Bounds.Center + Vector2Rotate(rotatedDelta, Rotation * DEG2RAD);
     }
 
     return hit;

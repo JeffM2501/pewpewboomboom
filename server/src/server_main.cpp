@@ -3,6 +3,7 @@
 #include "text_utils.h"
 #include "constants.h"
 #include "raylib.h"
+#include "rlgl.h"
 
 #include "player_state.h"
 #include "player_list.h"
@@ -20,6 +21,8 @@ Logger ServerLogger(ConsoleLogOutput);
 NetworkManager NetManager;
 
 ServerWorld World(500);
+
+static constexpr bool ShowDebugWindow = true;
 
 void SendWorldData(uint64_t playerID, void* sender)
 {
@@ -54,6 +57,12 @@ void PopulateWorld()
 	}
 }
 
+Vector2 CollidePlayerWithMap(const Vector2& oldPos, const Vector2& desiredPos, ServerPlayerList::ServerPlayer& player)
+{
+	BoundingCircle bounds = { desiredPos, 10 };
+	return World.Collide(oldPos, desiredPos, 1, bounds);
+}
+
 void ServerSetup()
 {
 	SetRandomSeed(uint32_t(std::chrono::system_clock::now().time_since_epoch().count()));
@@ -67,6 +76,8 @@ void ServerSetup()
 		});
 
 	NetManager.PlayerJoined.Add(SendWorldData);
+
+	NetManager.ProcessPlayerUpdate = CollidePlayerWithMap;
 
 	if (NetManager.Initialize(7777, kMaxPlayers))
 	{
@@ -131,10 +142,43 @@ void UpdatePlayerHistories()
 	, true);
 }
 
+void DrawDebugScene()
+{
+	Camera2D cam = { 0 };
+	cam.zoom = GetScreenWidth() / World.Walls.Collider.Size.x;
+	cam.offset.x = GetScreenWidth() * 0.5f;
+    cam.offset.y = GetScreenHeight() * 0.5f;
+
+	BeginMode2D(cam);
+	DrawRectangleRec(Rectangle{ -World.Walls.Collider.Size.x, -World.Walls.Collider.Size.y, World.Walls.Collider.Size.x * 2, World.Walls.Collider.Size.y * 2 },
+		DARKGRAY);
+
+	for (const auto& obj : World.Objects)
+	{
+		rlPushMatrix();
+		rlTranslatef(obj->Packet.position[0], obj->Packet.position[1], 0);
+		rlRotatef(obj->Packet.rotation, 0, 0, 1);
+
+		DrawRectangle(-obj->Packet.scale, -obj->Packet.scale, obj->Packet.scale * 2, obj->Packet.scale * 2, RED);
+		rlPopMatrix();
+	}
+
+    ServerPlayerList::DoForEachPlayer([&](ServerPlayerList::ServerPlayer& player)
+        {
+			DrawCircleV(player.Transform.Position, 1, BLUE);
+        }
+    , true);
+	EndMode2D();
+	DrawText(TextFormat("Player Count %d", ServerPlayerList::GetPlayerCount()), 10,10, 20, BLACK);
+}
+
 int main(int argc, char* argv[])
 {
 	ServerSetup();
 	RobotAI::SetupRobots();
+
+	if (ShowDebugWindow)
+		InitWindow(800, 800, "World State");
 
 	FixedTickAccumulator serverTick(ServerTickTime);
 
@@ -158,7 +202,18 @@ int main(int argc, char* argv[])
 		// process items that can happen anytime
 
 		NetManager.PollEvents(ServerTickTimeMS);
+
+		if (ShowDebugWindow)
+		{
+			BeginDrawing();
+			ClearBackground(WHITE);
+			DrawDebugScene();
+			EndDrawing();
+		}
 	}
+
+	if (ShowDebugWindow)
+		CloseWindow();
 
 	ServerCleanup();
 	return 0;

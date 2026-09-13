@@ -70,5 +70,5 @@ class WorldObjectItterator
 public:
 	virtual void DoForEachObject(BoundingCircle& area, std::function<void(WorldObject& object)> func) = 0;
 
-	Vector2 Collide(Vector2 startPos, Vector2 desiredPos, BoundingCircle& bounds);
+	Vector2 Collide(Vector2 startPos, Vector2 desiredPos, float colliderRadius, BoundingCircle& bounds);
 };

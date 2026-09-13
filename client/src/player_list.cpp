@@ -148,7 +148,6 @@ void ClientLocalPlayerState::AddServerStateUpdate(uint64_t tick, PlayerTransform
     {
         return;
     }
-
     auto it = InputHistory.find(tick);
     if (it == InputHistory.end())
     {
@@ -169,7 +168,13 @@ void ClientLocalPlayerState::AddServerStateUpdate(uint64_t tick, PlayerTransform
     PlayerTransform replayedTransform = transform;
     for (auto replayIt = unackedIt; replayIt != InputHistory.end(); ++replayIt)
     {
-        replayedTransform.Position = UpdatePlayerTransform(replayedTransform, replayIt->second, 1.0f / kDefaultTickRate, defaultRules);
+        auto newPos = UpdatePlayerTransform(replayedTransform, replayIt->second, 1.0f / kDefaultTickRate, defaultRules);
+        BoundingCircle bounds = { replayedTransform.Position, 10 };
+
+        if (World)
+            newPos = World->Collide(replayedTransform.Position, newPos, 1, bounds);
+
+        replayedTransform.Position = newPos;
     }
 
     Vector2 delta = replayedTransform.Position - Transform.Position;

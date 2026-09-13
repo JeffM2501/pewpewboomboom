@@ -40,14 +40,16 @@ ServerWorldBuilding::ServerWorldBuilding(Vector2 position, float rotation, float
 	Packet.color[2] = tint.b;
 	Packet.color[3] = tint.a;
 
+    Collider.Size = Vector2{ size, size };
+    Collider.Rotation = rotation;
 	Collider.Bounds.Center.x = position.x;
 	Collider.Bounds.Center.y = position.y;
 	Collider.Bounds.Radius = sqrtf((size / 2.0f) * (size / 2.0f));
 
-	BoundingRect.x = -size / 2.0f;
-	BoundingRect.y = -size / 2.0f;
-	BoundingRect.width = size;
-	BoundingRect.height = size;
+	BoundingRect.x = -size;
+	BoundingRect.y = -size ;
+	BoundingRect.width = size * 2;
+	BoundingRect.height = size * 2;
 }
 
 // ServerWorldBox
@@ -66,14 +68,16 @@ ServerWorldBox::ServerWorldBox(Vector2 position, float rotation, float size, Col
 	Packet.color[2] = tint.b;
 	Packet.color[3] = tint.a;
 
+	Collider.Size = Vector2{ size, size };
+	Collider.Rotation = rotation;
 	Collider.Bounds.Center.x = position.x;
 	Collider.Bounds.Center.y = position.y;
 	Collider.Bounds.Radius = sqrtf((size / 2.0f) * (size / 2.0f));
 
-	BoundingRect.x = -size / 2.0f;
-	BoundingRect.y = -size / 2.0f;
-	BoundingRect.width = size;
-	BoundingRect.height = size;
+	BoundingRect.x = -size;
+	BoundingRect.y = -size;
+	BoundingRect.width = size * 2;
+	BoundingRect.height = size * 2;
 }
 
 // ServerWorldBarrel
