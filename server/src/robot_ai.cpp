@@ -16,8 +16,6 @@ namespace RobotAI
         InputState Input;
     };
 
-
-    static PlayerMovementRules MovementRules;
     void UpdateRobot(ServerPlayerList::ServerPlayer& robot, NetworkManager& manager)
     {
         auto tick = manager.CurrentServerTick;
@@ -44,7 +42,7 @@ namespace RobotAI
 
         aiInfo->Input.TurretAngle = robot.Transform.Rotation[1] + ((aiInfo->LastTurnPositive ? 1 : -1) * 45 * deltaTime);
 
-        robot.Transform.Position = UpdatePlayerTransform(robot.Transform, aiInfo->Input, deltaTime, MovementRules);
+        robot.Transform.Position = UpdatePlayerTransform(robot.Transform, aiInfo->Input, deltaTime, robot.Rules);
         robot.LastAckedInputTick = tick;
         robot.TransformHistory[tick] = robot.Transform;
     }

@@ -64,6 +64,12 @@ namespace PacketHandlers
         responce.playerId = player.PlayerID;
         DataUtils::PackVector2(player.Transform.Position, responce.spawn);
 
+        responce.bostMultiplier = player.Rules.BoostMultiplier;
+        responce.maxSpeed = player.Rules.MaxSpeed;
+        responce.turnSpeed = player.Rules.TurnSpeed;
+
+        responce.collisionRadius = player.CollisionRadius;
+
         processor.SendPacket(sender, 0, responce);
         ServerLogger.Log(LogLevel::Info, "%x sent Join Response, ID %d name %s", sender->address.host, responce.playerId, responce.actualName);
 
@@ -97,8 +103,6 @@ namespace PacketHandlers
         auto& player = ServerPlayerList::GetPlayer(sender);
         netManager.GetChatProcessor().PushChatMessage(player.PlayerID, chat->message);
     }
-    
-    PlayerMovementRules DefaultMovementRules;
 
     static void ProcessC2S_InputState(PacketProcessor& processor, ENetPeer* sender, const C2S_InputState* input)
     {
@@ -113,7 +117,7 @@ namespace PacketHandlers
         newInput.Shoot = input->shoot;
         newInput.Boost = input->boost;
 
-        auto newPos = UpdatePlayerTransform(player.Transform, newInput, 1.0f/kDefaultTickRate, DefaultMovementRules);
+        auto newPos = UpdatePlayerTransform(player.Transform, newInput, 1.0f/kDefaultTickRate, player.Rules);
         
         if (netManager.ProcessPlayerUpdate)
             newPos = netManager.ProcessPlayerUpdate(player.Transform.Position, newPos, player);

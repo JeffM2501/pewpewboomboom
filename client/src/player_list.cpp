@@ -164,11 +164,10 @@ void ClientLocalPlayerState::AddServerStateUpdate(uint64_t tick, PlayerTransform
     auto unackedIt = InputHistory.erase(it);
 
     // Replay unacknowledged inputs forward from the server's authoritative state
-    static PlayerMovementRules defaultRules;
     PlayerTransform replayedTransform = transform;
     for (auto replayIt = unackedIt; replayIt != InputHistory.end(); ++replayIt)
     {
-        auto newPos = UpdatePlayerTransform(replayedTransform, replayIt->second, 1.0f / kDefaultTickRate, defaultRules);
+        auto newPos = UpdatePlayerTransform(replayedTransform, replayIt->second, 1.0f / kDefaultTickRate, Rules);
         BoundingCircle bounds = { replayedTransform.Position, 10 };
 
         if (World)

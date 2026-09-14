@@ -274,6 +274,12 @@ void ClientNetworkManager::ProcessS2C_JoinResponse(PacketProcessor& processor, E
     localPlayerInfo->Transform.Rotation[0] = 0.0f;
     localPlayerInfo->Transform.Rotation[1] = 0.0f;
 
+	localPlayerInfo->CollisionRadius = responce->collisionRadius;
+
+	localPlayerInfo->Rules.BoostMultiplier = responce->bostMultiplier;
+	localPlayerInfo->Rules.MaxSpeed = responce->maxSpeed;
+	localPlayerInfo->Rules.TurnSpeed = responce->turnSpeed;
+
 	self.ConnectionEvents.OnJoin.Invoke(localPlayerInfo);
 	self.ConnectionEvents.OnSpawn.Invoke(self.Spawn);
 }

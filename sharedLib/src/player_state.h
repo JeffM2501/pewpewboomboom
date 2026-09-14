@@ -15,12 +15,23 @@ struct PlayerTransform
 	Vector2 Velocity = { 0.0f, 0.0f };
 };
 
+struct PlayerMovementRules
+{
+    float MaxSpeed = 20;
+    float TurnSpeed = 90.0f; // degrees per second
+    float BoostMultiplier = 2.0f;
+};
+
 struct PlayerState
 {
 	uint64_t PlayerID = uint64_t(-1);
 	ENetPeer* Peer = nullptr;
 	FixedSizeString<kMaxNameSize> Name;
 	int Team = -1;
+
+    PlayerMovementRules Rules;
+    float CollisionRadius = 2.0f;
+
 	PlayerTransform Transform;
 
 	// Transform history.....
@@ -34,13 +45,6 @@ struct InputState
     bool Boost = false;
     bool Shoot = false;
     float TurretAngle = 0.0f;
-};
-
-struct PlayerMovementRules
-{
-    float MaxSpeed = 20;
-    float TurnSpeed = 90.0f; // degrees per second
-    float BoostMultiplier = 2.0f;
 };
 
 Vector2 UpdatePlayerTransform(PlayerTransform& transform, const InputState& input, float deltaTime, PlayerMovementRules& rules);

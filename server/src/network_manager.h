@@ -64,7 +64,7 @@ public:
     ChatFilterProcessor& GetChatProcessor() { return ChatProcessor; }
 
     std::function<Vector2(const Vector2& oldPos, const Vector2& desiredPos, ServerPlayerList::ServerPlayer& player)> ProcessPlayerUpdate = nullptr;
-
+    std::function<void(ServerPlayerList::ServerPlayer& player)> SetupRemotePlayer = nullptr;
 private:
     ENetHost* ServerHost = nullptr;
     ChatFilterProcessor ChatProcessor;

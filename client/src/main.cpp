@@ -37,8 +37,6 @@ ClientLocalPlayerState* LocalPlayer = nullptr;
 
 InputState CurrentInputState = { 0 };
 
-PlayerMovementRules MovementRules;
-
 float CurrentZoom = 16.0f;
 
 void ResetCurrentInput()
@@ -257,7 +255,7 @@ void UpdateLocalPlayerState()
     if (!LocalPlayer)
         return;
 
-    auto newPos = UpdatePlayerTransform(LocalPlayer->Transform, CurrentInputState, 1.0f/kDefaultTickRate, MovementRules);
+    auto newPos = UpdatePlayerTransform(LocalPlayer->Transform, CurrentInputState, 1.0f/kDefaultTickRate, LocalPlayer->Rules);
 
 	BoundingCircle pos = { LocalPlayer->Transform.Position, 10 };
 

@@ -105,7 +105,12 @@ void NetworkManager::PollEvents(int timeoutMs)
             case ENET_EVENT_TYPE_CONNECT:
             {
                 ServerLogger.Log(LogLevel::Info, "A new client connected from %x:%d", event.peer->address.host, event.peer->address.port);
-                PlayerConnected.Invoke(ServerPlayerList::GetPlayer(event.peer).PlayerID, this);
+
+                auto& player = ServerPlayerList::GetPlayer(event.peer);
+                if (SetupRemotePlayer)
+                    SetupRemotePlayer(player);
+
+                PlayerConnected.Invoke(player.PlayerID, this);
                 break;
             }
 
