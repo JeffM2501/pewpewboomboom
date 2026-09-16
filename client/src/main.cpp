@@ -235,6 +235,9 @@ void GameDraw()
     Network.GetPlayerList().DoForEachPlayer([](ClientPlayerState* player)
         {
             TankManager::DrawTank(player->IsLocalPlayer ? TeamColors::Green : TeamColors::Red, player->Transform, player->IsLocalPlayer);
+
+			if (player->IsLocalPlayer)
+				DrawCircleLinesEx(player->Transform.Position, player->CollisionRadius,0.25f, WHITE);
         });
 
 	EndMode2D();
@@ -253,13 +256,15 @@ void GameDraw()
 void UpdateLocalPlayerState()
 {
     if (!LocalPlayer)
+    {
         return;
+    }
 
-    auto newPos = UpdatePlayerTransform(LocalPlayer->Transform, CurrentInputState, 1.0f/kDefaultTickRate, LocalPlayer->Rules);
+    auto newPos = UpdatePlayerTransform(LocalPlayer->Transform, CurrentInputState, 1.0f / kDefaultTickRate, LocalPlayer->Rules);
 
-	BoundingCircle pos = { LocalPlayer->Transform.Position, 10 };
+	BoundingCircle pos = { newPos, 10 };
 
-	newPos = World.Collide(LocalPlayer->Transform.Position, newPos, 1, pos);
+	newPos = World.Collide(LocalPlayer->Transform.Position, newPos, LocalPlayer->CollisionRadius, pos);
 	LocalPlayer->Transform.Position = newPos;
 }
 

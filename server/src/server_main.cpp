@@ -40,13 +40,13 @@ void PopulateWorld()
 
 	int wallSize = int(World.Walls.GetBoundingCircle().Radius) * 2;
 
-	for (auto i = 0; i < 100;)
+	for (auto i = 0; i < 200;)
 	{
 		BoundingCircle bounds;
 
 		bounds.Center = Vector2{ float(GetRandomValue(-wallSize, wallSize)), float(GetRandomValue(-wallSize, wallSize)) };
 		float size = float(GetRandomValue(5, 20));
-		bounds.Radius = sqrtf((size / 2.0f) * (size / 2.0f));
+		bounds.Radius = Vector2Length(Vector2{ size, size });
 
 		if (World.CanPlaceObject(bounds))
 		{
@@ -55,12 +55,33 @@ void PopulateWorld()
 			box.Packet.id = i;	
 		}
 	}
+
+    for (auto i = 0; i < 25; i++)
+    {
+        BoundingCircle bounds;
+
+        bounds.Center = Vector2{ float(GetRandomValue(-wallSize, wallSize)), float(GetRandomValue(-wallSize, wallSize)) };
+        float size = float(GetRandomValue(100, 200))/ 100.0f;
+        bounds.Radius = Vector2Length(Vector2{ size, size });
+
+        if (World.CanPlaceObject(bounds))
+        {
+            i++;
+            auto& box = World.AddObject<ServerWorldBarrel>(bounds.Center, size);
+            box.Packet.id = i;
+        }
+    }
 }
 
 Vector2 CollidePlayerWithMap(const Vector2& oldPos, const Vector2& desiredPos, ServerPlayerList::ServerPlayer& player)
 {
 	BoundingCircle bounds = { desiredPos, 10 };
-	return World.Collide(oldPos, desiredPos, 1, bounds);
+	return World.Collide(oldPos, desiredPos, player.CollisionRadius, bounds);
+}
+
+void SetupPlayer(ServerPlayerList::ServerPlayer& player)
+{
+	player.CollisionRadius = 3.0f;
 }
 
 void ServerSetup()
@@ -78,6 +99,7 @@ void ServerSetup()
 	NetManager.PlayerJoined.Add(SendWorldData);
 
 	NetManager.ProcessPlayerUpdate = CollidePlayerWithMap;
+	NetManager.SetupRemotePlayer = SetupPlayer;
 
 	if (NetManager.Initialize(7777, kMaxPlayers))
 	{
@@ -165,7 +187,7 @@ void DrawDebugScene()
 
     ServerPlayerList::DoForEachPlayer([&](ServerPlayerList::ServerPlayer& player)
         {
-			DrawCircleV(player.Transform.Position, 1, BLUE);
+			DrawCircleV(player.Transform.Position, player.CollisionRadius, BLUE);
         }
     , true);
 	EndMode2D();

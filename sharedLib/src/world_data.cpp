@@ -48,7 +48,7 @@ bool RectangleColliderObject::IntersectPath(Vector2& currentPosition, Vector2 in
 
     Vector2 rotatedDelta = Vector2Rotate(delta, -Rotation * DEG2RAD);
 
-    bool hit = IntersectBBoxCylinder(rect, rotatedDelta, initalPosition, radius, intersectionPoint, hitNormal);
+    bool hit = IntersectBBoxCircle(rect, rotatedDelta, initalPosition, radius, intersectionPoint, hitNormal);
     if (hit)
     {
         currentPosition = Bounds.Center + Vector2Rotate(rotatedDelta, Rotation * DEG2RAD);

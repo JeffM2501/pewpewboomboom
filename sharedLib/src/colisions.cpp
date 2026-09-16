@@ -5,44 +5,54 @@
 #include "raymath.h"
 
 // check if a cylinder hits a bounding box
+bool IntersectBBoxCircle(Rectangle bounds, Vector2& center, Vector2 initalPosition, float radius, Vector2& intersectionPoint, Vector2& hitNormal)
+{
+    float minX = bounds.x;
+    float maxX = bounds.x + bounds.width;
+    if (minX > maxX)
+    {
+        float temp = minX;
+        minX = maxX;
+        maxX = temp;
+    }
+
+    float minY = bounds.y;
+    float maxY = bounds.y + bounds.height;
+    if (minY > maxY)
+    {
+        float temp = minY;
+        minY = maxY;
+        maxY = temp;
+    }
+
+    Vector2 nearest = { 0 };
+    Vector2 normal = { 0 };
+    PointNearestRectanglePoint(bounds, center, nearest, normal);
+
+    bool inside = (center.x >= minX && center.x <= maxX && center.y >= minY && center.y <= maxY);
+
+    if (!inside)
+    {
+        Vector2 diff = Vector2Subtract(center, nearest);
+        float distSqr = Vector2LengthSqr(diff);
+
+        if (distSqr >= radius * radius)
+        {
+            return false;
+        }
+    }
+
+    intersectionPoint = nearest;
+    hitNormal = normal;
+
+    // Push the circle center outward along the contact normal so it rests flush against the box edge or corner
+    center = Vector2Add(nearest, Vector2Scale(normal, radius));
+    return true;
+}
+
 bool IntersectBBoxCylinder(Rectangle bounds, Vector2& center, Vector2 initalPosition, float radius, Vector2& intersectionPoint, Vector2& hitNormal)
 {
-    if (!CheckCollisionCircleRec(center, radius, bounds))
-        return false;
-
-    Vector2 newPosOrigin = { center.x, center.y };
-    Vector2 hitPoint = { std::numeric_limits<float>::min(), std::numeric_limits<float>::min() };
-    Vector2 hitNormal2d = { 0 };
-
-    PointNearestRectanglePoint(bounds, newPosOrigin, hitPoint, hitNormal2d);
-
-    Vector2 vectorToHit = Vector2Subtract(hitPoint, newPosOrigin);
-
-    if (Vector2LengthSqr(vectorToHit) >= radius * radius)
-        return false;
-
-    intersectionPoint = Vector2{ hitPoint.x, hitPoint.y };
-    hitNormal = Vector2{ hitNormal2d.x, hitNormal2d.y };
-
-    // normalize the vector along the point to where we are nearest
-    vectorToHit = Vector2Normalize(vectorToHit);
-
-    // project that out to the radius to find the point that should be 'deepest' into the rectangle.
-    Vector2 projectedPoint = Vector2Add(newPosOrigin, Vector2Scale(vectorToHit, radius));
-
-    // compute the shift to take the deepest point out to the edge of our nearest hit, based on the vector direction
-    Vector2 delta = { 0,0 };
-
-    if (hitNormal.x != 0)
-        delta.x = hitPoint.x - projectedPoint.x;
-    else
-        delta.y = hitPoint.y - projectedPoint.y;
-
-    // shift the new point by the delta to push us outside of the rectangle
-    newPosOrigin = Vector2Add(newPosOrigin, delta);
-
-    center = Vector2{ newPosOrigin.x, newPosOrigin.y };
-    return true;
+    return IntersectBBoxCircle(bounds, center, initalPosition, radius, intersectionPoint, hitNormal);
 }
 
 /// <summary>
@@ -50,62 +60,81 @@ bool IntersectBBoxCylinder(Rectangle bounds, Vector2& center, Vector2 initalPosi
 /// </summary>
 /// <param name="rect">The rectangle to test against</param>
 /// <param name="point">The point you want to start from</param>
-/// <param name="nearest">A pointer that will be filed out with the point on the rectangle that is nearest to your passed in point</param>
-/// <param name="normal">A pointer that will be filed out with the the normal of the edge the nearest point is on</param>
+/// <param name="nearest">A reference that will be filled out with the point on the rectangle that is nearest to your passed in point</param>
+/// <param name="normal">A reference that will be filled out with the normal of the edge or corner the nearest point is on</param>
 void PointNearestRectanglePoint(Rectangle rect, Vector2 point, Vector2& nearest, Vector2& normal)
 {
-    // get the closest point on the vertical sides
-    float hValue = rect.x;
-    float hNormal = -1;
-    if (point.x > rect.x + rect.width)
+    float minX = rect.x;
+    float maxX = rect.x + rect.width;
+    if (minX > maxX)
     {
-        hValue = rect.x + rect.width;
-        hNormal = 1;
+        float temp = minX;
+        minX = maxX;
+        maxX = temp;
     }
 
-    Vector2 vecToPoint = Vector2Subtract(Vector2{ hValue, rect.y }, point);
-    // get the dot product between the ray and the vector to the point
-    float dotForPoint = Vector2DotProduct(Vector2{ 0, -1 }, vecToPoint);
-    Vector2 nearestPoint = { hValue, 0 };
-
-    if (dotForPoint < 0)
-        nearestPoint.y = rect.y;
-    else if (dotForPoint >= rect.height)
-        nearestPoint.y = rect.y + rect.height;
-    else
-        nearestPoint.y = rect.y + dotForPoint;
-
-    // get the closest point on the horizontal sides
-    float vValue = rect.y;
-    float vNormal = -1;
-    if (point.y > rect.y + rect.height)
+    float minY = rect.y;
+    float maxY = rect.y + rect.height;
+    if (minY > maxY)
     {
-        vValue = rect.y + rect.height;
-        vNormal = 1;
+        float temp = minY;
+        minY = maxY;
+        maxY = temp;
     }
 
-    vecToPoint = Vector2Subtract(Vector2{ rect.x, vValue }, point);
-    // get the dot product between the ray and the vector to the point
-    dotForPoint = Vector2DotProduct(Vector2{ -1, 0 }, vecToPoint);
-    nearest = Vector2{ 0,vValue };
+    bool outsideX = (point.x < minX) || (point.x > maxX);
+    bool outsideY = (point.y < minY) || (point.y > maxY);
 
-    if (dotForPoint < 0)
-        nearest.x = rect.x;
-    else if (dotForPoint >= rect.width)
-        nearest.x = rect.x + rect.width;
-    else
-        nearest.x = rect.x + dotForPoint;
-
-    if (Vector2LengthSqr(Vector2Subtract(point, nearestPoint)) <= Vector2LengthSqr(Vector2Subtract(point, nearest)))
+    if (outsideX || outsideY)
     {
-        nearest = nearestPoint;
-        normal.x = hNormal;
-        normal.y = 0;
+        nearest.x = (point.x < minX) ? minX : ((point.x > maxX) ? maxX : point.x);
+        nearest.y = (point.y < minY) ? minY : ((point.y > maxY) ? maxY : point.y);
+
+        Vector2 diff = Vector2Subtract(point, nearest);
+        float dist = Vector2Length(diff);
+
+        if (dist > 0.00001f)
+        {
+            normal = Vector2Scale(diff, 1.0f / dist);
+        }
+        else
+        {
+            normal = Vector2{ 0.0f, -1.0f };
+        }
     }
     else
     {
-        normal.y = vNormal;
-        normal.x = 0;
+        // Point is inside the rectangle (or on the boundary)
+        // Find the nearest boundary edge and push outward
+        float distLeft = point.x - minX;
+        float distRight = maxX - point.x;
+        float distTop = point.y - minY;
+        float distBottom = maxY - point.y;
+
+        float minDist = distLeft;
+        normal = Vector2{ -1.0f, 0.0f };
+        nearest = Vector2{ minX, point.y };
+
+        if (distRight < minDist)
+        {
+            minDist = distRight;
+            normal = Vector2{ 1.0f, 0.0f };
+            nearest = Vector2{ maxX, point.y };
+        }
+
+        if (distTop < minDist)
+        {
+            minDist = distTop;
+            normal = Vector2{ 0.0f, -1.0f };
+            nearest = Vector2{ point.x, minY };
+        }
+
+        if (distBottom < minDist)
+        {
+            minDist = distBottom;
+            normal = Vector2{ 0.0f, 1.0f };
+            nearest = Vector2{ point.x, maxY };
+        }
     }
 }
 
@@ -180,4 +209,4 @@ void PointNearestCirclePoint(Vector2 circleCenter, float circleRadius, Vector2 p
     }
 
     nearest = Vector2Add(circleCenter, Vector2Scale(normal, circleRadius));
-}
+}

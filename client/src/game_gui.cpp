@@ -41,7 +41,7 @@ namespace GameGui
                 if (Network.HadTimeout())
                 {
                     ImGui::SameLine();
-                    ImGui::TextColored(WarningColor,"Timout");
+                    ImGui::TextColored(WarningColor,"Timeout");
                 }
                 break;
 
@@ -50,6 +50,7 @@ namespace GameGui
                 break;
             }
         }
+        ImGui::Text("FPS %d", GetFPS());
         ImGui::End();
 
     }

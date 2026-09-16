@@ -168,10 +168,12 @@ void ClientLocalPlayerState::AddServerStateUpdate(uint64_t tick, PlayerTransform
     for (auto replayIt = unackedIt; replayIt != InputHistory.end(); ++replayIt)
     {
         auto newPos = UpdatePlayerTransform(replayedTransform, replayIt->second, 1.0f / kDefaultTickRate, Rules);
-        BoundingCircle bounds = { replayedTransform.Position, 10 };
+        BoundingCircle bounds = { newPos, 10 };
 
         if (World)
-            newPos = World->Collide(replayedTransform.Position, newPos, 1, bounds);
+        {
+            newPos = World->Collide(replayedTransform.Position, newPos, CollisionRadius, bounds);
+        }
 
         replayedTransform.Position = newPos;
     }

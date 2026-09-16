@@ -19,7 +19,7 @@ ServerWorldWalls::ServerWorldWalls(float size)
 
 	Bounds.Center.x = 0.0f;
 	Bounds.Center.y = 0.0f;
-	Bounds.Radius = sqrtf((size / 2.0f) * (size / 2.0f));
+	Bounds.Radius = size;
 
 	Collider.Size = Vector2{ size,size };
 }
@@ -44,7 +44,7 @@ ServerWorldBuilding::ServerWorldBuilding(Vector2 position, float rotation, float
     Collider.Rotation = rotation;
 	Collider.Bounds.Center.x = position.x;
 	Collider.Bounds.Center.y = position.y;
-	Collider.Bounds.Radius = sqrtf((size / 2.0f) * (size / 2.0f));
+	Collider.Bounds.Radius = Vector2Length(Vector2{ size, size });
 
 	BoundingRect.x = -size;
 	BoundingRect.y = -size ;
@@ -72,7 +72,7 @@ ServerWorldBox::ServerWorldBox(Vector2 position, float rotation, float size, Col
 	Collider.Rotation = rotation;
 	Collider.Bounds.Center.x = position.x;
 	Collider.Bounds.Center.y = position.y;
-	Collider.Bounds.Radius = sqrtf((size / 2.0f) * (size / 2.0f));
+	Collider.Bounds.Radius = Vector2Length(Vector2{ size, size });
 
 	BoundingRect.x = -size;
 	BoundingRect.y = -size;
@@ -94,7 +94,7 @@ ServerWorldBarrel::ServerWorldBarrel(Vector2 position, float size, Color tint)
 	Packet.color[3] = tint.a;
 	Collider.Bounds.Center.x = position.x;
 	Collider.Bounds.Center.y = position.y;
-	Collider.Bounds.Radius = sqrtf((size / 2.0f) * (size / 2.0f));
+	Collider.Bounds.Radius = Vector2Length(Vector2{ size, size });
 }
 
 // ServerWorld
