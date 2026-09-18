@@ -53,6 +53,10 @@ void LoadStaticTextures()
     TextureCache[StaticTextures::Box] = LoadTexture("resources/box.png");
     GenTextureMipmaps(&TextureCache[StaticTextures::Box]);
     SetTextureFilter(TextureCache[StaticTextures::Box], TEXTURE_FILTER_TRILINEAR);
+
+    TextureCache[StaticTextures::Building] = LoadTexture("resources/building.png");
+    GenTextureMipmaps(&TextureCache[StaticTextures::Building]);
+    SetTextureFilter(TextureCache[StaticTextures::Building], TEXTURE_FILTER_TRILINEAR);
 }
 
 float CurrentZoom = 16.0f;
@@ -142,7 +146,7 @@ void GameInit()
 
 	// load resources
 	GridTexture = LoadTexture("resources/texture_01.png");
-	GroundTexture = LoadTexture("resources/pattern_15.png");
+	GroundTexture = LoadTexture("resources/grass.png");
 
 	LoadStaticTextures();
 
@@ -242,12 +246,12 @@ void GameDraw()
 	Vector2 min = GetScreenToWorld2D(Vector2Zeros, ViewCamera);
 	Vector2 max = GetScreenToWorld2D(Vector2{ (float)GetRenderWidth(), (float)GetRenderHeight() }, ViewCamera);
 
-	float groundTextureScale = 32.0f;
+	float groundTextureScale = 128.0f;
 
 	Rectangle destRect = { min.x, min.y, (max.x - min.x), (max.y - min.y) };
-	Rectangle sourceRect = destRect * (16.0f);
+	Rectangle sourceRect = destRect * (32.0f);
 
-	DrawTexturePro(GroundTexture, sourceRect, destRect, Vector2Zeros, 0, ColorAlpha(DARKGRAY, 0.5f));
+	DrawTexturePro(GroundTexture, sourceRect, destRect, Vector2Zeros, 0, LIGHTGRAY);
 
 	if (World.IsValid())
 		World.Draw();

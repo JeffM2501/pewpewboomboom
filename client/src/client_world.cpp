@@ -38,13 +38,24 @@ ClientWorldBuilding::ClientWorldBuilding(const S2C_SetWorldObject& message) : Cl
 
 void ClientWorldBuilding::Draw()
 {
-    Rectangle rect{
+    auto building = GetTexture(StaticTextures::Building); 
+    Rectangle rect = { 0,0, building.width, building.height };
+    Rectangle dest{
       -Collider.Size.x,
       -Collider.Size.y,
       Collider.Size.x * 2.0f,
       Collider.Size.y * 2.0f
     };
-    DrawRectangleRec(rect, Tint);
+
+    NPatchInfo info;
+    info.layout = NPATCH_NINE_PATCH;
+    info.source = rect;
+    info.bottom = 144;
+    info.top = 144;
+    info.left = 144;
+    info.right = 144;
+   // DrawTextureNPatch(building, info, dest, Vector2Zeros, 0, Tint);
+    DrawTexturePro(building, rect, dest, Vector2Zeros, 0, Tint);
 }
 
 // ClientWorldBox
