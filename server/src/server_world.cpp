@@ -94,7 +94,7 @@ ServerWorldBarrel::ServerWorldBarrel(Vector2 position, float size, Color tint)
 	Packet.color[3] = tint.a;
 	Collider.Bounds.Center.x = position.x;
 	Collider.Bounds.Center.y = position.y;
-	Collider.Bounds.Radius = Vector2Length(Vector2{ size, size });
+	Collider.Bounds.Radius = size;
 }
 
 // ServerWorld
@@ -120,6 +120,13 @@ void ServerWorld::DoForEachObject(BoundingCircle& area, std::function<void(World
     for (auto& object : Objects)
     {
         if (CheckCollisionCircles(area.Center, area.Radius, object->GetBoundingCircle().Center, object->GetBoundingCircle().Radius))
+        {
             func(*object.get());
+        }
     }
+
+	if (Walls.GetCollider().Intersects(area))
+	{
+		func(Walls);
+	}
 }

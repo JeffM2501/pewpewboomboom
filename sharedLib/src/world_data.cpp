@@ -64,15 +64,7 @@ bool CircleColliderObject::Intersects(const BoundingCircle& other) const
 
 bool CircleColliderObject::IntersectPath(Vector2& currentPosition, Vector2 initalPosition, float radius, Vector2& intersectionPoint, Vector2& hitNormal) const
 {
-    Vector2 delta = currentPosition - Bounds.Center;
-
-    bool hit = IntersectCircleCylinder(Vector2Zeros, Bounds.Radius, delta, initalPosition, radius, intersectionPoint, hitNormal);
-    if (hit)
-    {
-        currentPosition = Bounds.Center + delta;
-    }
-
-    return hit;
+    return IntersectCircleCylinder(Bounds.Center, Bounds.Radius, currentPosition, initalPosition, radius, intersectionPoint, hitNormal);
 }
 
 bool WallColliderObject::Intersects(const BoundingCircle& other) const
@@ -90,52 +82,43 @@ bool WallColliderObject::Intersects(const BoundingCircle& other) const
 
 bool WallColliderObject::IntersectPath(Vector2& currentPosition, Vector2 initalPosition, float radius, Vector2& intersectionPoint, Vector2& hitNormal) const
 {
-    Vector2 delta = currentPosition - initalPosition;
-
     bool hit = false;
     intersectionPoint = currentPosition;
     hitNormal = Vector2Zeros;
 
-    if (delta.x > 0)
+    if (currentPosition.x > Size.x - radius)
     {
-        if (currentPosition.x > Size.x - radius)
-        {
-            currentPosition.x = Size.x - radius;
-            intersectionPoint.x = Size.x;
-            hitNormal.x = -1;
-            hit = true;
-        }
+        currentPosition.x = Size.x - radius;
+        intersectionPoint.x = Size.x;
+        hitNormal.x = -1.0f;
+        hit = true;
     }
-    else
+    else if (currentPosition.x < -Size.x + radius)
     {
-        if (currentPosition.x < -Size.x + radius)
-        {
-            currentPosition.x = -Size.x + radius;
-            intersectionPoint.x = -Size.x;
-            hitNormal.x = 1;
-            hit = true;
-        }
+        currentPosition.x = -Size.x + radius;
+        intersectionPoint.x = -Size.x;
+        hitNormal.x = 1.0f;
+        hit = true;
     }
 
-    if (delta.y > 0)
+    if (currentPosition.y > Size.y - radius)
     {
-        if (currentPosition.y > Size.y - radius)
-        {
-            currentPosition.y = Size.y - radius;
-            intersectionPoint.y = Size.y;
-            hitNormal.y = -1;
-            hit = true;
-        }
+        currentPosition.y = Size.y - radius;
+        intersectionPoint.y = Size.y;
+        hitNormal.y = -1.0f;
+        hit = true;
     }
-    else
+    else if (currentPosition.y < -Size.y + radius)
     {
-        if (currentPosition.y < -Size.y + radius)
-        {
-            currentPosition.y = -Size.y + radius;
-            intersectionPoint.y = -Size.y;
-            hitNormal.y = 1;
-            hit = true;
-        }
+        currentPosition.y = -Size.y + radius;
+        intersectionPoint.y = -Size.y;
+        hitNormal.y = 1.0f;
+        hit = true;
+    }
+
+    if (hit && Vector2LengthSqr(hitNormal) > 1.0f)
+    {
+        hitNormal = Vector2Normalize(hitNormal);
     }
 
     return hit;

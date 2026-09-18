@@ -40,7 +40,7 @@ void PopulateWorld()
 
 	int wallSize = int(World.Walls.GetBoundingCircle().Radius) * 2;
 
-	for (auto i = 0; i < 200;)
+	for (auto i = 0; i < 50;)
 	{
 		BoundingCircle bounds;
 
@@ -56,13 +56,13 @@ void PopulateWorld()
 		}
 	}
 
-    for (auto i = 0; i < 25; i++)
+    for (auto i = 0; i < 200;)
     {
         BoundingCircle bounds;
 
         bounds.Center = Vector2{ float(GetRandomValue(-wallSize, wallSize)), float(GetRandomValue(-wallSize, wallSize)) };
         float size = float(GetRandomValue(100, 200))/ 100.0f;
-        bounds.Radius = Vector2Length(Vector2{ size, size });
+        bounds.Radius = size;
 
         if (World.CanPlaceObject(bounds))
         {

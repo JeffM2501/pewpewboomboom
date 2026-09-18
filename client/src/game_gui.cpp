@@ -17,7 +17,7 @@ namespace GameGui
 
     static void ShowConnectionWindow()
     {
-        ImVec2 windowSize(140, ImGui::GetTextLineHeightWithSpacing()*2 + ImGui::GetFrameHeightWithSpacing());
+        ImVec2 windowSize(140, ImGui::GetTextLineHeightWithSpacing()*4.2f);
 
         ImVec2 pos(float(GetScreenWidth())- windowSize.x, 0);
         ImGui::SetNextWindowPos(pos);

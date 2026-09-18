@@ -14,10 +14,10 @@ ClientWorldWalls::ClientWorldWalls(const S2C_SetWorldObject& message) : ClientWo
 void ClientWorldWalls::Draw()
 {
     Rectangle rect{
-        -(Collider.Size.x),
-        -(Collider.Size.y),
-        Collider.Size.x * 2.0f,
-        Collider.Size.y * 2.0f
+        -(Collider.Size.x)-10,
+        -(Collider.Size.y)-10,
+        Collider.Size.x * 2.0f + 20,
+        Collider.Size.y * 2.0f + 20
     };
     DrawRectangleLinesEx(rect, 10, Tint);
 }
@@ -75,12 +75,12 @@ ClientWorldBarrel::ClientWorldBarrel(const S2C_SetWorldObject& message) : Client
 {
     Collider.Bounds.Center.x = message.position[0];
     Collider.Bounds.Center.y = message.position[1];
-    Collider.Bounds.Radius = Vector2Length(Vector2(message.scale, message.scale));
+    Collider.Bounds.Radius = message.scale;
 }
 
 void ClientWorldBarrel::Draw()
 {
-    DrawCircleV(Collider.Bounds.Center, Collider.Bounds.Radius, Tint);
+    DrawCircleV(Vector2Zeros, Collider.Bounds.Radius, Tint);
 }
 
 // ClientWorld
@@ -146,4 +146,7 @@ void ClientWorld::DoForEachObject(BoundingCircle& area, std::function<void(World
         if (CheckCollisionCircles(area.Center, area.Radius, object->GetBoundingCircle().Center, object->GetBoundingCircle().Radius))
             func(*object.get());
     }
+
+    if (CheckCollisionCircles(area.Center, area.Radius, Walls->GetBoundingCircle().Center, Walls->GetBoundingCircle().Radius))
+        func(*Walls.get());
 }

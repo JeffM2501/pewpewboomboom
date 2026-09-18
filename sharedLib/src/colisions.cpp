@@ -146,43 +146,15 @@ bool IntersectCircleCylinder(Vector2 circleCenter, float circleRadius, Vector2& 
         return false;
     }
 
-    Vector2 newPosOrigin = { center.x, center.y };
-    Vector2 hitPoint = { std::numeric_limits<float>::min(), std::numeric_limits<float>::min() };
-    Vector2 hitNormal2d = { 0 };
+    Vector2 nearest = { 0 };
+    Vector2 normal = { 0 };
+    PointNearestCirclePoint(circleCenter, circleRadius, center, nearest, normal);
 
-    PointNearestCirclePoint(circleCenter, circleRadius, newPosOrigin, hitPoint, hitNormal2d);
+    intersectionPoint = nearest;
+    hitNormal = normal;
 
-    Vector2 vectorToHit = Vector2Subtract(hitPoint, newPosOrigin);
-
-    if (Vector2LengthSqr(vectorToHit) >= radius * radius && Vector2DistanceSqr(newPosOrigin, circleCenter) >= circleRadius * circleRadius)
-    {
-        return false;
-    }
-
-    intersectionPoint = Vector2{ hitPoint.x, hitPoint.y };
-    hitNormal = Vector2{ hitNormal2d.x, hitNormal2d.y };
-
-    // normalize the vector along the point to where we are nearest
-    float hitDist = Vector2Length(vectorToHit);
-    if (hitDist > 0.0001f && Vector2DistanceSqr(newPosOrigin, circleCenter) >= circleRadius * circleRadius)
-    {
-        vectorToHit = Vector2Scale(vectorToHit, 1.0f / hitDist);
-    }
-    else
-    {
-        vectorToHit = Vector2Negate(hitNormal);
-    }
-
-    // project that out to the radius to find the point that should be 'deepest' into the circle.
-    Vector2 projectedPoint = Vector2Add(newPosOrigin, Vector2Scale(vectorToHit, radius));
-
-    // compute the shift to take the deepest point out to the edge of our nearest hit, based on the vector direction
-    Vector2 delta = Vector2Subtract(hitPoint, projectedPoint);
-
-    // shift the new point by the delta to push us outside of the circle
-    newPosOrigin = Vector2Add(newPosOrigin, delta);
-
-    center = Vector2{ newPosOrigin.x, newPosOrigin.y };
+    // Push the cylinder center outward along the contact normal so it rests flush against the circle
+    center = Vector2Add(nearest, Vector2Scale(normal, radius));
     return true;
 }
 
