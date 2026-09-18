@@ -40,6 +40,7 @@ void PopulateWorld()
 
 	int wallSize = int(World.Walls.GetBoundingCircle().Radius) * 2;
 
+	int id = 1;
 	for (auto i = 0; i < 50;)
 	{
 		BoundingCircle bounds;
@@ -52,11 +53,11 @@ void PopulateWorld()
 		{
 			i++;
 			auto& box = World.AddObject<ServerWorldBuilding>(bounds.Center, GetRandomValue(0, 8) * 45.0f, size);
-			box.Packet.id = i;	
+			box.Packet.id = id++;
 		}
 	}
 
-    for (auto i = 0; i < 200;)
+    for (auto i = 0; i < 50;)
     {
         BoundingCircle bounds;
 
@@ -68,7 +69,23 @@ void PopulateWorld()
         {
             i++;
             auto& box = World.AddObject<ServerWorldBarrel>(bounds.Center, size);
-            box.Packet.id = i;
+            box.Packet.id = id++;
+        }
+    }
+
+    for (auto i = 0; i < 50;)
+    {
+        BoundingCircle bounds;
+
+        bounds.Center = Vector2{ float(GetRandomValue(-wallSize, wallSize)), float(GetRandomValue(-wallSize, wallSize)) };
+        float size = float(GetRandomValue(100, 200)) / 100.0f;
+        bounds.Radius = size;
+
+        if (World.CanPlaceObject(bounds))
+        {
+            i++;
+            auto& box = World.AddObject<ServerWorldBox>(bounds.Center, GetRandomValue(0, 180), size);
+            box.Packet.id = id++;
         }
     }
 }

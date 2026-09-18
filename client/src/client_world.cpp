@@ -1,6 +1,7 @@
 #include "client_world.h"
 #include "raymath.h"
 #include "rlgl.h"
+#include "game.h"
 
 // ClientWorldWalls
 ClientWorldWalls::ClientWorldWalls(const S2C_SetWorldObject& message) : ClientWorldObject(message)
@@ -61,13 +62,15 @@ ClientWorldBox::ClientWorldBox(const S2C_SetWorldObject& message) : ClientWorldO
 
 void ClientWorldBox::Draw()
 {
-    Rectangle rect{
+    auto box = GetTexture(StaticTextures::Box);
+    Rectangle rect = { 0,0, box.width, box.height };
+    Rectangle dest{
      -Collider.Size.x,
      -Collider.Size.y,
      Collider.Size.x * 2.0f,
      Collider.Size.y * 2.0f
     };
-    DrawRectangleRec(rect, Tint);
+    DrawTexturePro(box, rect, dest, Vector2Zeros, 0, Tint);
 }
 
 // ClientWorldBarrel
@@ -76,11 +79,16 @@ ClientWorldBarrel::ClientWorldBarrel(const S2C_SetWorldObject& message) : Client
     Collider.Bounds.Center.x = message.position[0];
     Collider.Bounds.Center.y = message.position[1];
     Collider.Bounds.Radius = message.scale;
+
+    DrawSize = message.scale * 2;
 }
 
 void ClientWorldBarrel::Draw()
 {
-    DrawCircleV(Vector2Zeros, Collider.Bounds.Radius, Tint);
+    auto barrel = GetTexture(StaticTextures::Barrel);
+    Rectangle rect = { 0,0, barrel.width, barrel.height };
+    Rectangle dest = { -Collider.Bounds.Radius, -Collider.Bounds.Radius, DrawSize, DrawSize };
+    DrawTexturePro(barrel, rect, dest, Vector2Zeros, 0, Tint);
 }
 
 // ClientWorld

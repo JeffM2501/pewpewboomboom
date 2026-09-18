@@ -37,6 +37,24 @@ ClientLocalPlayerState* LocalPlayer = nullptr;
 
 InputState CurrentInputState = { 0 };
 
+std::unordered_map<StaticTextures, Texture> TextureCache;
+
+Texture GetTexture(StaticTextures texture)
+{
+	return TextureCache[texture];
+}
+
+void LoadStaticTextures()
+{
+	TextureCache[StaticTextures::Barrel] = LoadTexture("resources/barrel.png");
+	GenTextureMipmaps(&TextureCache[StaticTextures::Barrel]);
+	SetTextureFilter(TextureCache[StaticTextures::Barrel], TEXTURE_FILTER_TRILINEAR);
+
+    TextureCache[StaticTextures::Box] = LoadTexture("resources/box.png");
+    GenTextureMipmaps(&TextureCache[StaticTextures::Box]);
+    SetTextureFilter(TextureCache[StaticTextures::Box], TEXTURE_FILTER_TRILINEAR);
+}
+
 float CurrentZoom = 16.0f;
 
 void ResetCurrentInput()
@@ -125,6 +143,8 @@ void GameInit()
 	// load resources
 	GridTexture = LoadTexture("resources/texture_01.png");
 	GroundTexture = LoadTexture("resources/pattern_15.png");
+
+	LoadStaticTextures();
 
 	TankManager::Init();
 

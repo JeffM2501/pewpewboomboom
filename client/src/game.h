@@ -6,3 +6,11 @@
 Logger& GetLogger();
 
 extern ClientWorld World;
+
+enum class StaticTextures
+{
+    Barrel,
+    Box,
+    Building,
+};
+Texture GetTexture(StaticTextures texture);

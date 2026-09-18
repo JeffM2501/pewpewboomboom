@@ -74,6 +74,8 @@ public:
 class ClientWorldBarrel : public ClientWorldObject
 {
     CircleColliderObject Collider;
+
+    float DrawSize = 0;
 public:
     ClientWorldBarrel(const S2C_SetWorldObject& message);
 
