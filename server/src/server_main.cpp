@@ -22,7 +22,7 @@ NetworkManager NetManager;
 
 ServerWorld World(500);
 
-static constexpr bool ShowDebugWindow = true;
+static constexpr bool ShowDebugWindow = false;
 
 void SendWorldData(uint64_t playerID, void* sender)
 {
@@ -41,23 +41,23 @@ void PopulateWorld()
 	int wallSize = int(World.Walls.GetBoundingCircle().Radius) * 2;
 
 	int id = 1;
-	for (auto i = 0; i < 50;)
+	for (auto i = 0; i < 100;)
 	{
 		BoundingCircle bounds;
 
 		bounds.Center = Vector2{ float(GetRandomValue(-wallSize, wallSize)), float(GetRandomValue(-wallSize, wallSize)) };
-		float size = float(GetRandomValue(5, 20));
+		float size = float(GetRandomValue(8, 30));
 		bounds.Radius = Vector2Length(Vector2{ size, size });
 
 		if (World.CanPlaceObject(bounds))
 		{
 			i++;
-			auto& box = World.AddObject<ServerWorldBuilding>(bounds.Center, GetRandomValue(0, 8) * 45.0f, size);
+			auto& box = World.AddObject<ServerWorldBuilding>(bounds.Center, GetRandomValue(0, 45) * 45.0f, size);
 			box.Packet.id = id++;
 		}
 	}
 
-    for (auto i = 0; i < 50;)
+    for (auto i = 0; i < 150;)
     {
         BoundingCircle bounds;
 
@@ -73,7 +73,7 @@ void PopulateWorld()
         }
     }
 
-    for (auto i = 0; i < 50;)
+    for (auto i = 0; i < 100;)
     {
         BoundingCircle bounds;
 

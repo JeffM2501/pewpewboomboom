@@ -3,6 +3,8 @@
 #include "world_data.h"
 #include "protocol.h"
 
+#include "rooftop_details.h"
+
 #include "event_source.h"
 #include "raylib.h"
 #include <vector>
@@ -24,6 +26,7 @@ public:
     virtual const WorldObjectCollider& GetCollider() const = 0;
 
     virtual void Draw() = 0;
+    virtual void DrawMiniMap() { Draw(); }
 };
 
 class ClientWorldWalls : public ClientWorldObject
@@ -54,6 +57,16 @@ public:
     float GetRotation() const override { return Collider.Rotation; }
 
     void Draw() override;
+
+    void DrawMiniMap() override;
+
+    struct DetailInfo
+    {
+        RooftopDetails::Details Detail = RooftopDetails::Details::SkylightSquareA;
+        Rectangle DestinationRect = { 0 };
+    };
+
+    std::vector<DetailInfo> Details;
 };
 
 class ClientWorldBox : public ClientWorldObject
@@ -69,6 +82,7 @@ public:
     float GetRotation() const override { return Collider.Rotation; }
 
     void Draw() override;
+    void DrawMiniMap() override;
 };
 
 class ClientWorldBarrel : public ClientWorldObject
@@ -83,6 +97,7 @@ public:
     const BoundingCircle& GetBoundingCircle() const override { return Collider.Bounds; }
 
     void Draw() override;
+    void DrawMiniMap() override;
 };
 
 class ClientWorld : public WorldObjectItterator
@@ -99,6 +114,7 @@ public:
     void Receive(const S2C_SetWorldObject& message);
 
     void Draw();
+    void DrawMiniMap();
 
 	bool IsValid() const { return Walls != nullptr && Count-1 == Objects.size(); }
 

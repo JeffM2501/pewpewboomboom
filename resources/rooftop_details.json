@@ -1,0 +1,163 @@
+{
+  "hvac_quad_fan": {
+    "x": 24,
+    "y": 24,
+    "width": 480,
+    "height": 375,
+    "name": "hvac_quad_fan"
+  },
+  "hvac_double_fan": {
+    "x": 528,
+    "y": 24,
+    "width": 616,
+    "height": 241,
+    "name": "hvac_double_fan"
+  },
+  "hvac_rtu_3panel": {
+    "x": 1168,
+    "y": 24,
+    "width": 712,
+    "height": 230,
+    "name": "hvac_rtu_3panel"
+  },
+  "hvac_square_fan": {
+    "x": 24,
+    "y": 423,
+    "width": 264,
+    "height": 265,
+    "name": "hvac_square_fan"
+  },
+  "hvac_compact_2panel": {
+    "x": 312,
+    "y": 423,
+    "width": 357,
+    "height": 150,
+    "name": "hvac_compact_2panel"
+  },
+  "skylight_square_a": {
+    "x": 693,
+    "y": 423,
+    "width": 150,
+    "height": 146,
+    "name": "skylight_square_a"
+  },
+  "skylight_square_b": {
+    "x": 867,
+    "y": 423,
+    "width": 145,
+    "height": 146,
+    "name": "skylight_square_b"
+  },
+  "skylight_rect": {
+    "x": 1036,
+    "y": 423,
+    "width": 173,
+    "height": 148,
+    "name": "skylight_rect"
+  },
+  "skylight_square_c": {
+    "x": 1233,
+    "y": 423,
+    "width": 149,
+    "height": 147,
+    "name": "skylight_square_c"
+  },
+  "vent_square_louver": {
+    "x": 1406,
+    "y": 423,
+    "width": 156,
+    "height": 148,
+    "name": "vent_square_louver"
+  },
+  "vent_circular_turbine": {
+    "x": 1586,
+    "y": 423,
+    "width": 139,
+    "height": 141,
+    "name": "vent_circular_turbine"
+  },
+  "vent_circular_grille": {
+    "x": 1749,
+    "y": 423,
+    "width": 146,
+    "height": 148,
+    "name": "vent_circular_grille"
+  },
+  "vent_circular_cap": {
+    "x": 24,
+    "y": 712,
+    "width": 146,
+    "height": 148,
+    "name": "vent_circular_cap"
+  },
+  "vent_circular_fan": {
+    "x": 194,
+    "y": 712,
+    "width": 145,
+    "height": 147,
+    "name": "vent_circular_fan"
+  },
+  "duct_elbow_a": {
+    "x": 363,
+    "y": 712,
+    "width": 157,
+    "height": 165,
+    "name": "duct_elbow_a"
+  },
+  "duct_elbow_b": {
+    "x": 544,
+    "y": 712,
+    "width": 161,
+    "height": 166,
+    "name": "duct_elbow_b"
+  },
+  "duct_t_junction": {
+    "x": 729,
+    "y": 712,
+    "width": 192,
+    "height": 163,
+    "name": "duct_t_junction"
+  },
+  "duct_cross_a": {
+    "x": 945,
+    "y": 712,
+    "width": 183,
+    "height": 186,
+    "name": "duct_cross_a"
+  },
+  "duct_cross_b": {
+    "x": 1152,
+    "y": 712,
+    "width": 186,
+    "height": 186,
+    "name": "duct_cross_b"
+  },
+  "pipe_manifold": {
+    "x": 1362,
+    "y": 712,
+    "width": 566,
+    "height": 183,
+    "name": "pipe_manifold"
+  },
+  "pipe_straight": {
+    "x": 24,
+    "y": 922,
+    "width": 185,
+    "height": 63,
+    "name": "pipe_straight"
+  },
+  "pipe_straight_valve": {
+    "x": 233,
+    "y": 922,
+    "width": 185,
+    "height": 70,
+    "name": "pipe_straight_valve"
+  },
+  "roof_access_hatch": {
+    "x": 442,
+    "y": 922,
+    "width": 177,
+    "height": 178,
+    "name": "roof_access_hatch"
+  }
+}

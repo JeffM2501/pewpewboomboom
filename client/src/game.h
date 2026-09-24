@@ -12,5 +12,6 @@ enum class StaticTextures
     Barrel,
     Box,
     Building,
+    RoofDetail,
 };
 Texture GetTexture(StaticTextures texture);

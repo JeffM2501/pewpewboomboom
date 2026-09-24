@@ -57,7 +57,7 @@ namespace TankManager
 		LoadTankInfo("hull10_purple2.png", "turret10_purple.png", TeamColors::Purple);
 		LoadTankInfo("hull10_yellow2.png", "turret10_yellow.png", TeamColors::Yellow);
 		LoadTankInfo("hull10_white2.png", "turret10_white.png", TeamColors::White);
-		LoadTankInfo("hull10_black2.png", "turret10_black.png", TeamColors::Black);
+		LoadTankInfo("hull10_black.png", "turret10_black.png", TeamColors::Black);
 		LoadTankInfo("hull05_green.png", "turret07_green.png", TeamColors::Green);
 		FowardArrow = LoadTextureFromFile("arrow_decorative_n.png");
 	}
@@ -85,6 +85,9 @@ namespace TankManager
 		}
 
 		Rectangle srcRect = { 0, 0, (float)tankInfo.BodyTexture.width, (float)tankInfo.BodyTexture.height };
+
+		DrawCircleV(transform.Position, 3.0f, ColorAlpha(BLACK, 0.25f));
+
 		DrawTexturePro(tankInfo.BodyTexture, srcRect, playerRect, tankInfo.BodyOrigin, transform.Rotation[0], WHITE);
 
 		Rectangle turretRect = { transform.Position.x, transform.Position.y, tankInfo.TurretTexture.width * tankInfo.TurretScale, tankInfo.TurretTexture.height * tankInfo.TurretScale };

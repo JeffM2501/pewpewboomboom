@@ -33,7 +33,7 @@ private:
 	Rectangle BoundingRect = { 0 };
 	RectangleColliderObject Collider;
 public:
-	ServerWorldBuilding(Vector2 position, float rotation, float size = 10, Color tint = BEIGE);
+	ServerWorldBuilding(Vector2 position, float rotation, float size = 10, Color tint = WHITE);
 	const WorldObjectCollider& GetCollider() const override { return Collider; }
 	const BoundingCircle& GetBoundingCircle() const override { return Collider.Bounds; }
 	float GetRotation() const override { return Collider.Rotation; }
@@ -45,7 +45,7 @@ private:
 	Rectangle BoundingRect = { 0 };
 	RectangleColliderObject Collider;
 public:
-	ServerWorldBox(Vector2 position, float rotation, float size = 2, Color tint = BROWN);
+	ServerWorldBox(Vector2 position, float rotation, float size = 2, Color tint = WHITE);
 	const WorldObjectCollider& GetCollider() const override { return Collider; }
 	const BoundingCircle& GetBoundingCircle() const override { return Collider.Bounds; }
 	float GetRotation() const override { return Collider.Rotation; }
@@ -55,7 +55,7 @@ class ServerWorldBarrel : public ServerWorldObject
 {
 	CircleColliderObject Collider;
 public:
-	ServerWorldBarrel(Vector2 position, float size = 1, Color tint = GREEN);
+	ServerWorldBarrel(Vector2 position, float size = 1, Color tint = WHITE);
 	const WorldObjectCollider& GetCollider() const override { return Collider; }
 	const BoundingCircle& GetBoundingCircle() const override { return Collider.Bounds; }
 };

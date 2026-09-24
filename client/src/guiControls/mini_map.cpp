@@ -72,7 +72,7 @@ namespace MiniMap
 		BeginMode2D(camera);
 		if (World.IsValid())
 		{
-			World.Draw();
+			World.DrawMiniMap();
 		}
 
 		Network.GetPlayerList().DoForEachPlayer([](ClientPlayerState* player)

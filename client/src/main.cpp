@@ -30,8 +30,9 @@ Use this as a starting point or replace it with your code.
 ClientWorld World;
 
 Camera2D ViewCamera = { 0 };
-Texture GridTexture = { 0 };
+Texture DetailTexture = { 0 };
 Texture GroundTexture = { 0 };
+Texture CrosshairTexture = { 0 };
 
 ClientLocalPlayerState* LocalPlayer = nullptr;
 
@@ -57,6 +58,10 @@ void LoadStaticTextures()
     TextureCache[StaticTextures::Building] = LoadTexture("resources/building.png");
     GenTextureMipmaps(&TextureCache[StaticTextures::Building]);
     SetTextureFilter(TextureCache[StaticTextures::Building], TEXTURE_FILTER_TRILINEAR);
+
+    TextureCache[StaticTextures::RoofDetail] = LoadTexture("resources/rooftop_details.png");
+    GenTextureMipmaps(&TextureCache[StaticTextures::RoofDetail]);
+    SetTextureFilter(TextureCache[StaticTextures::RoofDetail], TEXTURE_FILTER_TRILINEAR);
 }
 
 float CurrentZoom = 16.0f;
@@ -145,8 +150,17 @@ void GameInit()
 	Network.GetEvents().OnTick.Add(ProcessNetTick);
 
 	// load resources
-	GridTexture = LoadTexture("resources/texture_01.png");
+	DetailTexture = LoadTexture("resources/grass_detal2.png");
+    GenTextureMipmaps(&DetailTexture);
+    SetTextureFilter(DetailTexture, TEXTURE_FILTER_TRILINEAR);
+
 	GroundTexture = LoadTexture("resources/grass.png");
+    GenTextureMipmaps(&GroundTexture);
+    SetTextureFilter(GroundTexture, TEXTURE_FILTER_TRILINEAR);
+
+	CrosshairTexture = LoadTexture("resources/circle-02-whole.png");
+	GenTextureMipmaps(&CrosshairTexture);
+	SetTextureFilter(CrosshairTexture, TEXTURE_FILTER_TRILINEAR);
 
 	LoadStaticTextures();
 
@@ -189,7 +203,7 @@ void GameCleanup()
 	Network.Disconnect();
 
 	// unload resources
-	UnloadTexture(GridTexture);
+	UnloadTexture(DetailTexture);
 	UnloadTexture(GroundTexture);
 
 	CloseWindow();
@@ -210,10 +224,10 @@ bool GameUpdate()
 	ViewCamera.offset = Vector2{ (float)GetRenderWidth(), (float)GetRenderHeight() } / 2;
 
 	CurrentZoom += GetMouseWheelMove() * 0.25f;
-	if (CurrentZoom < 0.25f)
-		CurrentZoom = 0.25f;
-	if (CurrentZoom > 128.0f)
-		CurrentZoom = 128.0f;
+	if (CurrentZoom < 1.0f)
+		CurrentZoom = 1.0f;
+	if (CurrentZoom > 96.0f)
+		CurrentZoom = 96.0f;
 
 	ViewCamera.zoom = CurrentZoom;
 
@@ -246,22 +260,22 @@ void GameDraw()
 	Vector2 min = GetScreenToWorld2D(Vector2Zeros, ViewCamera);
 	Vector2 max = GetScreenToWorld2D(Vector2{ (float)GetRenderWidth(), (float)GetRenderHeight() }, ViewCamera);
 
-	float groundTextureScale = 128.0f;
+	float groundTextureScale = 48.0f;
 
 	Rectangle destRect = { min.x, min.y, (max.x - min.x), (max.y - min.y) };
-	Rectangle sourceRect = destRect * (32.0f);
+	Rectangle sourceRect = destRect * (groundTextureScale);
 
-	DrawTexturePro(GroundTexture, sourceRect, destRect, Vector2Zeros, 0, LIGHTGRAY);
+	DrawTexturePro(GroundTexture, sourceRect, destRect, Vector2Zeros, 0, WHITE);
+
+	Rectangle detailSourceRect = destRect * (groundTextureScale*0.5f);
+	//DrawTexturePro(DetailTexture, detailSourceRect, destRect, Vector2Zeros, 0, ColorAlpha(WHITE,0.85f));
 
 	if (World.IsValid())
 		World.Draw();
 
     Network.GetPlayerList().DoForEachPlayer([](ClientPlayerState* player)
         {
-            TankManager::DrawTank(player->IsLocalPlayer ? TeamColors::Green : TeamColors::Red, player->Transform, player->IsLocalPlayer);
-
-			if (player->IsLocalPlayer)
-				DrawCircleLinesEx(player->Transform.Position, player->CollisionRadius,0.25f, WHITE);
+            TankManager::DrawTank(player->IsLocalPlayer ? TeamColors::Blue : TeamColors::Red, player->Transform, player->IsLocalPlayer);
         });
 
 	EndMode2D();
@@ -274,6 +288,23 @@ void GameDraw()
 	if (World.Loading)
 	{
 		DrawText(TextFormat("Downloading World %d/%d", World.Objects.size(), World.Count), 200, 200, 20, BLUE);
+	}
+	
+	if (Network.IsReady())
+	{
+		Vector2 center = { GetScreenWidth() * 0.5f, GetScreenHeight() * 0.5f };
+
+		Vector2 vecToMouse = GetMousePosition() - center;
+
+		float angle = atan2f(vecToMouse.y, vecToMouse.x) * RAD2DEG;
+
+		float crosshairSize = 50;
+
+		Rectangle targetRect = { GetMousePosition().x, GetMousePosition().y, crosshairSize, crosshairSize };
+		Rectangle sourceRecct = { 0,0, CrosshairTexture.width,CrosshairTexture.height };
+
+		DrawTexturePro(CrosshairTexture, sourceRecct, targetRect, Vector2{ crosshairSize / 2, crosshairSize / 2 }, angle+90, ColorAlpha(WHITE, 0.5f));
+		//DrawRectanglePro(targetRect, Vector2{ 10,25 }, angle, GRAY);
 	}
 }
 
