@@ -25,6 +25,7 @@ Use this as a starting point or replace it with your code.
 #include "tank_manager.h"
 #include "world_data.h"
 #include "player_state.h"
+#include "collisions.h"
 #include "rlgl.h"
 
 ClientWorld World;
@@ -170,6 +171,7 @@ void GameInit()
 		{
             LocalPlayer = static_cast<ClientLocalPlayerState*>(Network.GetPlayerList().GetPlayer(playerInfo->PlayerID));
 			LocalPlayer->World = &World;
+			LocalPlayer->OwnerList = &Network.GetPlayerList();
 			ResetCurrentInput();
 		});
 
@@ -298,26 +300,46 @@ void GameDraw()
 
 		float angle = atan2f(vecToMouse.y, vecToMouse.x) * RAD2DEG;
 
-		float crosshairSize = 50;
+		float crosshairSize = 50.0f;
 
 		Rectangle targetRect = { GetMousePosition().x, GetMousePosition().y, crosshairSize, crosshairSize };
-		Rectangle sourceRecct = { 0,0, CrosshairTexture.width,CrosshairTexture.height };
+		Rectangle sourceRecct = { 0.0f, 0.0f, static_cast<float>(CrosshairTexture.width), static_cast<float>(CrosshairTexture.height) };
 
-		DrawTexturePro(CrosshairTexture, sourceRecct, targetRect, Vector2{ crosshairSize / 2, crosshairSize / 2 }, angle+90, ColorAlpha(WHITE, 0.5f));
+		DrawTexturePro(CrosshairTexture, sourceRecct, targetRect, Vector2{ crosshairSize * 0.5f, crosshairSize * 0.5f }, angle + 90.0f, ColorAlpha(WHITE, 0.5f));
 		//DrawRectanglePro(targetRect, Vector2{ 10,25 }, angle, GRAY);
 	}
 }
 
-void UpdateLocalPlayerState()
+void UpdateLocalPlayerState(uint64_t tick = 0)
 {
     if (!LocalPlayer)
     {
         return;
     }
 
+    if (tick == 0 && Network.IsReady())
+    {
+        tick = Network.GetCurrentServerTick();
+    }
+
     auto newPos = UpdatePlayerTransform(LocalPlayer->Transform, CurrentInputState, 1.0f / kDefaultTickRate, LocalPlayer->Rules);
 
 	BoundingCircle pos = { newPos, 10 };
+
+	newPos = World.Collide(LocalPlayer->Transform.Position, newPos, LocalPlayer->CollisionRadius, pos);
+
+    Network.GetPlayerList().DoForEachPlayer([&](ClientPlayerState* other)
+    {
+        if (other->IsLocalPlayer)
+        {
+            return;
+        }
+
+        PlayerTransform otherTransform = other->GetTransformAtTick(tick);
+        Vector2 hitPoint;
+        Vector2 hitNormal;
+        IntersectCircleCylinder(otherTransform.Position, other->CollisionRadius, newPos, LocalPlayer->Transform.Position, LocalPlayer->CollisionRadius, hitPoint, hitNormal);
+    });
 
 	newPos = World.Collide(LocalPlayer->Transform.Position, newPos, LocalPlayer->CollisionRadius, pos);
 	LocalPlayer->Transform.Position = newPos;
@@ -356,7 +378,7 @@ void ProcessNetTick(const uint64_t& tick, void*)
 	// push the input to history for reconcile
 	LocalPlayer->InputHistory[tick] = CurrentInputState;
 
-	UpdateLocalPlayerState();
+	UpdateLocalPlayerState(tick);
 	ResetCurrentInput();
 	UpdateRemotePlayersForTick(tick);
 }

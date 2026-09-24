@@ -13,6 +13,7 @@
 #include "world_data.h"
 #include "protocol.h"
 #include "server_world.h"
+#include "collisions.h"
 
 bool Running = true;
 
@@ -84,7 +85,7 @@ void PopulateWorld()
         if (World.CanPlaceObject(bounds))
         {
             i++;
-            auto& box = World.AddObject<ServerWorldBox>(bounds.Center, GetRandomValue(0, 180), size);
+            auto& box = World.AddObject<ServerWorldBox>(bounds.Center, float(GetRandomValue(0, 180)), size);
             box.Packet.id = id++;
         }
     }
@@ -93,7 +94,51 @@ void PopulateWorld()
 Vector2 CollidePlayerWithMap(const Vector2& oldPos, const Vector2& desiredPos, ServerPlayerList::ServerPlayer& player)
 {
 	BoundingCircle bounds = { desiredPos, 10 };
-	return World.Collide(oldPos, desiredPos, player.CollisionRadius, bounds);
+	Vector2 resolvedPos = World.Collide(oldPos, desiredPos, player.CollisionRadius, bounds);
+
+	ServerPlayerList::DoForEachPlayer([&player, oldPos, &resolvedPos](ServerPlayerList::ServerPlayer& other)
+	{
+		if (other.PlayerID == player.PlayerID)
+		{
+			return;
+		}
+
+		Vector2 intersectionPoint;
+		Vector2 hitNormal;
+		IntersectCircleCylinder(other.Transform.Position, other.CollisionRadius, resolvedPos, oldPos, player.CollisionRadius, intersectionPoint, hitNormal);
+	}, true);
+
+	resolvedPos = World.Collide(oldPos, resolvedPos, player.CollisionRadius, bounds);
+	return resolvedPos;
+}
+
+void ResolveTankTankCollisions()
+{
+	std::vector<ServerPlayerList::ServerPlayer*> players;
+	ServerPlayerList::DoForEachPlayer([&players](ServerPlayerList::ServerPlayer& player)
+	{
+		players.push_back(&player);
+	}, true);
+
+	for (size_t i = 0; i < players.size(); ++i)
+	{
+		for (size_t j = i + 1; j < players.size(); ++j)
+		{
+			auto* p1 = players[i];
+			auto* p2 = players[j];
+
+			Vector2 hitNormal;
+			float penetrationDepth = 0.0f;
+			if (ResolveCircleCircleCollision(p1->Transform.Position, p1->CollisionRadius, p2->Transform.Position, p2->CollisionRadius, hitNormal, penetrationDepth))
+			{
+				BoundingCircle b1 = { p1->Transform.Position, 10 };
+				p1->Transform.Position = World.Collide(p1->Transform.Position, p1->Transform.Position, p1->CollisionRadius, b1);
+
+				BoundingCircle b2 = { p2->Transform.Position, 10 };
+				p2->Transform.Position = World.Collide(p2->Transform.Position, p2->Transform.Position, p2->CollisionRadius, b2);
+			}
+		}
+	}
 }
 
 void SetupPlayer(ServerPlayerList::ServerPlayer& player)
@@ -198,7 +243,7 @@ void DrawDebugScene()
 		rlTranslatef(obj->Packet.position[0], obj->Packet.position[1], 0);
 		rlRotatef(obj->Packet.rotation, 0, 0, 1);
 
-		DrawRectangle(-obj->Packet.scale, -obj->Packet.scale, obj->Packet.scale * 2, obj->Packet.scale * 2, RED);
+		DrawRectangleRec(Rectangle{ -obj->Packet.scale, -obj->Packet.scale, obj->Packet.scale * 2.0f, obj->Packet.scale * 2.0f }, RED);
 		rlPopMatrix();
 	}
 
@@ -233,6 +278,8 @@ int main(int argc, char* argv[])
 					{
 						player.Update(NetManager);
 					}, true);
+
+				ResolveTankTankCollisions();
 
 				UpdatePlayerHistories();
                 SendStateUpdates();

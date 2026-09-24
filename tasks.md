@@ -6,10 +6,10 @@ This document contains the complete, Jira-formatted issue backlog for **PewPewBo
 
 ## Progress Overview
 - [x] **EPIC 1: Infrastructure & ENet Networking Foundations** (4 / 4 Completed)
-- [ ] **EPIC 2: Network Protocol & Binary Serialization** (0 / 3 Completed)
-- [ ] **EPIC 3: Fixed-Tick Server Simulation & Rendering Skeleton** (0 / 3 Completed)
-- [ ] **EPIC 4: Client Prediction, Server Reconciliation & Interpolation** (0 / 5 Completed)
-- [ ] **EPIC 5: 2D Physics & Collision Detection** (0 / 3 Completed)
+- [x] **EPIC 2: Network Protocol & Binary Serialization** (3 / 3 Completed)
+- [x] **EPIC 3: Fixed-Tick Server Simulation & Rendering Skeleton** (3 / 3 Completed)
+- [x] **EPIC 4: Client Prediction, Server Reconciliation & Interpolation** (5 / 5 Completed)
+- [ ] **EPIC 5: 2D Physics & Collision Detection** (2 / 3 Completed)
 - [ ] **EPIC 6: Combat Engine, Projectile Pooling & Respawn Flow** (0 / 3 Completed)
 - [ ] **EPIC 7: Custom Weapon Variants & Powerup Spawners** (0 / 3 Completed)
 - [ ] **EPIC 8: Audio, Visual Polish & User Interface** (0 / 4 Completed)
@@ -54,9 +54,9 @@ This document contains the complete, Jira-formatted issue backlog for **PewPewBo
 * **Priority**: High
 * **Story**: As a player, I want the client application to initialize a Raylib window and attempt a non-blocking network connection to the server.
 * **Technical Acceptance Criteria**:
-  - [*] Initialize Raylib 2D window (`1280x720` resolution, target 144 FPS).
-  - [*] Initialize ENet client host and issue `enet_host_connect()` targeting `127.0.0.1:7777`.
-  - [*] Draw connection lifecycle state ("Connecting...", "Connected", "Disconnected") on screen using Raylib `DrawText()`.
+  - [x] Initialize Raylib 2D window (`1280x720` resolution, target 144 FPS).
+  - [x] Initialize ENet client host and issue `enet_host_connect()` targeting `127.0.0.1:7777`.
+  - [x] Draw connection lifecycle state ("Connecting...", "Connected", "Disconnected") on screen using Raylib `DrawText()`.
 * **Definition of Done**: Running `client.exe` opens a Raylib window, connects to a running `server.exe`, and displays "Connected" on screen.
 
 ---
@@ -85,36 +85,36 @@ This document contains the complete, Jira-formatted issue backlog for **PewPewBo
 * **Priority**: High
 * **Story**: As a developer, I want a single source of truth for game constants so that client and server operate under identical simulation rules.
 * **Technical Acceptance Criteria**:
-  - [*] Create `sharedLib/include/constnats.h`.
-  - [*] Define `constexpr` values for `TICK_RATE = 60`, `TICK_TIME = 1.0f / 60.0f`, `MAX_PLAYERS = 32`
+  - [x] Create `sharedLib/include/constnats.h`.
+  - [x] Define `constexpr` values for `TICK_RATE = 60`, `TICK_TIME = 1.0f / 60.0f`, `MAX_PLAYERS = 32`
 * **Definition of Done**: Header compiles in both `client` and `server` without macro collision errors.
 
 ---
 
 ### [PEW-202] Fixed-Size Network Packet Structure Definitions
-* **Status**: `[ ] TO DO`
+* **Status**: `[x] DONE`
 * **Issue Type**: Task
 * **Component**: `sharedLib`
 * **Priority**: Highest
 * **Story**: As a network programmer, I want all network packets defined as fixed-size structs with pack alignment so they can be cast or copied directly without manual stream parsing.
 * **Technical Acceptance Criteria**:
-  - [ ] Define all network packet structs in `sharedLib/include/Protocol.h` using `#pragma pack(push, 1)`.
-  - [ ] Ensure `C2S_JoinRequest` (21B), `S2C_PlayerJoined` (18B), and `C2S_ChatMessage` / `S2C_ChatMessage` (129B/130B) use fixed-size character arrays (`char[16]` and `char[128]`) instead of variable-length strings.
-  - [ ] Define `S2C_WorldSnapshotHeader` (13B), `S2C_PlayerSnapshot` (28B), `S2C_BulletSnapshot` (18B), and `S2C_PowerupSnapshot` (15B).
+  - [x] Define all network packet structs in `sharedLib/include/Protocol.h` using `#pragma pack(push, 1)`.
+  - [x] Ensure `C2S_JoinRequest` (21B), `S2C_PlayerJoined` (18B), and `C2S_ChatMessage` / `S2C_ChatMessage` (129B/130B) use fixed-size character arrays (`char[16]` and `char[128]`) instead of variable-length strings.
+  - [x] Define `S2C_WorldSnapshotHeader` (13B), `S2C_PlayerSnapshot` (28B), `S2C_BulletSnapshot` (18B), and `S2C_PowerupSnapshot` (15B).
 * **Definition of Done**: Compilation succeeds and `static_assert(sizeof(T) == ExpectedSize)` checks pass for all defined structs.
 
 ---
 
 ### [PEW-203] Fixed-Size PacketProcessor Verification & Dispatch
-* **Status**: `[ ] TO DO`
+* **Status**: `[x] DONE`
 * **Issue Type**: Task
 * **Component**: `sharedLib`, `networking`
 * **Priority**: Highest
 * **Story**: As a network engineer, I want incoming packets verified against their expected fixed sizes and dispatched to appropriate handlers without a stream reader.
 * **Technical Acceptance Criteria**:
-  - [ ] Implement a `PacketProcessor` in `sharedLib` that processes raw ENet packets using `sizeof(T)` checks: `packet->dataLength == expected_size`.
-  - [ ] Discard any packet that does not match its type's exact fixed size.
-  - [ ] Register callbacks/handlers that receive direct struct pointers (e.g. `const C2S_InputState*`) rather than stream readers.
+  - [x] Implement a `PacketProcessor` in `sharedLib` that processes raw ENet packets using `sizeof(T)` checks: `packet->dataLength == expected_size`.
+  - [x] Discard any packet that does not match its type's exact fixed size.
+  - [x] Register callbacks/handlers that receive direct struct pointers (e.g. `const C2S_InputState*`) rather than stream readers.
 * **Definition of Done**: Unit tests verify that sending malformed or wrong-sized packets is rejected, and valid fixed-size packets are successfully dispatched.
 
 ---
@@ -122,43 +122,43 @@ This document contains the complete, Jira-formatted issue backlog for **PewPewBo
 ## EPIC 3: Fixed-Tick Server Simulation & Rendering Skeleton
 
 ### [PEW-301] Fixed-Timestep Accumulator Game Loop on Server
-* **Status**: `[ ] TO DO`
+* **Status**: `[x] DONE`
 * **Issue Type**: Task
 * **Component**: `server`
 * **Priority**: Highest
 * **Story**: As a server engineer, I want the server loop to update at a deterministic 60Hz tick rate to ensure reproducible physics.
 * **Technical Acceptance Criteria**:
-  - [ ] Implement an accumulator-based loop in `server/src/main.cpp` using `std::chrono::high_resolution_clock`.
-  - [ ] Trigger `ServerTick()` exactly once every $16.66\text{ms}$ ($1/60\text{s}$).
-  - [ ] Clamp maximum accumulator frame time to $0.25\text{s}$ to prevent server death loops under heavy CPU load.
+  - [x] Implement an accumulator-based loop in `server/src/main.cpp` using `std::chrono::high_resolution_clock`.
+  - [x] Trigger `ServerTick()` exactly once every $16.66\text{ms}$ ($1/60\text{s}$).
+  - [x] Clamp maximum accumulator frame time to $0.25\text{s}$ to prevent server death loops under heavy CPU load.
 * **Definition of Done**: Server logs confirm exactly 60 tick iterations per second over a 60-second test run.
 
 ---
 
 ### [PEW-302] Server Authoritative State Storage & Snapshot Broadcast
-* **Status**: `[ ] TO DO`
+* **Status**: `[x] DONE`
 * **Issue Type**: Task
 * **Component**: `server`, `networking`
 * **Priority**: High
 * **Story**: As a server developer, I want the server to maintain active entity states and broadcast world snapshots as a series of fixed-size packets to connected clients every tick.
 * **Technical Acceptance Criteria**:
-  - [ ] Maintain a fixed-size contiguous array `std::array<PlayerState, MAX_PLAYERS>` in `server/include/World.h`.
-  - [ ] In `ServerTick()`, advance world tick counter and assemble `S2C_WorldSnapshotHeader`.
-  - [ ] Broadcast `S2C_WorldSnapshotHeader` and individual `S2C_PlayerSnapshot`, `S2C_BulletSnapshot`, and `S2C_PowerupSnapshot` packets for all active entities via ENet Channel 1 (unreliable).
+  - [x] Maintain a fixed-size contiguous array `std::array<PlayerState, MAX_PLAYERS>` in `server/include/World.h`.
+  - [x] In `ServerTick()`, advance world tick counter and assemble `S2C_WorldSnapshotHeader`.
+  - [x] Broadcast `S2C_WorldSnapshotHeader` and individual `S2C_PlayerSnapshot`, `S2C_BulletSnapshot`, and `S2C_PowerupSnapshot` packets for all active entities via ENet Channel 1 (unreliable).
 * **Definition of Done**: Network packet analyzer verifies server sends a 60Hz stream of fixed-size snapshot header and entity packets.
 
 ---
 
 ### [PEW-303] Client 2D Viewport Camera & Primitive Entity Rendering
-* **Status**: `[ ] TO DO`
+* **Status**: `[x] DONE`
 * **Issue Type**: Task
 * **Component**: `client`
 * **Priority**: High
 * **Story**: As a player, I want to see connected tanks reconstructed from individual packets and rendered as 2D shapes inside a scrollable camera viewport.
 * **Technical Acceptance Criteria**:
-  - [ ] Configure Raylib `Camera2D` to center on the local player tank position.
-  - [ ] Draw a background grid representing arena coordinates `(2000x2000)`.
-  - [ ] Process incoming `S2C_WorldSnapshotHeader` and individual entity snapshot packets to reconstruct the current tick's world state, and draw 2D rectangles for each player tank at their server coordinates.
+  - [x] Configure Raylib `Camera2D` to center on the local player tank position.
+  - [x] Draw a background grid representing arena coordinates `(2000x2000)`.
+  - [x] Process incoming `S2C_WorldSnapshotHeader` and individual entity snapshot packets to reconstruct the current tick's world state, and draw 2D rectangles for each player tank at their server coordinates.
 * **Definition of Done**: Connecting two clients to a server displays two colored rectangles in the Raylib window.
 
 ---
@@ -166,70 +166,70 @@ This document contains the complete, Jira-formatted issue backlog for **PewPewBo
 ## EPIC 4: Client Prediction, Server Reconciliation & Interpolation
 
 ### [PEW-401] Client Input Sampling & Unreliable Transmission
-* **Status**: `[ ] TO DO`
+* **Status**: `[x] DONE`
 * **Issue Type**: Task
 * **Component**: `client`, `networking`
 * **Priority**: Highest
 * **Story**: As a player, I want my keyboard and mouse inputs sampled every frame and transmitted to the server.
 * **Technical Acceptance Criteria**:
-  - [ ] Sample `W`, `A`, `S`, `D`, and `Left Mouse` state every frame.
-  - [ ] Compute turret rotation angle in radians using `GetScreenToWorld2D(GetMousePosition())`.
-  - [ ] Pack state into `C2S_InputState` with current `clientTick` and send over ENet Channel 1.
+  - [x] Sample `W`, `A`, `S`, `D`, and `Left Mouse` state every frame.
+  - [x] Compute turret rotation angle in radians using `GetScreenToWorld2D(GetMousePosition())`.
+  - [x] Pack state into `C2S_InputState` with current `clientTick` and send over ENet Channel 1.
 * **Definition of Done**: Server receives and prints input flags and turret angles from client at 60Hz.
 
 ---
 
 ### [PEW-402] Server Player Kinematics & Movement Simulation
-* **Status**: `[ ] TO DO`
+* **Status**: `[x] DONE`
 * **Issue Type**: Task
 * **Component**: `server`, `physics`
 * **Priority**: Highest
 * **Story**: As a server engineer, I want the server to simulate tank acceleration, friction, and rotation based on client inputs.
 * **Technical Acceptance Criteria**:
-  - [ ] Read `C2S_InputState` for each connected peer in `ServerTick()`.
-  - [ ] Apply linear acceleration along chassis forward vector when `W`/`S` pressed.
-  - [ ] Apply rotational velocity when `A`/`D` pressed.
-  - [ ] Apply linear drag friction and update position `pos += velocity * TICK_TIME`.
+  - [x] Read `C2S_InputState` for each connected peer in `ServerTick()`.
+  - [x] Apply linear acceleration along chassis forward vector when `W`/`S` pressed.
+  - [x] Apply rotational velocity when `A`/`D` pressed.
+  - [x] Apply linear drag friction and update position `pos += velocity * TICK_TIME`.
 * **Definition of Done**: Tank position moves smoothly on server when inputs are applied.
 
 ---
 
 ### [PEW-403] Local Client Prediction & Input Ring Buffer
-* **Status**: `[ ] TO DO`
+* **Status**: `[x] DONE`
 * **Issue Type**: Task
 * **Component**: `client`, `physics`
 * **Priority**: High
 * **Story**: As a player, I want my local tank to respond instantly to inputs without waiting for server network latency.
 * **Technical Acceptance Criteria**:
-  - [ ] Implement a circular ring buffer `InputHistory[128]` storing `(tick, input, predictedPosition, predictedVelocity)` on the client.
-  - [ ] Apply movement physics locally immediately on input sampling frame.
+  - [x] Implement a circular ring buffer `InputHistory[128]` storing `(tick, input, predictedPosition, predictedVelocity)` on the client.
+  - [x] Apply movement physics locally immediately on input sampling frame.
 * **Definition of Done**: Local tank moves instantly on WASD key press even when simulated latency is added.
 
 ---
 
 ### [PEW-404] Server Snapshot Reconciliation Loop
-* **Status**: `[ ] TO DO`
+* **Status**: `[x] DONE`
 * **Issue Type**: Task
 * **Component**: `client`, `networking`
 * **Priority**: High
 * **Story**: As a player, I want my local predicted tank position reconciled against authoritative server snapshots to prevent cheating and desync.
 * **Technical Acceptance Criteria**:
-  - [ ] Upon receiving the snapshot header and corresponding player snapshot for tick $T$, compare server position vs `InputHistory[T]`.
-  - [ ] If error exceeds threshold `0.05` units: snap local position to server position and re-simulate physics for all stored inputs from tick $T+1$ to current client tick.
+  - [x] Upon receiving the snapshot header and corresponding player snapshot for tick $T$, compare server position vs `InputHistory[T]`.
+  - [x] If error exceeds threshold `0.05` units: snap local position to server position and re-simulate physics for all stored inputs from tick $T+1$ to current client tick.
 * **Definition of Done**: Introducing artificially delayed server packets causes local tank to correct smoothly without persistent position drift.
 
 ---
 
 ### [PEW-405] Remote Entity Snapshot Buffering & Interpolation
-* **Status**: `[ ] TO DO`
+* **Status**: `[x] DONE`
 * **Issue Type**: Task
 * **Component**: `client`, `networking`
 * **Priority**: High
 * **Story**: As a player, I want remote tanks to move smoothly on screen without stuttering.
 * **Technical Acceptance Criteria**:
-  - [ ] Reconstruct ticks from incoming fixed-size snapshot packets (header + entity snapshots) and buffer them on client with a $100\text{ms}$ ($6$ ticks) interpolation delay.
-  - [ ] Interpolate remote tank position between reconstructed states `TickState[k]` and `TickState[k+1]` using Linear Interpolation (LERP).
-  - [ ] Interpolate chassis and turret angles using shortest-path angular lerp.
+  - [x] Reconstruct ticks from incoming fixed-size snapshot packets (header + entity snapshots) and buffer them on client with a $100\text{ms}$ ($6$ ticks) interpolation delay.
+  - [x] Interpolate remote tank position between reconstructed states `TickState[k]` and `TickState[k+1]` using Linear Interpolation (LERP).
+  - [x] Interpolate chassis and turret angles using shortest-path angular lerp.
 * **Definition of Done**: Other connected players move smoothly across the viewport without visual jitter.
 
 ---
@@ -237,16 +237,16 @@ This document contains the complete, Jira-formatted issue backlog for **PewPewBo
 ## EPIC 5: 2D Physics & Collision Detection
 
 ### [PEW-501] Primitive 2D Physics Intersection & Resolution Library
-* **Status**: `[ ] TO DO`
+* **Status**: `[x] DONE`
 * **Issue Type**: Task
 * **Component**: `sharedLib`, `physics`
 * **Priority**: High
 * **Story**: As a developer, I want a lightweight C++ collision library for Circle-vs-Circle and Circle-vs-AABB intersections.
 * **Technical Acceptance Criteria**:
-  - [ ] Create `sharedLib/include/Physics.h` and `sharedLib/src/Physics.cpp`.
-  - [ ] Implement `CheckCircleCircleCollision()`, `ResolveCircleCircleCollision()`.
-  - [ ] Implement `CheckCircleAABBCollision()`, `ResolveCircleAABBCollision()`.
-  - [ ] Return penetration depth vectors and contact normals.
+  - [x] Create `sharedLib/include/Physics.h` and `sharedLib/src/Physics.cpp`.
+  - [x] Implement `CheckCircleCircleCollision()`, `ResolveCircleCircleCollision()`.
+  - [x] Implement `CheckCircleAABBCollision()`, `ResolveCircleAABBCollision()`.
+  - [x] Return penetration depth vectors and contact normals.
 * **Definition of Done**: Unit tests verify correct contact normal and pushout resolution vectors for overlapping geometry.
 
 ---
@@ -259,22 +259,22 @@ This document contains the complete, Jira-formatted issue backlog for **PewPewBo
 * **Story**: As a level designer, I want a structured arena map definition containing outer boundary walls, indestructible barriers, and destructible crates.
 * **Technical Acceptance Criteria**:
   - [ ] Create `sharedLib/include/MapData.h`.
-  - [ ] Define outer perimeter AABB walls for `2000x2000` arena bounds.
+  - [x] Define outer perimeter AABB walls for `2000x2000` arena bounds.
   - [ ] Add static array of interior concrete wall AABBs and destructible wooden crate AABBs with HP fields.
 * **Definition of Done**: Arena layout data loads cleanly into both client and server memory.
 
 ---
 
 ### [PEW-503] Tank-to-Wall and Tank-to-Tank Collision Integration
-* **Status**: `[ ] TO DO`
+* **Status**: `[x] DONE`
 * **Issue Type**: Task
 * **Component**: `server`, `physics`
 * **Priority**: High
 * **Story**: As a server engineer, I want tanks to collide with arena walls and other tanks so they cannot pass through solid geometry.
 * **Technical Acceptance Criteria**:
-  - [ ] In `ServerTick()`, test each player tank circle against all wall AABBs and resolve overlap.
-  - [ ] Test player tank circle against all other player tank circles and apply pushout resolution.
-  - [ ] Integrate same collision logic into client prediction loop.
+  - [x] In `ServerTick()`, test each player tank circle against all wall AABBs and resolve overlap.
+  - [x] Test player tank circle against all other player tank circles and apply pushout resolution.
+  - [x] Integrate same collision logic into client prediction loop.
 * **Definition of Done**: Driving a tank into a wall or another tank brings it to a physical stop without clipping through geometry.
 
 ---
@@ -372,14 +372,14 @@ This document contains the complete, Jira-formatted issue backlog for **PewPewBo
 ## EPIC 8: Audio, Visual Polish & User Interface
 
 ### [PEW-801] Tank Chassis / Turret Sprite Rendering & Track Animations
-* **Status**: `[ ] TO DO`
+* **Status**: `[ ] IN PROGRESS`
 * **Issue Type**: Task
 * **Component**: `client`, `ui`
 * **Priority**: Medium
 * **Story**: As a player, I want tanks rendered with detailed 2D sprites and animated tread tracks.
 * **Technical Acceptance Criteria**:
-  - [ ] Load tank chassis and turret textures using Raylib `LoadTexture()`.
-  - [ ] Render chassis rotated by `ChassisAngle`; render turret centered on chassis rotated by `TurretAngle`.
+  - [x] Load tank chassis and turret textures using Raylib `LoadTexture()`.
+  - [x] Render chassis rotated by `ChassisAngle`; render turret centered on chassis rotated by `TurretAngle`.
   - [ ] Draw moving tread mark sprites behind tanks as they move.
 * **Definition of Done**: Tanks render with distinct chassis and turret sprite rotations and leave tread marks on the arena floor.
 

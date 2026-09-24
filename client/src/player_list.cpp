@@ -1,5 +1,7 @@
 #include "player_list.h"
 #include "game.h"
+#include "collisions.h"
+#include "raymath.h"
 
 #include <cmath>
 
@@ -22,7 +24,10 @@ ClientPlayerState* PlayerList::AddPlayer(uint64_t playerId, bool local)
     newPlayer->PlayerID = playerId;
 
     if (local)
+    {
         LocalPlayer = static_cast<ClientLocalPlayerState*>(newPlayer);
+        LocalPlayer->OwnerList = this;
+    }
 
     return newPlayer;
 }
@@ -142,6 +147,50 @@ void ClientPlayerState::UpdateForTick(uint64_t currentTick)
     }
 }
 
+PlayerTransform ClientPlayerState::GetTransformAtTick(uint64_t tick) const
+{
+    if (TransformHistory.empty())
+    {
+        return Transform;
+    }
+
+    auto it = TransformHistory.find(tick);
+    if (it != TransformHistory.end())
+    {
+        return it->second;
+    }
+
+    if (tick < TransformHistory.begin()->first)
+    {
+        return TransformHistory.begin()->second;
+    }
+
+    if (tick > TransformHistory.rbegin()->first)
+    {
+        const auto& latest = TransformHistory.rbegin()->second;
+        uint64_t diffTicks = tick - TransformHistory.rbegin()->first;
+        PlayerTransform extrapolated = latest;
+        float dt = (1.0f / kDefaultTickRate) * float(diffTicks);
+        extrapolated.Position = Vector2Add(latest.Position, Vector2Scale(latest.Velocity, dt));
+        return extrapolated;
+    }
+
+    auto upper = TransformHistory.upper_bound(tick);
+    auto lower = std::prev(upper);
+    if (upper->first == lower->first)
+    {
+        return lower->second;
+    }
+
+    float t = float(tick - lower->first) / float(upper->first - lower->first);
+    PlayerTransform interp = lower->second;
+    interp.Position = Vector2Lerp(lower->second.Position, upper->second.Position, t);
+    interp.Rotation[0] = LerpAngleDeg(lower->second.Rotation[0], upper->second.Rotation[0], t);
+    interp.Rotation[1] = LerpAngleDeg(lower->second.Rotation[1], upper->second.Rotation[1], t);
+    interp.Velocity = Vector2Lerp(lower->second.Velocity, upper->second.Velocity, t);
+    return interp;
+}
+
 void ClientLocalPlayerState::AddServerStateUpdate(uint64_t tick, PlayerTransform& transform)
 {
     if (tick == 0)
@@ -167,6 +216,7 @@ void ClientLocalPlayerState::AddServerStateUpdate(uint64_t tick, PlayerTransform
     PlayerTransform replayedTransform = transform;
     for (auto replayIt = unackedIt; replayIt != InputHistory.end(); ++replayIt)
     {
+        uint64_t replayTick = replayIt->first;
         auto newPos = UpdatePlayerTransform(replayedTransform, replayIt->second, 1.0f / kDefaultTickRate, Rules);
         BoundingCircle bounds = { newPos, 10 };
 
@@ -175,15 +225,46 @@ void ClientLocalPlayerState::AddServerStateUpdate(uint64_t tick, PlayerTransform
             newPos = World->Collide(replayedTransform.Position, newPos, CollisionRadius, bounds);
         }
 
+        if (OwnerList)
+        {
+            OwnerList->DoForEachPlayer([&](ClientPlayerState* other)
+            {
+                if (other->IsLocalPlayer)
+                {
+                    return;
+                }
+
+                PlayerTransform otherTransform = other->GetTransformAtTick(replayTick);
+                Vector2 hitPoint;
+                Vector2 hitNormal;
+                IntersectCircleCylinder(otherTransform.Position, other->CollisionRadius, newPos, replayedTransform.Position, CollisionRadius, hitPoint, hitNormal);
+            });
+
+            if (World)
+            {
+                newPos = World->Collide(replayedTransform.Position, newPos, CollisionRadius, bounds);
+            }
+        }
+
         replayedTransform.Position = newPos;
     }
 
     Vector2 delta = replayedTransform.Position - Transform.Position;
     float len = Vector2Length(delta);
-    if (len > 0.1f)
+    if (len > 0.05f)
     {
-        GetLogger().Log(LogLevel::Warning, "Local player prediction off by %f (reconciling to tick %llu)", len, tick);
-        Transform = replayedTransform;
+        if (len > 2.0f)
+        {
+            GetLogger().Log(LogLevel::Warning, "Local player prediction off by %f (hard snapping to tick %llu)", len, tick);
+            Transform = replayedTransform;
+        }
+        else
+        {
+            Transform.Position = Vector2Lerp(Transform.Position, replayedTransform.Position, 0.4f);
+            Transform.Velocity = replayedTransform.Velocity;
+            Transform.Rotation[0] = LerpAngleDeg(Transform.Rotation[0], replayedTransform.Rotation[0], 0.4f);
+            Transform.Rotation[1] = replayedTransform.Rotation[1];
+        }
     }
 
     while (InputHistory.size() > 128)

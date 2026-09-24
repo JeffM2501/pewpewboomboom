@@ -7,6 +7,8 @@
 #include <memory>
 #include <functional>
 
+class PlayerList;
+
 static constexpr uint64_t RemotePlayerHistoryOffset = 6;
 class ClientPlayerState : public PlayerState
 {
@@ -22,18 +24,24 @@ public:
     void UpdateForTick(uint64_t currentTick);
 
     virtual void AddServerStateUpdate(uint64_t tick, PlayerTransform& transform);
+
+    PlayerTransform GetTransformAtTick(uint64_t tick) const;
 };
 
 class ClientLocalPlayerState : public ClientPlayerState
 {
 public:
-    ClientLocalPlayerState() { IsLocalPlayer = true; }
+    ClientLocalPlayerState()
+    {
+        IsLocalPlayer = true;
+    }
 
     std::map<uint64_t, InputState> InputHistory;
 
     void AddServerStateUpdate(uint64_t tick, PlayerTransform& transform) override;
 
     ClientWorld* World = nullptr;
+    PlayerList* OwnerList = nullptr;
 };
 
 class PlayerList
@@ -50,7 +58,13 @@ public:
 
     void DoForEachPlayer(std::function<void(ClientPlayerState*)> callback);
 
-    size_t Size() { return Players.size(); }
+    size_t Size()
+    {
+        return Players.size();
+    }
 
-    ClientLocalPlayerState* GetLocalPlayer() const { return LocalPlayer; }
+    ClientLocalPlayerState* GetLocalPlayer() const
+    {
+        return LocalPlayer;
+    }
 };

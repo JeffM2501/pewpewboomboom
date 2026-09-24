@@ -305,7 +305,7 @@ ClientWorldBox::ClientWorldBox(const S2C_SetWorldObject& message) : ClientWorldO
 void ClientWorldBox::Draw()
 {
     auto box = GetTexture(StaticTextures::Box);
-    Rectangle rect = { 0,0, box.width, box.height };
+    Rectangle rect = { 0.0f, 0.0f, static_cast<float>(box.width), static_cast<float>(box.height) };
     Rectangle dest{
      -Collider.Size.x,
      -Collider.Size.y,
@@ -349,7 +349,7 @@ ClientWorldBarrel::ClientWorldBarrel(const S2C_SetWorldObject& message) : Client
 void ClientWorldBarrel::Draw()
 {
     auto barrel = GetTexture(StaticTextures::Barrel);
-    Rectangle rect = { 0,0, barrel.width, barrel.height };
+    Rectangle rect = { 0.0f, 0.0f, static_cast<float>(barrel.width), static_cast<float>(barrel.height) };
     Rectangle dest = { -Collider.Bounds.Radius, -Collider.Bounds.Radius, DrawSize, DrawSize };
 
     float offset = (sinf(float(GetTime() * 4.0f)) + 1) + 0.25f;

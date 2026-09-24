@@ -615,14 +615,14 @@ pewpewboomboom/
 
 **Goal**: Add physical collision barriers to prevent tanks from going out of bounds, passing through walls, or overlapping.
 
-- [ ] **5.1 Simple 2D Collision Math**
+- [x] **5.1 Simple 2D Collision Math**
   - Implement standard Axis-Aligned Bounding Box (AABB) and Circle collision routines in `sharedLib/src/Physics.cpp`.
   - Add circle-to-AABB collision resolve functions (returns a displacement vector to push overlapping entities out of walls).
 - [ ] **5.2 Server Arena Construction**
   - Define static array map layouts in `sharedLib`.
   - Fill the map with indestructible walls (represented as AABB boxes) and boundaries.
   - Add destructible walls with health attributes.
-- [ ] **5.3 Wall Collision Processing**
+- [x] **5.3 Wall Collision Processing**
   - In the server physics update step (run immediately after applying player inputs):
     - Check each player tank circle against all wall AABBs.
     - If a collision occurs, resolve it by shifting the player tank back until it no longer intersects.

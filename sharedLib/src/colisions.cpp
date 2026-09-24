@@ -182,3 +182,33 @@ void PointNearestCirclePoint(Vector2 circleCenter, float circleRadius, Vector2 p
 
     nearest = Vector2Add(circleCenter, Vector2Scale(normal, circleRadius));
 }
+
+bool ResolveCircleCircleCollision(Vector2& posA, float radiusA, Vector2& posB, float radiusB, Vector2& hitNormal, float& penetrationDepth)
+{
+    Vector2 diff = Vector2Subtract(posA, posB);
+    float distSqr = Vector2LengthSqr(diff);
+    float minDist = radiusA + radiusB;
+
+    if (distSqr >= minDist * minDist)
+    {
+        return false;
+    }
+
+    float dist = sqrtf(distSqr);
+    if (dist > 0.0001f)
+    {
+        hitNormal = Vector2Scale(diff, 1.0f / dist);
+        penetrationDepth = minDist - dist;
+    }
+    else
+    {
+        hitNormal = Vector2{ 1.0f, 0.0f };
+        penetrationDepth = minDist;
+    }
+
+    Vector2 separation = Vector2Scale(hitNormal, penetrationDepth * 0.5f);
+    posA = Vector2Add(posA, separation);
+    posB = Vector2Subtract(posB, separation);
+
+    return true;
+}

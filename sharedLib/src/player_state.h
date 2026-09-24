@@ -30,7 +30,7 @@ struct PlayerState
 	int Team = -1;
 
     PlayerMovementRules Rules;
-    float CollisionRadius = 2.0f;
+    float CollisionRadius = 3.0f;
 
 	PlayerTransform Transform;
 

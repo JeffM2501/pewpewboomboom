@@ -72,7 +72,7 @@ struct S2C_JoinResponse
 	uint64_t playerId = 0;
 	float spawn[2] = { 0.0f, 0.0f };
 
-	float collisionRadius = 2.0f;
+	float collisionRadius = 3.0f;
     float maxSpeed = 20;
     float turnSpeed = 90.0f; // degrees per second
     float bostMultiplier = 2.0f;
@@ -84,6 +84,7 @@ struct S2C_PlayerJoined
 {
     uint8_t type = static_cast<uint8_t>(PacketType::S2C_PlayerJoined);
 	uint64_t playerId;
+	float collisionRadius = 3.0f;
 	char name[kMaxNameSize] = {};
 };
 

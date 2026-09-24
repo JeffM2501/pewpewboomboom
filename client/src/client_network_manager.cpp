@@ -289,6 +289,7 @@ void ClientNetworkManager::ProcessS2C_PlayerJoined(PacketProcessor& processor, E
 	ClientNetworkManager& self = static_cast<ClientNetworkManager&>(processor);
 	auto localPlayerInfo = self.Players.AddPlayer(joinInfo->playerId);
 	localPlayerInfo->Name = joinInfo->name;
+	localPlayerInfo->CollisionRadius = joinInfo->collisionRadius;
 	self.ConnectionEvents.OnPlayerJoin.Invoke(joinInfo->playerId);
 }
 

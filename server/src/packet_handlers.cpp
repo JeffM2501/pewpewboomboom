@@ -81,6 +81,7 @@ namespace PacketHandlers
             {
                 S2C_PlayerJoined remotePlayer;
                 remotePlayer.playerId = playerInfo.PlayerID;
+                remotePlayer.collisionRadius = playerInfo.CollisionRadius;
                 playerInfo.Name.CopyToBuffer(remotePlayer.name);
                 processor.SendPacket(sender, 0, remotePlayer);
             }
@@ -91,6 +92,7 @@ namespace PacketHandlers
             {
                 S2C_PlayerJoined newPlayer;
                 newPlayer.playerId = player.PlayerID;
+                newPlayer.collisionRadius = player.CollisionRadius;
                 player.Name.CopyToBuffer(newPlayer.name);
                 processor.SendPacket(playerInfo.Peer, 0, newPlayer);
             }
