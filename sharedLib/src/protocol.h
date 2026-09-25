@@ -23,7 +23,9 @@ enum class PacketType : uint8_t
 	S2C_PlayerDisconnected = 12,
     S2C_BeginStateSnapshot = 13,
 	S2C_PlayerSnapshot = 14,
-	S2C_ChatMessage = 15
+	S2C_ChatMessage = 15,
+	S2C_BulletSnapshot = 16,
+	S2C_BulletDestroyed = 17
 };
 
 #pragma pack(push, 1)
@@ -222,6 +224,7 @@ struct S2C_BeginStateSnapshot
     uint8_t type = static_cast<uint8_t>(PacketType::S2C_BeginStateSnapshot);
     uint64_t snapshotTick = 0;
     uint8_t playerCount = 0;
+    uint16_t bulletCount = 0;
 };
 
 struct S2C_PlayerSnapshot
@@ -232,5 +235,31 @@ struct S2C_PlayerSnapshot
     float position[2] = { 0.0f, 0.0f };
     float rotation[2] = { 0.0f, 0.0f };
     float velocity[2] = { 0.0f, 0.0f };
+    uint8_t health = 100;
+    uint8_t isDead = 0;
+};
+
+struct BulletNetState
+{
+    uint16_t bulletId = 0;
+    uint64_t ownerId = 0;
+    uint8_t bulletType = 0;
+    float position[2] = { 0.0f, 0.0f };
+    float velocity[2] = { 0.0f, 0.0f };
+};
+
+struct S2C_BulletSnapshot
+{
+    uint8_t type = static_cast<uint8_t>(PacketType::S2C_BulletSnapshot);
+    uint64_t serverTick = 0;
+    BulletNetState state;
+};
+
+struct S2C_BulletDestroyed
+{
+    uint8_t type = static_cast<uint8_t>(PacketType::S2C_BulletDestroyed);
+    uint64_t serverTick = 0;
+    uint16_t bulletId = 0;
+    float position[2] = { 0.0f, 0.0f };
 };
 #pragma pack(pop)

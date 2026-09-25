@@ -14,6 +14,7 @@
 #include "protocol.h"
 #include "server_world.h"
 #include "collisions.h"
+#include "bullet_manager.h"
 
 bool Running = true;
 
@@ -151,6 +152,19 @@ void ServerSetup()
 	SetRandomSeed(uint32_t(std::chrono::system_clock::now().time_since_epoch().count()));
 	ServerLogger.Log(LogLevel::Info, "Server is starting up...");
 
+	BulletManager::Init();
+
+	BulletManager::OnBulletHitBuilding.Add([](const BulletBuildingCollisionEvent& event, void*)
+		{
+			event.DestroyBullet = true;
+
+			ServerLogger.Log(LogLevel::Info, "[Combat] Bullet %u (Owner %llu) hit Building %llu at (%.1f, %.1f) - Destroy: %s",
+				event.Bullet ? event.Bullet->ID : 0,
+				event.Bullet ? event.Bullet->OwnerID : 0,
+				event.BuildingID, event.HitPoint.x, event.HitPoint.y,
+				event.ShouldDestroyBullet() ? "true" : "false (overridden)");
+		});
+
 	PopulateWorld();
 
 	NetManager.ServerEmpty.Add([](const bool&, void*)
@@ -181,11 +195,14 @@ void ServerCleanup()
 
 void SendStateUpdates()
 {
+    uint16_t bulletCount = uint16_t(BulletManager::GetActiveBulletCount());
+
     ServerPlayerList::DoForEachPlayer([&](auto& player)
         {
             S2C_BeginStateSnapshot beginSnapshot;
             beginSnapshot.snapshotTick = NetManager.CurrentServerTick;
             beginSnapshot.playerCount = uint8_t(ServerPlayerList::GetPlayerCount());
+            beginSnapshot.bulletCount = bulletCount;
             NetManager.Send(player.PlayerID, 1, beginSnapshot, false);
             ServerPlayerList::DoForEachPlayer([&](auto& otherPlayer)
                 {
@@ -198,9 +215,44 @@ void SendStateUpdates()
                     snapshot.rotation[1] = otherPlayer.Transform.Rotation[1];
                     snapshot.velocity[0] = otherPlayer.Transform.Velocity.x;
                     snapshot.velocity[1] = otherPlayer.Transform.Velocity.y;
+                    snapshot.health = otherPlayer.Health;
+                    snapshot.isDead = otherPlayer.IsDead ? 1 : 0;
                     NetManager.Send(player.PlayerID, 1, snapshot, false);
                 }, true);
+
+            for (const auto& bullet : BulletManager::GetBullets())
+            {
+                if (!bullet.Active)
+                {
+                    continue;
+                }
+
+                S2C_BulletSnapshot bulletSnapshot;
+                bulletSnapshot.serverTick = NetManager.CurrentServerTick;
+                bulletSnapshot.state.bulletId = bullet.ID;
+                bulletSnapshot.state.ownerId = bullet.OwnerID;
+                bulletSnapshot.state.bulletType = bullet.BulletType;
+                bulletSnapshot.state.position[0] = bullet.Position.x;
+                bulletSnapshot.state.position[1] = bullet.Position.y;
+                bulletSnapshot.state.velocity[0] = bullet.Velocity.x;
+                bulletSnapshot.state.velocity[1] = bullet.Velocity.y;
+
+                NetManager.Send(player.PlayerID, 1, bulletSnapshot, false);
+            }
+
+            for (const auto& destroyed : BulletManager::GetDestroyedBullets())
+            {
+                S2C_BulletDestroyed bulletDestroyed;
+                bulletDestroyed.serverTick = NetManager.CurrentServerTick;
+                bulletDestroyed.bulletId = destroyed.ID;
+                bulletDestroyed.position[0] = destroyed.Position.x;
+                bulletDestroyed.position[1] = destroyed.Position.y;
+
+                NetManager.Send(player.PlayerID, 1, bulletDestroyed, false);
+            }
         }, false);
+
+    BulletManager::ClearDestroyedBullets();
 }
 
 void UpdatePlayerHistories()
@@ -249,9 +301,17 @@ void DrawDebugScene()
 
     ServerPlayerList::DoForEachPlayer([&](ServerPlayerList::ServerPlayer& player)
         {
-			DrawCircleV(player.Transform.Position, player.CollisionRadius, BLUE);
+			DrawCircleV(player.Transform.Position, player.CollisionRadius, player.IsDead ? GRAY : BLUE);
         }
     , true);
+
+    for (const auto& bullet : BulletManager::GetBullets())
+    {
+        if (bullet.Active)
+        {
+            DrawCircleV(bullet.Position, 1.0f, RED);
+        }
+    }
 	EndMode2D();
 	DrawText(TextFormat("Player Count %d", ServerPlayerList::GetPlayerCount()), 10,10, 20, BLACK);
 }
@@ -276,8 +336,32 @@ int main(int argc, char* argv[])
 				// see if the players have updates this tick
 				ServerPlayerList::DoForEachPlayer([](auto& player)
 					{
+						if (player.WeaponCooldown > 0.0f)
+						{
+							player.WeaponCooldown -= (1.0f / kDefaultTickRate);
+							if (player.WeaponCooldown < 0.0f)
+							{
+								player.WeaponCooldown = 0.0f;
+							}
+						}
+
+						if (player.IsDead)
+						{
+							player.RespawnTimer -= (1.0f / kDefaultTickRate);
+							if (player.RespawnTimer <= 0.0f)
+							{
+								player.IsDead = false;
+								player.Health = 100;
+								player.Transform.Position = Vector2{ float(GetRandomValue(-50, 50)), float(GetRandomValue(-50, 50)) };
+								BoundingCircle b = { player.Transform.Position, 10 };
+								player.Transform.Position = World.Collide(player.Transform.Position, player.Transform.Position, player.CollisionRadius, b);
+							}
+						}
+
 						player.Update(NetManager);
 					}, true);
+
+				BulletManager::Update(1.0f / kDefaultTickRate, World);
 
 				ResolveTankTankCollisions();
 

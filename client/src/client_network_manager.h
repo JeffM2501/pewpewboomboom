@@ -4,6 +4,7 @@
 #include "raylib.h"
 
 #include <vector>
+#include <unordered_map>
 #include <cstdint>
 #include "event_source.h"
 #include "text_utils.h"
@@ -11,6 +12,20 @@
 #include "player_list.h"
 #include "packet_processor.h"
 #include "time_utils.h"
+
+struct S2C_BulletSnapshot;
+struct S2C_BulletDestroyed;
+
+struct ClientBullet
+{
+	uint16_t ID = 0;
+	uint64_t OwnerID = 0;
+	uint8_t BulletType = 0;
+	Vector2 Position = { 0.0f, 0.0f };
+	Vector2 Velocity = { 0.0f, 0.0f };
+	float LastUpdatedTime = 0.0f;
+};
+
 
 enum class ConnectionState
 {
@@ -33,6 +48,7 @@ public:
 		EventSource<Vector2> OnSpawn;
 		EventSource<uint64_t> OnTick;
 		EventSource<std::pair<uint64_t, std::string>> OnChatMessage;
+		EventSource<S2C_BulletDestroyed> OnBulletDestroyed;
 	};
 
 	ClientNetworkManager();
@@ -53,6 +69,12 @@ public:
 
 	Events& GetEvents();
 	PlayerList& GetPlayerList();
+
+	const std::unordered_map<uint16_t, ClientBullet>& GetBullets() const
+	{
+		return Bullets;
+	}
+	void UpdateBullets(float deltaTime);
 
 	void SentChatMessage(std::string_view message);
 
@@ -79,6 +101,8 @@ private:
 
 	Events ConnectionEvents;
 	PlayerList Players;
+	std::unordered_map<uint16_t, ClientBullet> Bullets;
+	std::unordered_map<uint16_t, float> RecentlyDestroyedBullets;
 
 	FixedTickAccumulator PingAccumualtor;
 
@@ -95,6 +119,8 @@ private:
 
     static void ProcessS2C_BeginStateSnapshot(PacketProcessor& processor, ENetPeer* sender, const S2C_BeginStateSnapshot* snapshot);
     static void ProcessS2C_PlayerSnapshot(PacketProcessor& processor, ENetPeer* sender, const S2C_PlayerSnapshot* snapshot);
+    static void ProcessS2C_BulletSnapshot(PacketProcessor& processor, ENetPeer* sender, const S2C_BulletSnapshot* snapshot);
+    static void ProcessS2C_BulletDestroyed(PacketProcessor& processor, ENetPeer* sender, const S2C_BulletDestroyed* packet);
 };
 
 extern ClientNetworkManager Network;

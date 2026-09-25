@@ -12,6 +12,26 @@ public:
 
 	virtual const BoundingCircle& GetBoundingCircle() const = 0;
 	virtual const WorldObjectCollider& GetCollider() const = 0;
+
+	S2C_SetWorldObject::ObjectType GetObjectType() const
+	{
+		return Packet.objType;
+	}
+
+	uint64_t GetID() const
+	{
+		return Packet.id;
+	}
+
+	Vector2 GetPosition() const
+	{
+		return Vector2{ Packet.position[0], Packet.position[1] };
+	}
+
+	float GetScale() const
+	{
+		return Packet.scale;
+	}
 };
 
 class ServerWorldWalls : public ServerWorldObject
@@ -88,4 +108,5 @@ public:
 	bool CanPlaceObject(BoundingCircle& bounds) const;
 
     void DoForEachObject(BoundingCircle& area, std::function<void(WorldObject& object)> func) override;
+    void DoForEachServerObject(BoundingCircle& area, std::function<void(ServerWorldObject& object)> func);
 };

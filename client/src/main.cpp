@@ -77,18 +77,31 @@ void ResetCurrentInput()
 
 void PollInputActions()
 {
+	if (LocalPlayer && LocalPlayer->IsDead)
+	{
+		return;
+	}
+
 	if (IsKeyDown(KEY_W))
+	{
 		CurrentInputState.Foward += 1;
+	}
 
     if (IsKeyDown(KEY_S))
+	{
 		CurrentInputState.Foward -= 1;
+	}
 
 	if (IsKeyDown(KEY_A))
+	{
 		CurrentInputState.Turn -= 1;
+	}
 	if (IsKeyDown(KEY_D))
+	{
 		CurrentInputState.Turn += 1;
+	}
 
-	if (IsKeyPressed(KEY_SPACE) || IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+	if (IsKeyDown(KEY_SPACE) || IsMouseButtonDown(MOUSE_LEFT_BUTTON))
 	{
 		CurrentInputState.Shoot = true;
 	}	
@@ -233,6 +246,8 @@ bool GameUpdate()
 
 	ViewCamera.zoom = CurrentZoom;
 
+	Network.Update();
+
     Network.GetPlayerList().DoForEachPlayer([](ClientPlayerState* player)
         {
             if (!player->IsLocalPlayer)
@@ -241,7 +256,8 @@ bool GameUpdate()
             }
         });
 
-	Network.Update();
+    Network.UpdateBullets(GetFrameTime());
+
 	return true;
 }
 
@@ -273,14 +289,54 @@ void GameDraw()
 	//DrawTexturePro(DetailTexture, detailSourceRect, destRect, Vector2Zeros, 0, ColorAlpha(WHITE,0.85f));
 
 	if (World.IsValid())
+	{
 		World.Draw();
+	}
 
     Network.GetPlayerList().DoForEachPlayer([](ClientPlayerState* player)
         {
+            if (player->IsDead)
+            {
+                return;
+            }
+
             TankManager::DrawTank(player->IsLocalPlayer ? TeamColors::Blue : TeamColors::Red, player->Transform, player->IsLocalPlayer);
+
+            // Draw floating health bar
+            float barWidth = 4.0f;
+            float barHeight = 0.4f;
+            float healthPct = (float)player->Health / 100.0f;
+            if (healthPct < 0.0f)
+            {
+                healthPct = 0.0f;
+            }
+            if (healthPct > 1.0f)
+            {
+                healthPct = 1.0f;
+            }
+
+            Vector2 barPos = { player->Transform.Position.x - barWidth * 0.5f, player->Transform.Position.y - player->CollisionRadius - 0.8f };
+            DrawRectangleRec(Rectangle{ barPos.x, barPos.y, barWidth, barHeight }, ColorAlpha(BLACK, 0.6f));
+            Color hpColor = (healthPct > 0.5f) ? GREEN : ((healthPct > 0.25f) ? ORANGE : RED);
+            DrawRectangleRec(Rectangle{ barPos.x, barPos.y, barWidth * healthPct, barHeight }, hpColor);
+            DrawRectangleLinesEx(Rectangle{ barPos.x, barPos.y, barWidth, barHeight }, 0.05f, WHITE);
         });
 
+    for (const auto& [id, bullet] : Network.GetBullets())
+    {
+        DrawCircleV(bullet.Position, 0.5f, YELLOW);
+        DrawCircleV(bullet.Position, 0.25f, WHITE);
+    }
+
 	EndMode2D();
+
+    if (LocalPlayer && LocalPlayer->IsDead)
+    {
+        const char* deadText = "DESTROYED - RESPAWNING...";
+        int fontSize = 32;
+        int textWidth = MeasureText(deadText, fontSize);
+        DrawText(deadText, (GetScreenWidth() - textWidth) / 2, GetScreenHeight() / 2 - 50, fontSize, RED);
+    }
 
 	rlImGuiBegin();
 	NetConnectionDialog::ShowDialog();
@@ -312,7 +368,7 @@ void GameDraw()
 
 void UpdateLocalPlayerState(uint64_t tick = 0)
 {
-    if (!LocalPlayer)
+    if (!LocalPlayer || LocalPlayer->IsDead)
     {
         return;
     }
@@ -359,7 +415,14 @@ void UpdateRemotePlayersForTick(const uint64_t& tick)
 void ProcessNetTick(const uint64_t& tick, void*)
 {
 	if (!Network.IsReady())
+	{
 		return;
+	}
+
+	if (LocalPlayer && LocalPlayer->IsDead)
+	{
+		ResetCurrentInput();
+	}
 
 	C2S_InputState inputPacket;
 

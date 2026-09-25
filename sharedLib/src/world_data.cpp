@@ -52,6 +52,8 @@ bool RectangleColliderObject::IntersectPath(Vector2& currentPosition, Vector2 in
     if (hit)
     {
         currentPosition = Bounds.Center + Vector2Rotate(rotatedDelta, Rotation * DEG2RAD);
+        intersectionPoint = Bounds.Center + Vector2Rotate(intersectionPoint, Rotation * DEG2RAD);
+        hitNormal = Vector2Rotate(hitNormal, Rotation * DEG2RAD);
     }
 
     return hit;

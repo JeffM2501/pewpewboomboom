@@ -1,6 +1,8 @@
 #include "robot_ai.h"
 #include "network_manager.h"
 #include "player_state.h"
+#include "bullet_manager.h"
+#include <cmath>
 
 Vector2 CollidePlayerWithMap(const Vector2& oldPos, const Vector2& desiredPos, ServerPlayerList::ServerPlayer& player);
 
@@ -50,6 +52,15 @@ namespace RobotAI
 
         robot.LastAckedInputTick = tick;
         robot.TransformHistory[tick] = robot.Transform;
+
+        if (robot.WeaponCooldown <= 0.0f && !robot.IsDead && GetRandomValue(0, 45) == 0)
+        {
+            float rad = aiInfo->Input.TurretAngle * DEG2RAD;
+            Vector2 forwardDir = { cosf(rad), sinf(rad) };
+            Vector2 muzzlePos = Vector2Add(robot.Transform.Position, Vector2Scale(forwardDir, robot.CollisionRadius + 0.5f));
+            BulletManager::SpawnBullet(robot.PlayerID, muzzlePos, aiInfo->Input.TurretAngle);
+            robot.WeaponCooldown = 1.0f;
+        }
     }
 
     void SetupRobots()

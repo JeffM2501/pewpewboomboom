@@ -34,6 +34,14 @@ struct PlayerState
 
 	PlayerTransform Transform;
 
+    uint8_t Health = 100;
+    uint8_t MaxHealth = 100;
+    bool IsDead = false;
+    float WeaponCooldown = 0.0f;
+    float RespawnTimer = 0.0f;
+    uint16_t Kills = 0;
+    uint16_t Deaths = 0;
+
 	// Transform history.....
     std::map<uint64_t, PlayerTransform> TransformHistory;
 };

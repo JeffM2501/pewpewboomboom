@@ -27,6 +27,8 @@ ClientNetworkManager::ClientNetworkManager()
 	RegisterProcessor<S2C_SetWorldObject>(PacketType::S2C_SetWorldObject, ProcessS2C_SetWorldObject);
     RegisterProcessor<S2C_BeginStateSnapshot>(PacketType::S2C_BeginStateSnapshot, ProcessS2C_BeginStateSnapshot);
     RegisterProcessor<S2C_PlayerSnapshot>(PacketType::S2C_PlayerSnapshot, ProcessS2C_PlayerSnapshot);
+    RegisterProcessor<S2C_BulletSnapshot>(PacketType::S2C_BulletSnapshot, ProcessS2C_BulletSnapshot);
+    RegisterProcessor<S2C_BulletDestroyed>(PacketType::S2C_BulletDestroyed, ProcessS2C_BulletDestroyed);
 }
 
 ClientNetworkManager::~ClientNetworkManager()
@@ -341,6 +343,9 @@ void ClientNetworkManager::ProcessS2C_PlayerSnapshot(PacketProcessor& processor,
         newTransform.Rotation[1] = snapshot->rotation[1];
         newTransform.Velocity = DataUtils::UnpackVector2(snapshot->velocity);
 
+        player->Health = snapshot->health;
+        player->IsDead = (snapshot->isDead != 0);
+
         if (snapshot->serverTick > self.LastReceivedServerTick)
         {
             self.LastReceivedServerTick = snapshot->serverTick;
@@ -349,3 +354,102 @@ void ClientNetworkManager::ProcessS2C_PlayerSnapshot(PacketProcessor& processor,
         player->AddServerStateUpdate(snapshot->serverTick, newTransform);
     }
 }
+
+void ClientNetworkManager::ProcessS2C_BulletSnapshot(PacketProcessor& processor, ENetPeer* sender, const S2C_BulletSnapshot* snapshot)
+{
+    ClientNetworkManager& self = static_cast<ClientNetworkManager&>(processor);
+    const auto& bState = snapshot->state;
+
+    if (self.RecentlyDestroyedBullets.find(bState.bulletId) != self.RecentlyDestroyedBullets.end())
+    {
+        return;
+    }
+
+    Vector2 serverPos = DataUtils::UnpackVector2(bState.position);
+    Vector2 serverVel = DataUtils::UnpackVector2(bState.velocity);
+
+    uint64_t currentTick = self.GetCurrentServerTick();
+    if (currentTick == 0)
+    {
+        currentTick = snapshot->serverTick;
+    }
+
+    float ticksElapsed = (currentTick > snapshot->serverTick) ? float(currentTick - snapshot->serverTick) : 0.0f;
+    if (ticksElapsed > 10.0f)
+    {
+        ticksElapsed = 10.0f;
+    }
+    float timeElapsed = ticksElapsed / float(kDefaultTickRate);
+
+    Vector2 predictedPos = Vector2Add(serverPos, Vector2Scale(serverVel, timeElapsed));
+
+    auto it = self.Bullets.find(bState.bulletId);
+    if (it == self.Bullets.end())
+    {
+        auto& b = self.Bullets[bState.bulletId];
+        b.ID = bState.bulletId;
+        b.OwnerID = bState.ownerId;
+        b.BulletType = bState.bulletType;
+        b.Position = predictedPos;
+        b.Velocity = serverVel;
+        b.LastUpdatedTime = static_cast<float>(GetTime());
+    }
+    else
+    {
+        auto& b = it->second;
+        b.Velocity = serverVel;
+        b.LastUpdatedTime = static_cast<float>(GetTime());
+
+        Vector2 diff = Vector2Subtract(predictedPos, b.Position);
+        float err = Vector2Length(diff);
+
+        if (err > 4.0f)
+        {
+            b.Position = predictedPos;
+        }
+        else if (err > 0.05f)
+        {
+            b.Position = Vector2Add(b.Position, Vector2Scale(diff, 0.2f));
+        }
+    }
+}
+
+void ClientNetworkManager::ProcessS2C_BulletDestroyed(PacketProcessor& processor, ENetPeer* sender, const S2C_BulletDestroyed* packet)
+{
+    ClientNetworkManager& self = static_cast<ClientNetworkManager&>(processor);
+    self.Bullets.erase(packet->bulletId);
+    self.RecentlyDestroyedBullets[packet->bulletId] = static_cast<float>(GetTime());
+    self.ConnectionEvents.OnBulletDestroyed.Invoke(*packet);
+}
+
+void ClientNetworkManager::UpdateBullets(float deltaTime)
+{
+    float dt = fminf(deltaTime, 0.1f);
+    float now = static_cast<float>(GetTime());
+    for (auto it = Bullets.begin(); it != Bullets.end(); )
+    {
+        if (now - it->second.LastUpdatedTime > 0.5f)
+        {
+            it = Bullets.erase(it);
+        }
+        else
+        {
+            it->second.Position.x += it->second.Velocity.x * dt;
+            it->second.Position.y += it->second.Velocity.y * dt;
+            ++it;
+        }
+    }
+
+    for (auto it = RecentlyDestroyedBullets.begin(); it != RecentlyDestroyedBullets.end(); )
+    {
+        if (now - it->second > 2.0f)
+        {
+            it = RecentlyDestroyedBullets.erase(it);
+        }
+        else
+        {
+            ++it;
+        }
+    }
+}
+

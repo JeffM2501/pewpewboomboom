@@ -130,3 +130,19 @@ void ServerWorld::DoForEachObject(BoundingCircle& area, std::function<void(World
 		func(Walls);
 	}
 }
+
+void ServerWorld::DoForEachServerObject(BoundingCircle& area, std::function<void(ServerWorldObject& object)> func)
+{
+	for (auto& object : Objects)
+	{
+		if (CheckCollisionCircles(area.Center, area.Radius, object->GetBoundingCircle().Center, object->GetBoundingCircle().Radius))
+		{
+			func(*object.get());
+		}
+	}
+
+	if (Walls.GetCollider().Intersects(area))
+	{
+		func(Walls);
+	}
+}

@@ -8,6 +8,8 @@
 #include "data_utils.h"
 #include "raylib.h"
 #include "world_data.h"
+#include "bullet_manager.h"
+#include <cmath>
 
 extern Logger ServerLogger;
 // extern uint64_t ServerStartTimeMs;
@@ -128,6 +130,16 @@ namespace PacketHandlers
 
         player.TransformHistory[input->clientTick] = player.Transform;
         player.LastAckedInputTick = input->clientTick;
+
+        if (newInput.Shoot && player.WeaponCooldown <= 0.0f && !player.IsDead)
+        {
+            float rad = newInput.TurretAngle * DEG2RAD;
+            Vector2 forwardDir = { cosf(rad), sinf(rad) };
+            Vector2 muzzlePos = Vector2Add(player.Transform.Position, Vector2Scale(forwardDir, player.CollisionRadius + 0.5f));
+
+            BulletManager::SpawnBullet(player.PlayerID, muzzlePos, newInput.TurretAngle);
+            player.WeaponCooldown = 0.35f;
+        }
     }
 
     void RegisterAll(PacketProcessor& processor)
