@@ -14,11 +14,25 @@
 class ClientWorldObject : public WorldObject
 {
 public:
+    uint64_t ID = 0;
+    S2C_SetWorldObject::ObjectType ObjectType = S2C_SetWorldObject::ObjectType::Building;
     Color Tint = WHITE;
 
     ClientWorldObject(const S2C_SetWorldObject& message)
     {
+        ID = message.id;
+        ObjectType = message.objType;
         Tint = Color{ message.color[0], message.color[1], message.color[2], message.color[3] };
+    }
+
+    uint64_t GetID() const
+    {
+        return ID;
+    }
+
+    S2C_SetWorldObject::ObjectType GetObjectType() const
+    {
+        return ObjectType;
     }
 
     virtual const BoundingCircle& GetBoundingCircle() const = 0;
@@ -26,7 +40,10 @@ public:
     virtual const WorldObjectCollider& GetCollider() const = 0;
 
     virtual void Draw() = 0;
-    virtual void DrawMiniMap() { Draw(); }
+    virtual void DrawMiniMap()
+    {
+        Draw();
+    }
 };
 
 class ClientWorldWalls : public ClientWorldObject

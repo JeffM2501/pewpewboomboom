@@ -212,3 +212,231 @@ bool ResolveCircleCircleCollision(Vector2& posA, float radiusA, Vector2& posB, f
 
     return true;
 }
+
+bool IntersectRayCircle(Vector2 rayOrigin, Vector2 rayDir, Vector2 circleCenter, float circleRadius, float& outDist, Vector2& outHitPoint)
+{
+	Vector2 v = Vector2Subtract(circleCenter, rayOrigin);
+	float tProj = Vector2DotProduct(v, rayDir);
+	float vLenSq = Vector2LengthSqr(v);
+	float rSq = circleRadius * circleRadius;
+
+	if (vLenSq <= rSq)
+	{
+		outDist = 0.0f;
+		outHitPoint = rayOrigin;
+		return true;
+	}
+
+	if (tProj < 0.0f)
+	{
+		return false;
+	}
+
+	float dPerpSq = vLenSq - (tProj * tProj);
+	if (dPerpSq > rSq)
+	{
+		return false;
+	}
+
+	float tHalf = sqrtf(rSq - dPerpSq);
+	outDist = tProj - tHalf;
+	outHitPoint = Vector2Add(rayOrigin, Vector2Scale(rayDir, outDist));
+	return true;
+}
+
+bool IntersectRayOBB(Vector2 rayOrigin, Vector2 rayDir, Vector2 boxCenter, Vector2 boxHalfSize, float rotationDeg, float& outDist, Vector2& outHitPoint)
+{
+	Vector2 relOrigin = Vector2Subtract(rayOrigin, boxCenter);
+	Vector2 localOrigin = Vector2Rotate(relOrigin, -rotationDeg * DEG2RAD);
+	Vector2 localDir = Vector2Rotate(rayDir, -rotationDeg * DEG2RAD);
+
+	float tMin = -1e30f;
+	float tMax = 1e30f;
+
+	if (fabsf(localDir.x) < 1e-6f)
+	{
+		if (fabsf(localOrigin.x) > boxHalfSize.x)
+		{
+			return false;
+		}
+	}
+	else
+	{
+		float invD = 1.0f / localDir.x;
+		float t1 = (-boxHalfSize.x - localOrigin.x) * invD;
+		float t2 = (boxHalfSize.x - localOrigin.x) * invD;
+		if (t1 > t2)
+		{
+			float tmp = t1;
+			t1 = t2;
+			t2 = tmp;
+		}
+		if (t1 > tMin)
+		{
+			tMin = t1;
+		}
+		if (t2 < tMax)
+		{
+			tMax = t2;
+		}
+		if (tMin > tMax)
+		{
+			return false;
+		}
+	}
+
+	if (fabsf(localDir.y) < 1e-6f)
+	{
+		if (fabsf(localOrigin.y) > boxHalfSize.y)
+		{
+			return false;
+		}
+	}
+	else
+	{
+		float invD = 1.0f / localDir.y;
+		float t1 = (-boxHalfSize.y - localOrigin.y) * invD;
+		float t2 = (boxHalfSize.y - localOrigin.y) * invD;
+		if (t1 > t2)
+		{
+			float tmp = t1;
+			t1 = t2;
+			t2 = tmp;
+		}
+		if (t1 > tMin)
+		{
+			tMin = t1;
+		}
+		if (t2 < tMax)
+		{
+			tMax = t2;
+		}
+		if (tMin > tMax)
+		{
+			return false;
+		}
+	}
+
+	if (tMax < 0.0f)
+	{
+		return false;
+	}
+
+	outDist = (tMin >= 0.0f) ? tMin : 0.0f;
+	Vector2 localHit = Vector2Add(localOrigin, Vector2Scale(localDir, outDist));
+	outHitPoint = Vector2Add(boxCenter, Vector2Rotate(localHit, rotationDeg * DEG2RAD));
+	return true;
+}
+
+bool IntersectRayAABB(Vector2 rayOrigin, Vector2 rayDir, Vector2 boxMin, Vector2 boxMax, float& outDist, Vector2& outHitPoint)
+{
+	float tMin = -1e30f;
+	float tMax = 1e30f;
+
+	if (fabsf(rayDir.x) < 1e-6f)
+	{
+		if (rayOrigin.x < boxMin.x || rayOrigin.x > boxMax.x)
+		{
+			return false;
+		}
+	}
+	else
+	{
+		float invD = 1.0f / rayDir.x;
+		float t1 = (boxMin.x - rayOrigin.x) * invD;
+		float t2 = (boxMax.x - rayOrigin.x) * invD;
+		if (t1 > t2)
+		{
+			float tmp = t1;
+			t1 = t2;
+			t2 = tmp;
+		}
+		if (t1 > tMin)
+		{
+			tMin = t1;
+		}
+		if (t2 < tMax)
+		{
+			tMax = t2;
+		}
+		if (tMin > tMax)
+		{
+			return false;
+		}
+	}
+
+	if (fabsf(rayDir.y) < 1e-6f)
+	{
+		if (rayOrigin.y < boxMin.y || rayOrigin.y > boxMax.y)
+		{
+			return false;
+		}
+	}
+	else
+	{
+		float invD = 1.0f / rayDir.y;
+		float t1 = (boxMin.y - rayOrigin.y) * invD;
+		float t2 = (boxMax.y - rayOrigin.y) * invD;
+		if (t1 > t2)
+		{
+			float tmp = t1;
+			t1 = t2;
+			t2 = tmp;
+		}
+		if (t1 > tMin)
+		{
+			tMin = t1;
+		}
+		if (t2 < tMax)
+		{
+			tMax = t2;
+		}
+		if (tMin > tMax)
+		{
+			return false;
+		}
+	}
+
+	if (tMax < 0.0f)
+	{
+		return false;
+	}
+
+	outDist = (tMin >= 0.0f) ? tMin : 0.0f;
+	outHitPoint = Vector2Add(rayOrigin, Vector2Scale(rayDir, outDist));
+	return true;
+}
+
+bool IntersectRayBoxExit(Vector2 rayOrigin, Vector2 rayDir, Vector2 boxMin, Vector2 boxMax, float& outDist, Vector2& outHitPoint)
+{
+	float tMax = 1e30f;
+	if (fabsf(rayDir.x) > 1e-6f)
+	{
+		float invD = 1.0f / rayDir.x;
+		float t1 = (boxMin.x - rayOrigin.x) * invD;
+		float t2 = (boxMax.x - rayOrigin.x) * invD;
+		float tFar = fmaxf(t1, t2);
+		if (tFar < tMax)
+		{
+			tMax = tFar;
+		}
+	}
+	if (fabsf(rayDir.y) > 1e-6f)
+	{
+		float invD = 1.0f / rayDir.y;
+		float t1 = (boxMin.y - rayOrigin.y) * invD;
+		float t2 = (boxMax.y - rayOrigin.y) * invD;
+		float tFar = fmaxf(t1, t2);
+		if (tFar < tMax)
+		{
+			tMax = tFar;
+		}
+	}
+	if (tMax > 0.0f && tMax < 1e29f)
+	{
+		outDist = tMax;
+		outHitPoint = Vector2Add(rayOrigin, Vector2Scale(rayDir, outDist));
+		return true;
+	}
+	return false;
+}

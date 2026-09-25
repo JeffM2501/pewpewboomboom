@@ -25,7 +25,9 @@ enum class PacketType : uint8_t
 	S2C_PlayerSnapshot = 14,
 	S2C_ChatMessage = 15,
 	S2C_BulletSnapshot = 16,
-	S2C_BulletDestroyed = 17
+	S2C_BulletDestroyed = 17,
+	C2S_HitscanShot = 18,
+	S2C_HitscanEffect = 19
 };
 
 #pragma pack(push, 1)
@@ -189,6 +191,7 @@ struct C2S_InputState
 	float aimDirection = 0.0f;
 
 	bool shoot = false;
+	bool shootMachineGun = false;
 	bool boost = false;
 };
 
@@ -261,5 +264,25 @@ struct S2C_BulletDestroyed
     uint64_t serverTick = 0;
     uint16_t bulletId = 0;
     float position[2] = { 0.0f, 0.0f };
+};
+
+struct C2S_HitscanShot
+{
+    uint8_t type = static_cast<uint8_t>(PacketType::C2S_HitscanShot);
+    uint64_t clientTick = 0;
+    uint64_t targetPlayerId = 0;
+    uint64_t hitBuildingId = 0;
+    float hitPoint[2] = { 0.0f, 0.0f };
+    float muzzlePos[2] = { 0.0f, 0.0f };
+};
+
+struct S2C_HitscanEffect
+{
+    uint8_t type = static_cast<uint8_t>(PacketType::S2C_HitscanEffect);
+    uint64_t shooterId = 0;
+    uint64_t targetPlayerId = 0;
+    uint64_t hitBuildingId = 0;
+    float startPoint[2] = { 0.0f, 0.0f };
+    float endPoint[2] = { 0.0f, 0.0f };
 };
 #pragma pack(pop)

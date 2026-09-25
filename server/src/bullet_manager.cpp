@@ -7,10 +7,22 @@
 namespace BulletManager
 {
     EventSource<BulletBuildingCollisionEvent> OnBulletHitBuilding;
+    EventSource<MachineGunHitBuildingEvent> OnMachineGunHitBuilding;
+    EventSource<MachineGunHitTankEvent> OnMachineGunHitTank;
 
     EventSource<BulletBuildingCollisionEvent>& GetOnBulletHitBuilding()
     {
         return OnBulletHitBuilding;
+    }
+
+    EventSource<MachineGunHitBuildingEvent>& GetOnMachineGunHitBuilding()
+    {
+        return OnMachineGunHitBuilding;
+    }
+
+    EventSource<MachineGunHitTankEvent>& GetOnMachineGunHitTank()
+    {
+        return OnMachineGunHitTank;
     }
 
     bool CheckBulletBuildingCollision(Vector2 startPos, Vector2 endPos, float radius, Vector2 buildingPos, Vector2 buildingSize, float rotationDeg, Vector2& outHitPoint, Vector2& outHitNormal)
@@ -320,8 +332,9 @@ namespace BulletManager
                     hitPlayer = true;
                     DestroyBullet(bullet, nextPos);
 
-                    if (player.Health <= uint8_t(bullet.Damage))
+                    if (player.FractionalHealth <= bullet.Damage)
                     {
+                        player.FractionalHealth = 0.0f;
                         player.Health = 0;
                         player.IsDead = true;
                         player.RespawnTimer = 5.0f;
@@ -335,7 +348,8 @@ namespace BulletManager
                     }
                     else
                     {
-                        player.Health -= uint8_t(bullet.Damage);
+                        player.FractionalHealth -= bullet.Damage;
+                        player.Health = static_cast<uint8_t>(std::ceil(player.FractionalHealth));
                     }
                 }
             }, true);

@@ -70,6 +70,8 @@ namespace RobotAI
         robot.Name = "Theta (Robot)";
         robot.Team = -1;
         robot.CollisionRadius = 3.0f;
+        robot.Health = 100;
+        robot.FractionalHealth = 100.0f;
         robot.Transform.Position = Vector2{ 20, 20 };
 
         robot.ExtensionData.insert_or_assign(AIStateInfoID, std::make_unique<AIStateInfo>());

@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <cstddef>
 #include "event_source.h"
+#include "player_state.h"
 
 #include <vector>
 
@@ -61,6 +62,8 @@ namespace BulletManager
     static constexpr size_t kMaxBullets = 256;
 
     extern EventSource<BulletBuildingCollisionEvent> OnBulletHitBuilding;
+    extern EventSource<MachineGunHitBuildingEvent> OnMachineGunHitBuilding;
+    extern EventSource<MachineGunHitTankEvent> OnMachineGunHitTank;
 
     void Init();
     ServerBullet* SpawnBullet(uint64_t ownerId, Vector2 muzzlePos, float angleDeg, float speed = 50.0f, float damage = 25.0f, uint8_t type = 0);
@@ -73,6 +76,8 @@ namespace BulletManager
     void Clear();
 
     EventSource<BulletBuildingCollisionEvent>& GetOnBulletHitBuilding();
+    EventSource<MachineGunHitBuildingEvent>& GetOnMachineGunHitBuilding();
+    EventSource<MachineGunHitTankEvent>& GetOnMachineGunHitTank();
     bool CheckBulletBuildingCollision(Vector2 startPos, Vector2 endPos, float radius, Vector2 buildingPos, Vector2 buildingSize, float rotationDeg, Vector2& outHitPoint, Vector2& outHitNormal);
 }
 

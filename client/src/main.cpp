@@ -67,10 +67,171 @@ void LoadStaticTextures()
 
 float CurrentZoom = 16.0f;
 
+struct HitscanVisualLine
+{
+	Vector2 Start = { 0.0f, 0.0f };
+	Vector2 End = { 0.0f, 0.0f };
+	float RemainingTime = kMachineGunTracerDuration;
+	float TotalDuration = kMachineGunTracerDuration;
+};
+
+static std::vector<HitscanVisualLine> ActiveHitscanLines;
+
+void AddHitscanVisualLine(Vector2 start, Vector2 end)
+{
+	HitscanVisualLine line;
+	line.Start = start;
+	line.End = end;
+	line.RemainingTime = kMachineGunTracerDuration;
+	line.TotalDuration = kMachineGunTracerDuration;
+	ActiveHitscanLines.push_back(line);
+}
+
+struct HitscanResult
+{
+	bool Hit = false;
+	bool HitPlayer = false;
+	uint64_t HitPlayerId = 0;
+	bool HitBuilding = false;
+	uint64_t HitBuildingId = 0;
+	Vector2 HitPoint = { 0.0f, 0.0f };
+	float Distance = 0.0f;
+	uint64_t RollbackTick = 0;
+};
+
+HitscanResult PerformClientHitscan(Vector2 startPos, float angleDeg, uint64_t clientTick, float maxRange = 2000.0f)
+{
+	HitscanResult result;
+	result.Distance = maxRange;
+	float rad = angleDeg * DEG2RAD;
+	Vector2 dir = { cosf(rad), sinf(rad) };
+	result.HitPoint = Vector2Add(startPos, Vector2Scale(dir, maxRange));
+
+	float closestDist = maxRange;
+	Vector2 closestHitPoint = result.HitPoint;
+	bool hitSomething = false;
+	bool hitBuilding = false;
+	uint64_t hitBuildingId = 0;
+	bool hitPlayer = false;
+	uint64_t hitPlayerId = 0;
+
+	// 1. Raycast against outer walls
+	if (World.Walls)
+	{
+		float wallDist = 0.0f;
+		Vector2 wallHit;
+		if (World.Walls->GetCollider().IntersectRay(startPos, dir, wallDist, wallHit))
+		{
+			if (wallDist > 0.001f && wallDist < closestDist)
+			{
+				closestDist = wallDist;
+				closestHitPoint = wallHit;
+				hitSomething = true;
+				hitBuilding = false;
+				hitBuildingId = 0;
+				hitPlayer = false;
+				hitPlayerId = 0;
+			}
+		}
+	}
+
+	// 2. Raycast against world objects
+	for (const auto& obj : World.Objects)
+	{
+		const auto& bounds = obj->GetBoundingCircle();
+		float boundsDist = 0.0f;
+		Vector2 boundsHit;
+		if (!IntersectRayCircle(startPos, dir, bounds.Center, bounds.Radius, boundsDist, boundsHit) || boundsDist > closestDist)
+		{
+			continue;
+		}
+
+		float objDist = 0.0f;
+		Vector2 objHit;
+		if (obj->GetCollider().IntersectRay(startPos, dir, objDist, objHit))
+		{
+			if (objDist > 0.001f && objDist < closestDist)
+			{
+				closestDist = objDist;
+				closestHitPoint = objHit;
+				hitSomething = true;
+				bool isBuilding = (obj->GetObjectType() == S2C_SetWorldObject::ObjectType::Building);
+				hitBuilding = isBuilding;
+				hitBuildingId = isBuilding ? obj->GetID() : 0;
+				hitPlayer = false;
+				hitPlayerId = 0;
+			}
+		}
+	}
+
+	// 3. Raycast against remote players using rollback on the client
+	uint64_t rollbackTick = (clientTick >= RemotePlayerHistoryOffset) ? (clientTick - RemotePlayerHistoryOffset) : clientTick;
+	if (rollbackTick == 0)
+	{
+		rollbackTick = clientTick;
+	}
+	result.RollbackTick = rollbackTick;
+
+	std::vector<std::pair<ClientPlayerState*, PlayerTransform>> savedTransforms;
+	Network.GetPlayerList().DoForEachPlayer([&](ClientPlayerState* other)
+	{
+		if (!other->IsLocalPlayer && !other->IsDead)
+		{
+			savedTransforms.push_back({ other, other->Transform });
+			other->Transform = other->GetTransformAtTick(rollbackTick);
+		}
+	});
+
+	for (auto& [other, origTransform] : savedTransforms)
+	{
+		float playerDist = 0.0f;
+		Vector2 playerHit;
+		bool hit = IntersectRayCircle(startPos, dir, other->Transform.Position, other->CollisionRadius, playerDist, playerHit);
+		float visDist = 0.0f;
+		Vector2 visHit;
+		if (IntersectRayCircle(startPos, dir, origTransform.Position, other->CollisionRadius, visDist, visHit))
+		{
+			if (!hit || visDist < playerDist)
+			{
+				hit = true;
+				playerDist = visDist;
+				playerHit = visHit;
+			}
+		}
+
+		if (hit && playerDist > 0.001f && playerDist < closestDist)
+		{
+			closestDist = playerDist;
+			closestHitPoint = playerHit;
+			hitSomething = true;
+			hitPlayer = true;
+			hitPlayerId = other->PlayerID;
+			hitBuilding = false;
+			hitBuildingId = 0;
+		}
+	}
+
+	for (auto& [other, origTransform] : savedTransforms)
+	{
+		other->Transform = origTransform;
+	}
+
+	result.Hit = hitSomething;
+	result.HitPlayer = hitPlayer;
+	result.HitPlayerId = hitPlayerId;
+	result.HitBuilding = hitBuilding;
+	result.HitBuildingId = hitBuildingId;
+	result.HitPoint = closestHitPoint;
+	result.Distance = closestDist;
+
+	return result;
+}
+
 void ResetCurrentInput()
 {
     CurrentInputState.Boost = false;
     CurrentInputState.Shoot = false;
+    CurrentInputState.ShootMachineGun = false;
     CurrentInputState.Foward = 0;
     CurrentInputState.Turn = 0;
 }
@@ -105,6 +266,11 @@ void PollInputActions()
 	{
 		CurrentInputState.Shoot = true;
 	}	
+
+	if (IsMouseButtonDown(MOUSE_RIGHT_BUTTON) || IsMouseButtonPressed(MOUSE_RIGHT_BUTTON))
+	{
+		CurrentInputState.ShootMachineGun = true;
+	}
 
 	if (IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT))
 	{
@@ -195,6 +361,12 @@ void GameInit()
         });
 
 	Network.GetEvents().OnSpawn.Add([](const Vector2& spawn, void*) { ProcessPlayerSpawn(spawn); });
+	Network.GetEvents().OnHitscanEffect.Add([](const S2C_HitscanEffect& effect, void*)
+		{
+			Vector2 start = DataUtils::UnpackVector2(effect.startPoint);
+			Vector2 end = DataUtils::UnpackVector2(effect.endPoint);
+			AddHitscanVisualLine(start, end);
+		});
 	Network.GetEvents().OnChatMessage.Add([](const std::pair<uint64_t, std::string>& message, void*)
 		{
 			ChatWindow::AddChatLine(Network.GetPlayerList().GetPlayer(message.first), message.second);
@@ -257,6 +429,20 @@ bool GameUpdate()
         });
 
     Network.UpdateBullets(GetFrameTime());
+
+    float frameDt = GetFrameTime();
+    for (auto it = ActiveHitscanLines.begin(); it != ActiveHitscanLines.end();)
+    {
+        it->RemainingTime -= frameDt;
+        if (it->RemainingTime <= 0.0f)
+        {
+            it = ActiveHitscanLines.erase(it);
+        }
+        else
+        {
+            ++it;
+        }
+    }
 
 	return true;
 }
@@ -326,6 +512,13 @@ void GameDraw()
     {
         DrawCircleV(bullet.Position, 0.5f, YELLOW);
         DrawCircleV(bullet.Position, 0.25f, WHITE);
+    }
+
+    for (const auto& line : ActiveHitscanLines)
+    {
+        float alpha = Clamp(line.RemainingTime / line.TotalDuration, 0.0f, 1.0f);
+        DrawLineEx(line.Start, line.End, 0.35f, ColorAlpha(YELLOW, alpha));
+        DrawLineEx(line.Start, line.End, 0.15f, ColorAlpha(WHITE, alpha));
     }
 
 	EndMode2D();
@@ -424,19 +617,81 @@ void ProcessNetTick(const uint64_t& tick, void*)
 		ResetCurrentInput();
 	}
 
+	if (LocalPlayer)
+	{
+		if (LocalPlayer->MachineGunCooldown > 0.0f)
+		{
+			LocalPlayer->MachineGunCooldown -= (1.0f / kDefaultTickRate);
+			if (LocalPlayer->MachineGunCooldown < 0.0f)
+			{
+				LocalPlayer->MachineGunCooldown = 0.0f;
+			}
+		}
+
+		if (CurrentInputState.ShootMachineGun && LocalPlayer->MachineGunCooldown <= 0.0f && !LocalPlayer->IsDead)
+		{
+			LocalPlayer->MachineGunCooldown = kMachineGunCooldown;
+
+			float rad = CurrentInputState.TurretAngle * DEG2RAD;
+			Vector2 forwardDir = { cosf(rad), sinf(rad) };
+			Vector2 muzzlePos = Vector2Add(LocalPlayer->Transform.Position, Vector2Scale(forwardDir, LocalPlayer->CollisionRadius + 0.5f));
+
+			HitscanResult result = PerformClientHitscan(muzzlePos, CurrentInputState.TurretAngle, tick);
+
+			AddHitscanVisualLine(muzzlePos, result.HitPoint);
+
+			C2S_HitscanShot shotPacket;
+			shotPacket.clientTick = tick;
+			shotPacket.targetPlayerId = result.HitPlayer ? result.HitPlayerId : 0;
+			shotPacket.hitBuildingId = result.HitBuilding ? result.HitBuildingId : 0;
+			shotPacket.muzzlePos[0] = muzzlePos.x;
+			shotPacket.muzzlePos[1] = muzzlePos.y;
+			shotPacket.hitPoint[0] = result.HitPoint.x;
+			shotPacket.hitPoint[1] = result.HitPoint.y;
+
+			Network.SendPacket(nullptr, 1, shotPacket, false);
+
+			if (result.HitBuilding)
+			{
+				MachineGunHitBuildingEvent buildingEvent;
+				buildingEvent.ShooterID = LocalPlayer->PlayerID;
+				buildingEvent.BuildingID = result.HitBuildingId;
+				buildingEvent.HitPoint = result.HitPoint;
+				buildingEvent.Distance = result.Distance;
+				Network.GetEvents().OnMachineGunHitBuilding.Invoke(buildingEvent, &Network);
+			}
+
+			if (result.HitPlayer)
+			{
+				MachineGunHitTankEvent tankEvent;
+				tankEvent.ShooterID = LocalPlayer->PlayerID;
+				tankEvent.TargetPlayerID = result.HitPlayerId;
+				tankEvent.HitPoint = result.HitPoint;
+				tankEvent.Damage = kMachineGunDamage;
+				tankEvent.Distance = result.Distance;
+				Network.GetEvents().OnMachineGunHitTank.Invoke(tankEvent, &Network);
+
+				auto* hitTarget = Network.GetPlayerList().GetPlayer(result.HitPlayerId);
+				const char* targetName = (hitTarget && hitTarget->Name.Size() > 0) ? hitTarget->Name.Data() : "target";
+				ChatWindow::AddSystemChatLine(TextFormat("[Machine Gun] Hit %s!", targetName));
+			}
+		}
+	}
+
 	C2S_InputState inputPacket;
 
 	inputPacket.shoot = CurrentInputState.Shoot;
-    inputPacket.boost = CurrentInputState.Boost;
+	inputPacket.shootMachineGun = CurrentInputState.ShootMachineGun;
+	inputPacket.boost = CurrentInputState.Boost;
 
-    inputPacket.forward = CurrentInputState.Foward;
-    inputPacket.turn = CurrentInputState.Turn;
+	inputPacket.forward = CurrentInputState.Foward;
+	inputPacket.turn = CurrentInputState.Turn;
 
-    inputPacket.aimDirection = CurrentInputState.TurretAngle;
+	inputPacket.aimDirection = CurrentInputState.TurretAngle;
 
-    inputPacket.clientTick = tick;
+	inputPacket.clientTick = tick;
 
-    Network.SendPacket(nullptr, 1, inputPacket, false);
+	Network.SendPacket(nullptr, 1, inputPacket, false);
 
 	// push the input to history for reconcile
 	LocalPlayer->InputHistory[tick] = CurrentInputState;

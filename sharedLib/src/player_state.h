@@ -38,6 +38,8 @@ struct PlayerState
     uint8_t MaxHealth = 100;
     bool IsDead = false;
     float WeaponCooldown = 0.0f;
+    float MachineGunCooldown = 0.0f;
+    float FractionalHealth = 100.0f;
     float RespawnTimer = 0.0f;
     uint16_t Kills = 0;
     uint16_t Deaths = 0;
@@ -52,8 +54,25 @@ struct InputState
     float Turn = 0.0f;
     bool Boost = false;
     bool Shoot = false;
+    bool ShootMachineGun = false;
     float TurretAngle = 0.0f;
 };
 
 Vector2 UpdatePlayerTransform(PlayerTransform& transform, const InputState& input, float deltaTime, PlayerMovementRules& rules);
 
+struct MachineGunHitBuildingEvent
+{
+	uint64_t ShooterID = 0;
+	uint64_t BuildingID = 0;
+	Vector2 HitPoint = { 0.0f, 0.0f };
+	float Distance = 0.0f;
+};
+
+struct MachineGunHitTankEvent
+{
+	uint64_t ShooterID = 0;
+	uint64_t TargetPlayerID = 0;
+	Vector2 HitPoint = { 0.0f, 0.0f };
+	float Damage = 0.0f;
+	float Distance = 0.0f;
+};

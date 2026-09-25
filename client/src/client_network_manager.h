@@ -49,6 +49,9 @@ public:
 		EventSource<uint64_t> OnTick;
 		EventSource<std::pair<uint64_t, std::string>> OnChatMessage;
 		EventSource<S2C_BulletDestroyed> OnBulletDestroyed;
+		EventSource<S2C_HitscanEffect> OnHitscanEffect;
+		EventSource<MachineGunHitBuildingEvent> OnMachineGunHitBuilding;
+		EventSource<MachineGunHitTankEvent> OnMachineGunHitTank;
 	};
 
 	ClientNetworkManager();
@@ -121,6 +124,7 @@ private:
     static void ProcessS2C_PlayerSnapshot(PacketProcessor& processor, ENetPeer* sender, const S2C_PlayerSnapshot* snapshot);
     static void ProcessS2C_BulletSnapshot(PacketProcessor& processor, ENetPeer* sender, const S2C_BulletSnapshot* snapshot);
     static void ProcessS2C_BulletDestroyed(PacketProcessor& processor, ENetPeer* sender, const S2C_BulletDestroyed* packet);
+    static void ProcessS2C_HitscanEffect(PacketProcessor& processor, ENetPeer* sender, const S2C_HitscanEffect* packet);
 };
 
 extern ClientNetworkManager Network;

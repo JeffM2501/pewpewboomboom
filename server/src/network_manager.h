@@ -35,6 +35,9 @@ public:
 
     EventSource<uint64_t> PlayerJoined;
 
+    EventSource<MachineGunHitBuildingEvent> OnMachineGunHitBuilding;
+    EventSource<MachineGunHitTankEvent> OnMachineGunHitTank;
+
     void RemovePlayer(ENetPeer* peer, bool isDisconnect);
 
     template<class T>

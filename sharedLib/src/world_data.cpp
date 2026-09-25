@@ -125,3 +125,20 @@ bool WallColliderObject::IntersectPath(Vector2& currentPosition, Vector2 initalP
 
     return hit;
 }
+
+bool RectangleColliderObject::IntersectRay(Vector2 rayOrigin, Vector2 rayDir, float& outDist, Vector2& outHitPoint) const
+{
+	return IntersectRayOBB(rayOrigin, rayDir, Bounds.Center, Size, Rotation, outDist, outHitPoint);
+}
+
+bool CircleColliderObject::IntersectRay(Vector2 rayOrigin, Vector2 rayDir, float& outDist, Vector2& outHitPoint) const
+{
+	return IntersectRayCircle(rayOrigin, rayDir, Bounds.Center, Bounds.Radius, outDist, outHitPoint);
+}
+
+bool WallColliderObject::IntersectRay(Vector2 rayOrigin, Vector2 rayDir, float& outDist, Vector2& outHitPoint) const
+{
+	Vector2 boxMin = { -Size.x, -Size.y };
+	Vector2 boxMax = { Size.x, Size.y };
+	return IntersectRayBoxExit(rayOrigin, rayDir, boxMin, boxMax, outDist, outHitPoint);
+}

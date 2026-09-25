@@ -29,6 +29,7 @@ ClientNetworkManager::ClientNetworkManager()
     RegisterProcessor<S2C_PlayerSnapshot>(PacketType::S2C_PlayerSnapshot, ProcessS2C_PlayerSnapshot);
     RegisterProcessor<S2C_BulletSnapshot>(PacketType::S2C_BulletSnapshot, ProcessS2C_BulletSnapshot);
     RegisterProcessor<S2C_BulletDestroyed>(PacketType::S2C_BulletDestroyed, ProcessS2C_BulletDestroyed);
+    RegisterProcessor<S2C_HitscanEffect>(PacketType::S2C_HitscanEffect, ProcessS2C_HitscanEffect);
 }
 
 ClientNetworkManager::~ClientNetworkManager()
@@ -420,6 +421,37 @@ void ClientNetworkManager::ProcessS2C_BulletDestroyed(PacketProcessor& processor
     self.Bullets.erase(packet->bulletId);
     self.RecentlyDestroyedBullets[packet->bulletId] = static_cast<float>(GetTime());
     self.ConnectionEvents.OnBulletDestroyed.Invoke(*packet);
+}
+
+void ClientNetworkManager::ProcessS2C_HitscanEffect(PacketProcessor& processor, ENetPeer* sender, const S2C_HitscanEffect* packet)
+{
+    ClientNetworkManager& self = static_cast<ClientNetworkManager&>(processor);
+    self.ConnectionEvents.OnHitscanEffect.Invoke(*packet);
+
+    Vector2 start = DataUtils::UnpackVector2(packet->startPoint);
+    Vector2 end = DataUtils::UnpackVector2(packet->endPoint);
+    float dist = Vector2Distance(start, end);
+
+    if (packet->hitBuildingId != 0)
+    {
+        MachineGunHitBuildingEvent buildingEvent;
+        buildingEvent.ShooterID = packet->shooterId;
+        buildingEvent.BuildingID = packet->hitBuildingId;
+        buildingEvent.HitPoint = end;
+        buildingEvent.Distance = dist;
+        self.ConnectionEvents.OnMachineGunHitBuilding.Invoke(buildingEvent, &self);
+    }
+
+    if (packet->targetPlayerId != 0)
+    {
+        MachineGunHitTankEvent tankEvent;
+        tankEvent.ShooterID = packet->shooterId;
+        tankEvent.TargetPlayerID = packet->targetPlayerId;
+        tankEvent.HitPoint = end;
+        tankEvent.Damage = kMachineGunDamage;
+        tankEvent.Distance = dist;
+        self.ConnectionEvents.OnMachineGunHitTank.Invoke(tankEvent, &self);
+    }
 }
 
 void ClientNetworkManager::UpdateBullets(float deltaTime)

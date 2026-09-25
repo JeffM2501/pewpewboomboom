@@ -119,6 +119,7 @@ namespace PacketHandlers
         newInput.Turn = input->turn;
         newInput.TurretAngle = input->aimDirection;
         newInput.Shoot = input->shoot;
+        newInput.ShootMachineGun = input->shootMachineGun;
         newInput.Boost = input->boost;
 
         auto newPos = UpdatePlayerTransform(player.Transform, newInput, 1.0f/kDefaultTickRate, player.Rules);
@@ -138,8 +139,91 @@ namespace PacketHandlers
             Vector2 muzzlePos = Vector2Add(player.Transform.Position, Vector2Scale(forwardDir, player.CollisionRadius + 0.5f));
 
             BulletManager::SpawnBullet(player.PlayerID, muzzlePos, newInput.TurretAngle);
-            player.WeaponCooldown = 0.35f;
+            player.WeaponCooldown = kRegularShotCooldown;
         }
+    }
+
+    static void ProcessC2S_HitscanShot(PacketProcessor& processor, ENetPeer* sender, const C2S_HitscanShot* shot)
+    {
+        NetworkManager& netManager = static_cast<NetworkManager&>(processor);
+        if (!ServerPlayerList::PlayerExists(sender))
+        {
+            return;
+        }
+
+        auto& shooter = ServerPlayerList::GetPlayer(sender);
+        if (shooter.IsDead)
+        {
+            return;
+        }
+
+        if (shooter.MachineGunCooldown > 0.15f)
+        {
+            return;
+        }
+        shooter.MachineGunCooldown = kMachineGunCooldown;
+
+        Vector2 muzzle = { shot->muzzlePos[0], shot->muzzlePos[1] };
+        Vector2 hit = { shot->hitPoint[0], shot->hitPoint[1] };
+        float dist = Vector2Distance(muzzle, hit);
+
+        if (shot->targetPlayerId != 0)
+        {
+            auto* target = ServerPlayerList::GetPlayer(shot->targetPlayerId);
+            if (target && !target->IsDead)
+            {
+                if (target->FractionalHealth <= kMachineGunDamage)
+                {
+                    target->FractionalHealth = 0.0f;
+                    target->Health = 0;
+                    target->IsDead = true;
+                    target->RespawnTimer = 5.0f;
+                    target->Deaths++;
+                    shooter.Kills++;
+                    ServerLogger.Log(LogLevel::Info, "[Combat] Player %llu was killed by Player %llu with Machine Gun", target->PlayerID, shooter.PlayerID);
+                }
+                else
+                {
+                    target->FractionalHealth -= kMachineGunDamage;
+                    target->Health = static_cast<uint8_t>(std::ceil(target->FractionalHealth));
+                    ServerLogger.Log(LogLevel::Info, "[Combat] Player %llu was hit by Player %llu with Machine Gun (HP: %u)", target->PlayerID, shooter.PlayerID, target->Health);
+                }
+
+                MachineGunHitTankEvent tankEvent;
+                tankEvent.ShooterID = shooter.PlayerID;
+                tankEvent.TargetPlayerID = target->PlayerID;
+                tankEvent.HitPoint = hit;
+                tankEvent.Damage = kMachineGunDamage;
+                tankEvent.Distance = dist;
+                BulletManager::OnMachineGunHitTank.Invoke(tankEvent, &netManager);
+                netManager.OnMachineGunHitTank.Invoke(tankEvent, &netManager);
+            }
+        }
+
+        if (shot->hitBuildingId != 0)
+        {
+            MachineGunHitBuildingEvent buildingEvent;
+            buildingEvent.ShooterID = shooter.PlayerID;
+            buildingEvent.BuildingID = shot->hitBuildingId;
+            buildingEvent.HitPoint = hit;
+            buildingEvent.Distance = dist;
+            BulletManager::OnMachineGunHitBuilding.Invoke(buildingEvent, &netManager);
+            netManager.OnMachineGunHitBuilding.Invoke(buildingEvent, &netManager);
+        }
+
+        S2C_HitscanEffect effect;
+        effect.shooterId = shooter.PlayerID;
+        effect.targetPlayerId = shot->targetPlayerId;
+        effect.hitBuildingId = shot->hitBuildingId;
+        effect.startPoint[0] = shot->muzzlePos[0];
+        effect.startPoint[1] = shot->muzzlePos[1];
+        effect.endPoint[0] = shot->hitPoint[0];
+        effect.endPoint[1] = shot->hitPoint[1];
+
+        ServerPlayerList::DoForEachPlayer([&](auto& otherPlayer)
+        {
+            netManager.Send(otherPlayer.PlayerID, 1, effect, false);
+        }, false, shooter.PlayerID);
     }
 
     void RegisterAll(PacketProcessor& processor)
@@ -149,5 +233,6 @@ namespace PacketHandlers
         processor.RegisterProcessor<C2S_JoinRequest>(PacketType::C2S_JoinRequest, ProcessC2S_JoinRequest);
         processor.RegisterProcessor<C2S_ChatMessage>(PacketType::C2S_ChatMessage, ProcessC2S_ChatMessage);
         processor.RegisterProcessor<C2S_InputState>(PacketType::C2S_InputState, ProcessC2S_InputState);
+        processor.RegisterProcessor<C2S_HitscanShot>(PacketType::C2S_HitscanShot, ProcessC2S_HitscanShot);
     }
 }

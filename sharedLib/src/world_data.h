@@ -23,6 +23,10 @@ public:
     virtual bool Intersects(const BoundingCircle& other) const = 0;
 
     virtual bool IntersectPath(Vector2& currentPosition, Vector2 initalPosition, float radius, Vector2& intersectionPoint, Vector2& hitNormal) const = 0;
+    virtual bool IntersectRay(Vector2 rayOrigin, Vector2 rayDir, float& outDist, Vector2& outHitPoint) const
+    {
+        return false;
+    }
 };
 
 class WorldObject
@@ -44,6 +48,7 @@ public:
 
 	bool Intersects(const BoundingCircle& other) const override;
 	bool IntersectPath(Vector2& currentPosition, Vector2 initalPosition, float radius, Vector2& intersectionPoint, Vector2& hitNormal) const override;
+	bool IntersectRay(Vector2 rayOrigin, Vector2 rayDir, float& outDist, Vector2& outHitPoint) const override;
 };
 
 class CircleColliderObject : public WorldObjectCollider
@@ -54,6 +59,7 @@ public:
 public:
     bool Intersects(const BoundingCircle& other) const override;
     bool IntersectPath(Vector2& currentPosition, Vector2 initalPosition, float radius, Vector2& intersectionPoint, Vector2& hitNormal) const override;
+    bool IntersectRay(Vector2 rayOrigin, Vector2 rayDir, float& outDist, Vector2& outHitPoint) const override;
 };
 
 class WallColliderObject : public WorldObjectCollider
@@ -63,6 +69,7 @@ public:
 public:
     bool Intersects(const BoundingCircle& other) const override;
     bool IntersectPath(Vector2& currentPosition, Vector2 initalPosition, float radius, Vector2& intersectionPoint, Vector2& hitNormal) const override;
+    bool IntersectRay(Vector2 rayOrigin, Vector2 rayDir, float& outDist, Vector2& outHitPoint) const override;
 };
 
 class WorldObjectItterator

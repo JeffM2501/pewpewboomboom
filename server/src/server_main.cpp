@@ -145,6 +145,10 @@ void ResolveTankTankCollisions()
 void SetupPlayer(ServerPlayerList::ServerPlayer& player)
 {
 	player.CollisionRadius = 3.0f;
+	player.Health = 100;
+	player.FractionalHealth = 100.0f;
+	player.WeaponCooldown = 0.0f;
+	player.MachineGunCooldown = 0.0f;
 }
 
 void ServerSetup()
@@ -163,6 +167,18 @@ void ServerSetup()
 				event.Bullet ? event.Bullet->OwnerID : 0,
 				event.BuildingID, event.HitPoint.x, event.HitPoint.y,
 				event.ShouldDestroyBullet() ? "true" : "false (overridden)");
+		});
+
+	BulletManager::OnMachineGunHitBuilding.Add([](const MachineGunHitBuildingEvent& event, void*)
+		{
+			ServerLogger.Log(LogLevel::Info, "[Combat] Player %llu hit Building %llu with Machine Gun at (%.1f, %.1f)",
+				event.ShooterID, event.BuildingID, event.HitPoint.x, event.HitPoint.y);
+		});
+
+	BulletManager::OnMachineGunHitTank.Add([](const MachineGunHitTankEvent& event, void*)
+		{
+			ServerLogger.Log(LogLevel::Info, "[Combat] Player %llu hit Tank %llu with Machine Gun for %.2f dmg at (%.1f, %.1f)",
+				event.ShooterID, event.TargetPlayerID, event.Damage, event.HitPoint.x, event.HitPoint.y);
 		});
 
 	PopulateWorld();
@@ -345,6 +361,15 @@ int main(int argc, char* argv[])
 							}
 						}
 
+						if (player.MachineGunCooldown > 0.0f)
+						{
+							player.MachineGunCooldown -= (1.0f / kDefaultTickRate);
+							if (player.MachineGunCooldown < 0.0f)
+							{
+								player.MachineGunCooldown = 0.0f;
+							}
+						}
+
 						if (player.IsDead)
 						{
 							player.RespawnTimer -= (1.0f / kDefaultTickRate);
@@ -352,6 +377,7 @@ int main(int argc, char* argv[])
 							{
 								player.IsDead = false;
 								player.Health = 100;
+								player.FractionalHealth = 100.0f;
 								player.Transform.Position = Vector2{ float(GetRandomValue(-50, 50)), float(GetRandomValue(-50, 50)) };
 								BoundingCircle b = { player.Transform.Position, 10 };
 								player.Transform.Position = World.Collide(player.Transform.Position, player.Transform.Position, player.CollisionRadius, b);
