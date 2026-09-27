@@ -32,7 +32,7 @@ namespace RobotAI
         if (aiInfo->ForwardTime <= 0)
         {
             aiInfo->ForwardTime = float(GetRandomValue(1, 10));
-            aiInfo->Input.Foward = GetRandomValue(100, 800) / 1000.0f;
+            //aiInfo->Input.Foward = GetRandomValue(100, 800) / 1000.0f;
         }
 
         aiInfo->TurnTime -= deltaTime;
@@ -53,14 +53,14 @@ namespace RobotAI
         robot.LastAckedInputTick = tick;
         robot.TransformHistory[tick] = robot.Transform;
 
-        if (robot.WeaponCooldown <= 0.0f && !robot.IsDead && GetRandomValue(0, 45) == 0)
-        {
-            float rad = aiInfo->Input.TurretAngle * DEG2RAD;
-            Vector2 forwardDir = { cosf(rad), sinf(rad) };
-            Vector2 muzzlePos = Vector2Add(robot.Transform.Position, Vector2Scale(forwardDir, robot.CollisionRadius + 0.5f));
-            BulletManager::SpawnBullet(robot.PlayerID, muzzlePos, aiInfo->Input.TurretAngle);
-            robot.WeaponCooldown = 1.0f;
-        }
+//         if (robot.WeaponCooldown <= 0.0f && !robot.IsDead && GetRandomValue(0, 45) == 0)
+//         {
+//             float rad = aiInfo->Input.TurretAngle * DEG2RAD;
+//             Vector2 forwardDir = { cosf(rad), sinf(rad) };
+//             Vector2 muzzlePos = Vector2Add(robot.Transform.Position, Vector2Scale(forwardDir, robot.CollisionRadius + 0.5f));
+//             BulletManager::SpawnBullet(robot.PlayerID, muzzlePos, aiInfo->Input.TurretAngle);
+//             robot.WeaponCooldown = 1.0f;
+//         }
     }
 
     void SetupRobots()

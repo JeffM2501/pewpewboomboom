@@ -13,7 +13,7 @@ namespace ServerPlayerList
 
     static std::unordered_map<uint64_t, ServerPlayer> Players;
     static uint32_t LastRobotPlayerID = 0;
-    static uint32_t RobotPlayerIDMask = std::numeric_limits<uint32_t>::max();
+    static uint32_t RobotPlayerIDMask = 50000;
 
     static std::recursive_mutex  PlayerListLock;
 

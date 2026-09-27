@@ -9,9 +9,13 @@
 #include "raylib.h"
 #include "world_data.h"
 #include "bullet_manager.h"
+#include "server_world.h"
+#include "collisions.h"
+#include "raymath.h"
 #include <cmath>
 
 extern Logger ServerLogger;
+extern ServerWorld World;
 // extern uint64_t ServerStartTimeMs;
 // extern uint64_t CurrentServerTick;
 
@@ -108,6 +112,8 @@ namespace PacketHandlers
         netManager.GetChatProcessor().PushChatMessage(player.PlayerID, chat->message);
     }
 
+    static void ExecuteServerHitscan(NetworkManager& netManager, ServerPlayerList::ServerPlayer& shooter, uint64_t clientTick, float aimAngle);
+
     static void ProcessC2S_InputState(PacketProcessor& processor, ENetPeer* sender, const C2S_InputState* input)
     {
         NetworkManager& netManager = static_cast<NetworkManager&>(processor);
@@ -125,11 +131,12 @@ namespace PacketHandlers
         auto newPos = UpdatePlayerTransform(player.Transform, newInput, 1.0f/kDefaultTickRate, player.Rules);
         
         if (netManager.ProcessPlayerUpdate)
+        {
             newPos = netManager.ProcessPlayerUpdate(player.Transform.Position, newPos, player);
+        }
 
         player.Transform.Position = newPos;
 
-        player.TransformHistory[input->clientTick] = player.Transform;
         player.LastAckedInputTick = input->clientTick;
 
         if (newInput.Shoot && player.WeaponCooldown <= 0.0f && !player.IsDead)
@@ -141,35 +148,193 @@ namespace PacketHandlers
             BulletManager::SpawnBullet(player.PlayerID, muzzlePos, newInput.TurretAngle);
             player.WeaponCooldown = kRegularShotCooldown;
         }
+
+        if (newInput.ShootMachineGun && player.MachineGunCooldown <= 0.0f && !player.IsDead)
+        {
+            ExecuteServerHitscan(netManager, player, input->clientTick, newInput.TurretAngle);
+        }
     }
 
-    static void ProcessC2S_HitscanShot(PacketProcessor& processor, ENetPeer* sender, const C2S_HitscanShot* shot)
+    static void LogServerMachineGun(const char* format, ...)
     {
-        NetworkManager& netManager = static_cast<NetworkManager&>(processor);
-        if (!ServerPlayerList::PlayerExists(sender))
-        {
-            return;
-        }
+        char buffer[1024];
+        va_list args;
+        va_start(args, format);
+        vsnprintf(buffer, sizeof(buffer), format, args);
+        va_end(args);
 
-        auto& shooter = ServerPlayerList::GetPlayer(sender);
+        printf("%s\n", buffer);
+        fflush(stdout);
+
+        FILE* f = fopen("machinegun_server.log", "a");
+        if (f)
+        {
+            fprintf(f, "%s\n", buffer);
+            fflush(f);
+            fclose(f);
+        }
+    }
+
+    static void ExecuteServerHitscan(NetworkManager& netManager, ServerPlayerList::ServerPlayer& shooter, uint64_t clientTick, float aimAngle)
+    {
         if (shooter.IsDead)
         {
+            LogServerMachineGun("[MachineGun] Player %llu rejected: Shooter is dead", shooter.PlayerID);
             return;
         }
 
-        if (shooter.MachineGunCooldown > 0.15f)
+        if (shooter.MachineGunCooldown > 0.05f)
         {
             return;
         }
         shooter.MachineGunCooldown = kMachineGunCooldown;
 
-        Vector2 muzzle = { shot->muzzlePos[0], shot->muzzlePos[1] };
-        Vector2 hit = { shot->hitPoint[0], shot->hitPoint[1] };
-        float dist = Vector2Distance(muzzle, hit);
-
-        if (shot->targetPlayerId != 0)
+        if (std::isnan(aimAngle) || std::isinf(aimAngle))
         {
-            auto* target = ServerPlayerList::GetPlayer(shot->targetPlayerId);
+            aimAngle = 0.0f;
+        }
+
+        float rad = aimAngle * DEG2RAD;
+        Vector2 dir = { cosf(rad), sinf(rad) };
+        Vector2 muzzle = Vector2Add(shooter.Transform.Position, Vector2Scale(dir, shooter.CollisionRadius + 0.5f));
+
+        LogServerMachineGun("[MachineGun] Server Hitscan: Shooter=%llu clientTick=%llu aim=%.1f muzzle=(%.1f, %.1f)",
+            shooter.PlayerID, clientTick, aimAngle, muzzle.x, muzzle.y);
+
+        uint64_t currentTick = netManager.CurrentServerTick;
+        uint64_t baseTick = (clientTick > 0 && clientTick <= currentTick) ? clientTick : currentTick;
+        uint64_t rollbackTick = (baseTick >= 6) ? (baseTick - 6) : 0;
+        uint64_t windowStart = (rollbackTick >= 3) ? (rollbackTick - 3) : 0;
+        uint64_t windowEnd = (rollbackTick + 3 <= currentTick) ? (rollbackTick + 3) : currentTick;
+
+        float maxRange = 2000.0f;
+        float closestDist = maxRange;
+        Vector2 closestHitPoint = Vector2Add(muzzle, Vector2Scale(dir, maxRange));
+        uint64_t hitPlayerId = 0;
+        uint64_t hitBuildingId = 0;
+
+        // 1. Raycast against outer walls
+        float wallDist = 0.0f;
+        Vector2 wallHit = { 0.0f, 0.0f };
+        if (World.Walls.GetCollider().IntersectRay(muzzle, dir, wallDist, wallHit))
+        {
+            if (wallDist > 0.1f && wallDist < closestDist)
+            {
+                closestDist = wallDist;
+                closestHitPoint = wallHit;
+            }
+        }
+
+        // 2. Raycast against world objects (buildings, etc.)
+        for (const auto& obj : World.Objects)
+        {
+            const auto& bounds = obj->GetBoundingCircle();
+            float boundsDist = 0.0f;
+            Vector2 boundsHit = { 0.0f, 0.0f };
+            if (!IntersectRayCircle(muzzle, dir, bounds.Center, bounds.Radius + 1.0f, boundsDist, boundsHit) || boundsDist > closestDist)
+            {
+                continue;
+            }
+
+            float objDist = 0.0f;
+            Vector2 objHit = { 0.0f, 0.0f };
+            if (obj->GetCollider().IntersectRay(muzzle, dir, objDist, objHit))
+            {
+                if (objDist > (shooter.CollisionRadius * 0.5f) && objDist < closestDist)
+                {
+                    closestDist = objDist;
+                    closestHitPoint = objHit;
+                    if (obj->GetObjectType() == S2C_SetWorldObject::ObjectType::Building)
+                    {
+                        hitBuildingId = obj->GetID();
+                    }
+                    else
+                    {
+                        hitBuildingId = 0;
+                    }
+                }
+            }
+        }
+
+        // 3. Raycast against players / tanks (using server lag compensation)
+        ServerPlayerList::DoForEachPlayer([&](ServerPlayerList::ServerPlayer& other)
+        {
+            if (other.PlayerID == shooter.PlayerID || other.IsDead)
+            {
+                return;
+            }
+
+            float bestOtherDist = closestDist;
+            Vector2 bestOtherHit = { 0.0f, 0.0f };
+            bool hitOther = false;
+            float radiusTol = other.CollisionRadius * 1.35f;
+
+            // Check historical positions across lag compensation window
+            for (uint64_t t = windowStart; t <= windowEnd; ++t)
+            {
+                PlayerTransform pastTransform = other.GetTransformAtTick(t);
+                float pDist = 0.0f;
+                Vector2 pHit = { 0.0f, 0.0f };
+                if (IntersectRayCircle(muzzle, dir, pastTransform.Position, radiusTol, pDist, pHit))
+                {
+                    if (pDist >= 0.0f && pDist < bestOtherDist)
+                    {
+                        hitOther = true;
+                        bestOtherDist = pDist;
+                        bestOtherHit = pHit;
+                    }
+                }
+            }
+
+            // Also check current server transform
+            float curDist = 0.0f;
+            Vector2 curHit = { 0.0f, 0.0f };
+            if (IntersectRayCircle(muzzle, dir, other.Transform.Position, radiusTol, curDist, curHit))
+            {
+                if (curDist >= 0.0f && curDist < bestOtherDist)
+                {
+                    hitOther = true;
+                    bestOtherDist = curDist;
+                    bestOtherHit = curHit;
+                }
+            }
+
+            // Also check direct aim alignment towards other's center
+            if (!hitOther)
+            {
+                Vector2 toTarget = Vector2Subtract(other.Transform.Position, muzzle);
+                float distToTarget = Vector2Length(toTarget);
+                if (distToTarget > 0.001f && distToTarget < bestOtherDist)
+                {
+                    float targetAngleDeg = atan2f(toTarget.y, toTarget.x) * RAD2DEG;
+                    float angleDiff = fabsf(fmodf(targetAngleDeg - aimAngle + 180.0f, 360.0f) - 180.0f);
+                    float maxAngleTol = atan2f(radiusTol, distToTarget) * RAD2DEG;
+                    if (maxAngleTol < 5.0f)
+                    {
+                        maxAngleTol = 5.0f;
+                    }
+                    if (angleDiff <= maxAngleTol)
+                    {
+                        bestOtherDist = distToTarget;
+                        bestOtherHit = other.Transform.Position;
+                        hitOther = true;
+                    }
+                }
+            }
+
+            if (hitOther && bestOtherDist < closestDist)
+            {
+                closestDist = bestOtherDist;
+                closestHitPoint = bestOtherHit;
+                hitPlayerId = other.PlayerID;
+                hitBuildingId = 0;
+            }
+        }, true);
+
+        // 4. Apply authoritative results
+        if (hitPlayerId != 0)
+        {
+            auto* target = ServerPlayerList::GetPlayer(hitPlayerId);
             if (target && !target->IsDead)
             {
                 if (target->FractionalHealth <= kMachineGunDamage)
@@ -180,50 +345,74 @@ namespace PacketHandlers
                     target->RespawnTimer = 5.0f;
                     target->Deaths++;
                     shooter.Kills++;
-                    ServerLogger.Log(LogLevel::Info, "[Combat] Player %llu was killed by Player %llu with Machine Gun", target->PlayerID, shooter.PlayerID);
+                    LogServerMachineGun("[Combat] Player %llu was KILLED by Player %llu with Machine Gun (Server Detected)", target->PlayerID, shooter.PlayerID);
+                    ServerLogger.Log(LogLevel::Info, "[Combat] Player %llu was KILLED by Player %llu with Machine Gun (Server Detected)", target->PlayerID, shooter.PlayerID);
                 }
                 else
                 {
                     target->FractionalHealth -= kMachineGunDamage;
-                    target->Health = static_cast<uint8_t>(std::ceil(target->FractionalHealth));
-                    ServerLogger.Log(LogLevel::Info, "[Combat] Player %llu was hit by Player %llu with Machine Gun (HP: %u)", target->PlayerID, shooter.PlayerID, target->Health);
+                    target->Health = static_cast<uint8_t>(target->FractionalHealth + 0.5f);
+                    LogServerMachineGun("[Combat] Player %llu was HIT by Player %llu with Machine Gun (HP: %u, Fractional: %.2f)",
+                        target->PlayerID, shooter.PlayerID, target->Health, target->FractionalHealth);
+                    ServerLogger.Log(LogLevel::Info, "[Combat] Player %llu was hit by Player %llu with Machine Gun (HP: %u)",
+                        target->PlayerID, shooter.PlayerID, target->Health);
                 }
 
                 MachineGunHitTankEvent tankEvent;
                 tankEvent.ShooterID = shooter.PlayerID;
                 tankEvent.TargetPlayerID = target->PlayerID;
-                tankEvent.HitPoint = hit;
+                tankEvent.HitPoint = closestHitPoint;
                 tankEvent.Damage = kMachineGunDamage;
-                tankEvent.Distance = dist;
+                tankEvent.Distance = closestDist;
                 BulletManager::OnMachineGunHitTank.Invoke(tankEvent, &netManager);
                 netManager.OnMachineGunHitTank.Invoke(tankEvent, &netManager);
             }
         }
-
-        if (shot->hitBuildingId != 0)
+        else if (hitBuildingId != 0)
         {
+            LogServerMachineGun("[Combat] Player %llu hit Building %llu with Machine Gun at distance %.1f", shooter.PlayerID, hitBuildingId, closestDist);
+            ServerLogger.Log(LogLevel::Info, "[Combat] Player %llu hit Building %llu with Machine Gun at distance %.1f", shooter.PlayerID, hitBuildingId, closestDist);
+
             MachineGunHitBuildingEvent buildingEvent;
             buildingEvent.ShooterID = shooter.PlayerID;
-            buildingEvent.BuildingID = shot->hitBuildingId;
-            buildingEvent.HitPoint = hit;
-            buildingEvent.Distance = dist;
+            buildingEvent.BuildingID = hitBuildingId;
+            buildingEvent.HitPoint = closestHitPoint;
+            buildingEvent.Distance = closestDist;
             BulletManager::OnMachineGunHitBuilding.Invoke(buildingEvent, &netManager);
             netManager.OnMachineGunHitBuilding.Invoke(buildingEvent, &netManager);
         }
+        else
+        {
+            LogServerMachineGun("[Combat] Player %llu shot missed/hit terrain at distance %.1f", shooter.PlayerID, closestDist);
+        }
 
+        // 5. Broadcast authoritative hitscan effect to ALL clients
         S2C_HitscanEffect effect;
         effect.shooterId = shooter.PlayerID;
-        effect.targetPlayerId = shot->targetPlayerId;
-        effect.hitBuildingId = shot->hitBuildingId;
-        effect.startPoint[0] = shot->muzzlePos[0];
-        effect.startPoint[1] = shot->muzzlePos[1];
-        effect.endPoint[0] = shot->hitPoint[0];
-        effect.endPoint[1] = shot->hitPoint[1];
+        effect.targetPlayerId = hitPlayerId;
+        effect.hitBuildingId = hitBuildingId;
+        effect.startPoint[0] = muzzle.x;
+        effect.startPoint[1] = muzzle.y;
+        effect.endPoint[0] = closestHitPoint.x;
+        effect.endPoint[1] = closestHitPoint.y;
 
         ServerPlayerList::DoForEachPlayer([&](auto& otherPlayer)
         {
-            netManager.Send(otherPlayer.PlayerID, 1, effect, false);
-        }, false, shooter.PlayerID);
+            netManager.Send(otherPlayer.PlayerID, 0, effect, true);
+        }, false);
+    }
+
+    static void ProcessC2S_HitscanShot(PacketProcessor& processor, ENetPeer* sender, const C2S_HitscanShot* shot)
+    {
+        NetworkManager& netManager = static_cast<NetworkManager&>(processor);
+
+        if (!ServerPlayerList::PlayerExists(sender))
+        {
+            return;
+        }
+
+        auto& shooter = ServerPlayerList::GetPlayer(sender);
+        ExecuteServerHitscan(netManager, shooter, shot->clientTick, shot->aimAngle);
     }
 
     void RegisterAll(PacketProcessor& processor)

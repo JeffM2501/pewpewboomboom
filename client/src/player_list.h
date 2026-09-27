@@ -24,8 +24,6 @@ public:
     void UpdateForTick(uint64_t currentTick);
 
     virtual void AddServerStateUpdate(uint64_t tick, PlayerTransform& transform);
-
-    PlayerTransform GetTransformAtTick(uint64_t tick) const;
 };
 
 class ClientLocalPlayerState : public ClientPlayerState

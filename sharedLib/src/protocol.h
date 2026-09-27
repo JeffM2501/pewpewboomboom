@@ -270,6 +270,7 @@ struct C2S_HitscanShot
 {
     uint8_t type = static_cast<uint8_t>(PacketType::C2S_HitscanShot);
     uint64_t clientTick = 0;
+    float aimAngle = 0.0f;
     uint64_t targetPlayerId = 0;
     uint64_t hitBuildingId = 0;
     float hitPoint[2] = { 0.0f, 0.0f };

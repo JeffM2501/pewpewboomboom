@@ -28,4 +28,5 @@ std::string GetCurrentTimestamp()
 void ConsoleLogOutput(std::string_view message, LogLevel level)
 {
 	printf("[%s] %s: %s\n", GetLogLevelString(level).data(), GetCurrentTimestamp().c_str(), message.data());
+	fflush(stdout);
 }

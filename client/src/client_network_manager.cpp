@@ -198,6 +198,8 @@ void ClientNetworkManager::Update()
 				ClientLastProcessedServerTick++;
 				ConnectionEvents.OnTick.Invoke(ClientLastProcessedServerTick);
 			}
+
+			enet_host_flush(ClientHost);
 		}
 	}
 

@@ -7,6 +7,18 @@
 #include "constants.h"
 
 #include <map>
+#include <cmath>
+
+inline float LerpAngleDeg(float a, float b, float t)
+{
+	float diff = fmodf(b - a + 180.0f, 360.0f);
+	if (diff < 0.0f)
+	{
+		diff += 360.0f;
+	}
+	diff -= 180.0f;
+	return a + diff * t;
+}
 
 struct PlayerTransform
 {
@@ -46,6 +58,8 @@ struct PlayerState
 
 	// Transform history.....
     std::map<uint64_t, PlayerTransform> TransformHistory;
+
+    PlayerTransform GetTransformAtTick(uint64_t tick) const;
 };
 
 struct InputState

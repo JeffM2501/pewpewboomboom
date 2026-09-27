@@ -277,21 +277,30 @@ void UpdatePlayerHistories()
 	uint64_t maxTickHistory = 2 * kDefaultTickRate;
 
 	if (oldestTickToKeep < maxTickHistory)
+	{
 		oldestTickToKeep = 0;
+	}
 	else
+	{
 		oldestTickToKeep -= maxTickHistory;
+	}
 
 	ServerPlayerList::DoForEachPlayer([&](ServerPlayerList::ServerPlayer& player)
+	{
+		player.TransformHistory[NetManager.CurrentServerTick] = player.Transform;
+
+		for (auto itr = player.TransformHistory.begin(); itr != player.TransformHistory.end();)
 		{
-			for (auto itr = player.TransformHistory.begin(); itr != player.TransformHistory.end();)
+			if (itr->first < oldestTickToKeep)
 			{
-				if (itr->first < oldestTickToKeep)
-					itr = player.TransformHistory.erase(itr);
-				else
-					break;
+				itr = player.TransformHistory.erase(itr);
+			}
+			else
+			{
+				break;
 			}
 		}
-	, true);
+	}, true);
 }
 
 void DrawDebugScene()
