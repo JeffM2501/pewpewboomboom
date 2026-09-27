@@ -6,19 +6,19 @@ Use this as a starting point or replace it with your code.
 
 */
 
-#include <deque>
 #include <algorithm>
 
 #include "raylib.h"
 #include "raymath.h"
 
-#include "game.h"  
-#include "lib.h"    
+#include "game.h"   
 
 #include "rlimgui.h" 
 #include "imgui.h"
 #include "client_network_manager.h" 
 #include "connection_dialog.h" 
+
+#include "SoundManager.h"
 
 #include "game_gui.h"
 #include "guiControls/chat_window.h"
@@ -186,8 +186,6 @@ Vector2 PredictHitscanHitPoint(Vector2 startPos, Vector2 dir, uint64_t clientTic
 	return closestHitPoint;
 }
 
-
-
 void ResetCurrentInput()
 {
     CurrentInputState.Boost = false;
@@ -202,6 +200,13 @@ void PollInputActions()
 	if (LocalPlayer && LocalPlayer->IsDead)
 	{
 		return;
+	}
+
+	if (LocalPlayer)
+	{
+		LocalPlayer->WeaponCooldown -= GetFrameTime();
+		if (LocalPlayer->WeaponCooldown < 0)
+			LocalPlayer->WeaponCooldown = 0;
 	}
 
 	if (IsKeyDown(KEY_W))
@@ -321,6 +326,11 @@ void GameInit()
 	SetTextureFilter(CrosshairTexture, TEXTURE_FILTER_TRILINEAR);
 
 	LoadStaticTextures();
+
+	SoundManager::Init();
+
+	SoundManager::LoadSFX(BoomSound, "resources/sounds/boomf.wav");
+	SoundManager::LoadSFX(PewSound, "resources/sounds/pew.wav");
 
 	TankManager::Init();
 
@@ -669,7 +679,13 @@ void ProcessNetTick(const uint64_t& tick, void*)
 			Vector2 hitPoint = PredictHitscanHitPoint(muzzlePos, forwardDir, tick);
 
 			AddHitscanVisualLine(muzzlePos, hitPoint);
+			SoundManager::PlaySFX(PewSound);
 			LogClientMachineGun("[Client Shot] tick=%llu aim=%.1f endPoint=(%.1f, %.1f)", tick, CurrentInputState.TurretAngle, hitPoint.x, hitPoint.y);
+		}
+
+		if (CurrentInputState.Shoot && !LocalPlayer->IsDead)
+		{
+			SoundManager::PlaySFX(BoomSound);
 		}
 	}
 
@@ -687,6 +703,12 @@ void ProcessNetTick(const uint64_t& tick, void*)
 	inputPacket.clientTick = tick;
 
 	Network.SendPacket(nullptr, 1, inputPacket, false);
+
+	if (inputPacket.shoot && !LocalPlayer->IsDead && LocalPlayer->WeaponCooldown <= 0)
+	{
+		LocalPlayer->WeaponCooldown = kRegularShotCooldown;
+		SoundManager::PlaySFX(BoomSound);
+	}
 
 	// push the input to history for reconcile
 	LocalPlayer->InputHistory[tick] = CurrentInputState;

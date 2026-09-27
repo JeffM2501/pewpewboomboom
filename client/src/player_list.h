@@ -19,6 +19,8 @@ public:
     uint64_t InterpEndHistoryIndex = 0;
     float LastTickTime = 0;
 
+    float WeaponReloadTime = 0;
+
     void UpdateInterpolatedTransform(float deltaTime);
 
     void UpdateForTick(uint64_t currentTick);
