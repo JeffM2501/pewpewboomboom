@@ -10,10 +10,10 @@ This document contains the complete, Jira-formatted issue backlog for **PewPewBo
 - [x] **EPIC 3: Fixed-Tick Server Simulation & Rendering Skeleton** (3 / 3 Completed)
 - [x] **EPIC 4: Client Prediction, Server Reconciliation & Interpolation** (5 / 5 Completed)
 - [ ] **EPIC 5: 2D Physics & Collision Detection** (2 / 3 Completed)
-- [ ] **EPIC 6: Combat Engine, Projectile Pooling & Respawn Flow** (0 / 3 Completed)
-- [ ] **EPIC 7: Custom Weapon Variants & Powerup Spawners** (0 / 3 Completed)
-- [ ] **EPIC 8: Audio, Visual Polish & User Interface** (0 / 4 Completed)
-- [ ] **EPIC 9: Performance Optimization, Network Stressing & Bots** (0 / 3 Completed)
+- [x] **EPIC 6: Combat Engine, Projectile Pooling & Respawn Flow** (3 / 3 Completed)
+- [ ] **EPIC 7: Custom Weapon Variants & Powerup Spawners** (0.5 / 3 Completed - Hitscan MG Implemented)
+- [ ] **EPIC 8: Audio, Visual Polish & User Interface** (1.5 / 4 Completed - Sprites, Floating Health Bars & Diagnostics UI)
+- [ ] **EPIC 9: Performance Optimization, Network Stressing & Bots** (0.5 / 3 Completed - Autonomous AI Robot)
 
 ---
 
@@ -282,43 +282,43 @@ This document contains the complete, Jira-formatted issue backlog for **PewPewBo
 ## EPIC 6: Combat Engine, Projectile Pooling & Respawn Flow
 
 ### [PEW-600] Client Firing Input & Server Bullet Pool Management
-* **Status**: `[ ] TO DO`
+* **Status**: `[x] DONE`
 * **Issue Type**: Task
 * **Component**: `server`, `client`
 * **Priority**: High
 * **Story**: As a player, I want pressing the Left Mouse Button to fire bullets from my tank's turret.
 * **Technical Acceptance Criteria**:
-  - [ ] Pre-allocate a contiguous `std::array<Bullet, 256>` pool on server.
-  - [ ] When client input `Shoot` flag is set and weapon cooldown is 0, spawn a bullet entity at turret muzzle position.
-  - [ ] Assign velocity vector along turret orientation angle.
+  - [x] Pre-allocate a contiguous `std::array<Bullet, 256>` pool on server.
+  - [x] When client input `Shoot` flag is set and weapon cooldown is 0, spawn a bullet entity at turret muzzle position.
+  - [x] Assign velocity vector along turret orientation angle.
 * **Definition of Done**: Clicking left mouse button spawns a bullet traveling in the direction of the turret.
 
 ---
 
 ### [PEW-601] Server Projectile Collision & Destruction Lifecycle
-* **Status**: `[ ] TO DO`
+* **Status**: `[x] DONE`
 * **Issue Type**: Task
 * **Component**: `server`, `physics`
 * **Priority**: High
 * **Story**: As a server developer, I want bullets to move every tick, hit walls or players, and trigger damage/destruction events.
 * **Technical Acceptance Criteria**:
-  - [ ] Advance bullet position `pos += velocity * TICK_TIME` on `ServerTick()`.
-  - [ ] Check bullet collisions against wall AABBs (destroy bullet; if destructible wall, subtract wall HP).
-  - [ ] Check bullet collisions against enemy tank circles (destroy bullet, subtract 25 HP from target tank).
+  - [x] Advance bullet position `pos += velocity * TICK_TIME` on `ServerTick()`.
+  - [x] Check bullet collisions against wall AABBs (destroy bullet; if destructible wall, subtract wall HP; extensible server callback for building hits).
+  - [x] Check bullet collisions against enemy tank circles (destroy bullet, subtract 25 HP from target tank).
 * **Definition of Done**: Shooting a wall destroys the bullet; shooting an enemy tank reduces its health bar.
 
 ---
 
 ### [PEW-602] Player Health, Death Event Broadcast & Respawn Timer
-* **Status**: `[ ] TO DO`
+* **Status**: `[x] DONE`
 * **Issue Type**: Task
 * **Component**: `server`, `networking`
 * **Priority**: High
 * **Story**: As a player, I want my tank to explode when health reaches 0, update scores, and respawn after a delay.
 * **Technical Acceptance Criteria**:
-  - [ ] When player health reaches 0: set state to `Dead`, increment attacker kills, increment victim deaths.
-  - [ ] Broadcast `S2C_EventNotification` kill message over ENet Channel 0 (reliable).
-  - [ ] Start 5-second server countdown timer, then reset health to 100% and move to a random spawn point.
+  - [x] When player health reaches 0: set state to `Dead`, increment attacker kills, increment victim deaths.
+  - [x] Broadcast `S2C_EventNotification` kill message over ENet Channel 0 (reliable) / State snapshot dead status.
+  - [x] Start 5-second server countdown timer, then reset health to 100% and move to a random spawn point.
 * **Definition of Done**: Reducing a player's health to 0 logs a kill event, disables their tank, and respawns them 5 seconds later.
 
 ---
@@ -326,13 +326,13 @@ This document contains the complete, Jira-formatted issue backlog for **PewPewBo
 ## EPIC 7: Custom Weapon Variants & Powerup Spawners
 
 ### [PEW-701] Specialized Weapon Behaviors (MG, Rocket, Railgun)
-* **Status**: `[ ] TO DO`
+* **Status**: `[ ] IN PROGRESS`
 * **Issue Type**: Task
 * **Component**: `server`, `physics`
 * **Priority**: Medium
 * **Story**: As a player, I want distinct weapon mechanics (Machine Gun, Heavy Rocket, Laser Railgun) for varied tactical gameplay.
 * **Technical Acceptance Criteria**:
-  - [ ] **Rapid-Fire MG**: High fire rate ($0.08\text{s}$ cooldown), low damage, 5-degree random angular spread.
+  - [x] **Rapid-Fire MG**: High fire rate ($0.175\text{s}$ cooldown), low damage ($6.25$), lag-compensated server hitscan line trace, fading visual tracer lines.
   - [ ] **Heavy Rocket**: Slow velocity, high damage, explodes on contact dealing area-of-effect damage to tanks within 100px radius.
   - [ ] **Laser Railgun**: Instant hitscan line-trace raycast penetrating targets along line of sight.
 * **Definition of Done**: All 4 weapon types function with unique projectile speeds, fire rates, and hit detection logic.
@@ -400,14 +400,15 @@ This document contains the complete, Jira-formatted issue backlog for **PewPewBo
 ---
 
 ### [PEW-803] In-Game Player HUD & Tab Scoreboard Overlay
-* **Status**: `[ ] TO DO`
+* **Status**: `[ ] IN PROGRESS`
 * **Issue Type**: Task
 * **Component**: `client`, `ui`
 * **Priority**: High
 * **Story**: As a player, I want an in-game HUD showing my health, weapon status, and a scoreboard.
 * **Technical Acceptance Criteria**:
-  - [ ] Draw floating health bars above all visible tanks.
+  - [x] Draw floating health bars above all visible tanks.
   - [ ] Draw bottom-screen HUD with health bar, current weapon icon, ammo count, and active buff timers.
+  - [x] Implement player list and network telemetry overlay showing player names, server tick, ping RTT in ms, and FPS counter.
   - [ ] Implement a TAB scoreboard overlay showing player names, ping, kills, and deaths.
 * **Definition of Done**: Pressing TAB displays a sorted scoreboard overlay; HUD updates health and ammo counters in real time.
 
@@ -457,12 +458,13 @@ This document contains the complete, Jira-formatted issue backlog for **PewPewBo
 ---
 
 ### [PEW-903] Headless Bot Client Generator for 32-Player Load Testing
-* **Status**: `[ ] TO DO`
+* **Status**: `[ ] IN PROGRESS`
 * **Issue Type**: Task
 * **Component**: `client`, `networking`
 * **Priority**: Low
-* **Story**: As a server engineer, I want to spawn 31 automated headless bot clients to stress-test server CPU and network bandwidth under full load.
+* **Story**: As a server engineer, I want to spawn automated bot clients to stress-test server CPU and network bandwidth under full load.
 * **Technical Acceptance Criteria**:
+  - [x] Server-side autonomous robot AI ("Theta") with kinematics simulation, wall collision, and combat participation.
   - [ ] Add `--bot` command-line flag to `client`.
   - [ ] When run with `--bot`, launch headless client without Raylib GUI window.
   - [ ] Bot logic: move randomly around map, auto-aim and fire at nearest player tank.

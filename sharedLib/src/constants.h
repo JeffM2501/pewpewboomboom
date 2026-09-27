@@ -11,8 +11,8 @@ static constexpr uint32_t kProtocolVersion = 5; // version number of the network
 static constexpr size_t kMaxNameSize = 32;
 static constexpr size_t kMaxChatLineSize = 256;
 
-static constexpr float kRegularShotCooldown = 0.35f;
+static constexpr float kRegularShotCooldown = 0.5f;
 static constexpr float kRegularShotDamage = 25.0f;
 static constexpr float kMachineGunCooldown = 0.175f;
-static constexpr float kMachineGunDamage = 6.25f;
+static constexpr float kMachineGunDamage = 3.0f;
 static constexpr float kMachineGunTracerDuration = 0.25f;

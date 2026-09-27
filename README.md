@@ -637,29 +637,29 @@ pewpewboomboom/
 
 **Goal**: Enable players to fire weapons, track projectiles on the server, detect bullet hits, and manage tank damage/respawn.
 
-- [ ] **6.1 Shooting Handshake**
+- [x] **6.1 Shooting Handshake**
   - When the client presses the Left Mouse Button, set the shooting flag in `C2S_InputState`.
   - On the server tick, if a player's shoot flag is active and their current weapon cooldown is 0:
     - Spawn a Bullet entity at the turret muzzle position.
     - Assign the bullet a unique ID, owner ID, velocity vector, and weapon type.
     - Set the player's weapon cooldown timer.
-- [ ] **6.2 Projectile Simulation & Obstacle Hits**
+- [x] **6.2 Projectile Simulation & Obstacle Hits**
   - Projectiles are updated on the server during each tick.
   - Move bullet: `position += velocity * TICK_TIME`.
   - Test bullet collisions:
-    - If a bullet hits a solid wall: destroy the bullet. If it is a destructible wall, subtract wall health; destroy the wall if health drops to 0.
+    - If a bullet hits a solid wall: destroy the bullet. If it is a destructible wall, subtract wall health; destroy the wall if health drops to 0. Server callback provided for overriding bullet destruction on building hit.
     - If a bullet hits a player tank (other than the owner):
       - Inflict damage to target player's health.
       - Destroy the bullet.
       - Trigger an explosion event.
-- [ ] **6.3 Bullet Replication**
-  - Include bullet array states in the `S2C_WorldSnapshot`.
-  - The client parses the bullet array and draws them on screen.
+- [x] **6.3 Bullet Replication**
+  - Include bullet array states in the `S2C_WorldSnapshot` and explicit destruction packet `S2C_BulletDestroyed`.
+  - The client parses the bullet array and draws them on screen with latency compensation and prediction smoothing.
   - Implement bullet spawn visual effects locally on client immediately to make shooting feel snappy.
-- [ ] **6.4 Death & Respawn Loop**
+- [x] **6.4 Death & Respawn Loop**
   - If a player's health reaches 0 on the server:
     - Set player state to `Dead`.
-    - Broadcast an `S2C_EventNotification` packet (e.g., `Player A killed Player B`).
+    - Broadcast kill event and update state snapshots.
     - Increment target player's death count and source player's kill count.
     - Wait 5 seconds, then respawn the dead player tank at a random spawn point with full health.
 

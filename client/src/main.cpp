@@ -7,6 +7,7 @@ Use this as a starting point or replace it with your code.
 */
 
 #include <deque>
+#include <algorithm>
 
 #include "raylib.h"
 #include "raymath.h"
@@ -534,9 +535,21 @@ void GameDraw()
 
     for (const auto& line : ActiveHitscanLines)
     {
+		auto vec = line.End - line.Start;
+
+		float dist = Vector2Length(vec);
+		if (dist == 0)
+			continue;
+
+		float maxDist = (std::min)(dist / 4.f, 10.0f);
+
+		vec = vec / dist;
+
         float alpha = Clamp(line.RemainingTime / line.TotalDuration, 0.0f, 1.0f);
-        DrawLineEx(line.Start, line.End, 0.35f, ColorAlpha(YELLOW, alpha));
-        DrawLineEx(line.Start, line.End, 0.15f, ColorAlpha(WHITE, alpha));
+
+		auto sp = line.Start + ((vec * (1.0f- alpha) * maxDist));
+        DrawLineEx(sp, line.End, 0.35f, ColorAlpha(YELLOW, alpha));
+        DrawLineEx(sp, line.End, 0.15f, ColorAlpha(WHITE, alpha));
     }
 
 	EndMode2D();
