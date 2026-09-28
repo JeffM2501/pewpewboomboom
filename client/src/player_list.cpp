@@ -66,45 +66,99 @@ void ClientPlayerState::UpdateInterpolatedTransform(float deltaTime)
         return;
     }
 
-    if (InterpStartHistoryIndex == 0 || TransformHistory.empty() || TransformHistory.begin()->first > InterpStartHistoryIndex)
-    {
-        // nothing to interpolate
-        return;
-    }
-
-    auto start = TransformHistory.find(InterpStartHistoryIndex);
-    auto end = TransformHistory.find(InterpEndHistoryIndex);
-
-
-    // we can't find the history items
-    if (start == TransformHistory.end() && end == TransformHistory.end())
+    if (TransformHistory.empty())
     {
         return;
     }
 
-    // only one is valid, so just use that
-    if (start == TransformHistory.end() || end == TransformHistory.end())
+    uint64_t latestTick = TransformHistory.rbegin()->first;
+    double idealTargetTick = (latestTick >= RemotePlayerHistoryOffset) ? double(latestTick - RemotePlayerHistoryOffset) : double(latestTick);
+
+    if (!InitializedInterp)
     {
-        if (start == TransformHistory.end())
+        RenderTick = idealTargetTick;
+        InitializedInterp = true;
+    }
+
+    // Advance render playback time continuously
+    double deltaTicks = double(deltaTime) * double(kDefaultTickRate);
+
+    // Gently adjust playback rate to prevent clock drift from starving or bloating the buffer
+    double diff = RenderTick - idealTargetTick;
+    double driftThreshold = double(kNetworkSendIntervalTicks) + 1.0;
+    if (diff > driftThreshold)
+    {
+        // Render tick is drifting too close to latest received snapshot; slow down slightly
+        deltaTicks *= 0.9;
+    }
+    else if (diff < -driftThreshold)
+    {
+        // Render tick is falling too far behind; speed up slightly
+        deltaTicks *= 1.1;
+    }
+
+    // If there is an extreme hitch or disconnect jump, snap to target
+    if (fabs(diff) > 15.0)
+    {
+        RenderTick = idealTargetTick;
+    }
+    else
+    {
+        RenderTick += deltaTicks;
+    }
+
+    if (TransformHistory.size() == 1)
+    {
+        Transform = TransformHistory.begin()->second;
+        return;
+    }
+
+    // Clamp or extrapolate based on the available snapshot history window
+    if (RenderTick < double(TransformHistory.begin()->first))
+    {
+        Transform = TransformHistory.begin()->second;
+        return;
+    }
+
+    if (RenderTick >= double(latestTick))
+    {
+        // Extrapolate forward along last known velocity during temporary packet delays
+        const auto& latestTransform = TransformHistory.rbegin()->second;
+        double overshootTicks = RenderTick - double(latestTick);
+        float overshootSec = float(overshootTicks) / float(kDefaultTickRate);
+
+        // Cap extrapolation window to 0.15s (~9 ticks) to avoid wandering too far on dropouts
+        if (overshootSec > 0.15f)
         {
-            Transform = end->second;
-        }
-        else
-        {
-            Transform = start->second;
+            overshootSec = 0.15f;
         }
 
+        Transform = latestTransform;
+        Transform.Position = Vector2Add(latestTransform.Position, Vector2Scale(latestTransform.Velocity, overshootSec));
         return;
     }
 
-    // we have two valid interpolation positions, smooth that sucker out
-    float param = Clamp(LastTickTime * kDefaultTickRate, 0.0f, 1.0f);
+    // Find the enclosing snapshots: lower <= RenderTick < upper
+    auto upper = TransformHistory.upper_bound(uint64_t(RenderTick));
+    if (upper == TransformHistory.begin())
+    {
+        Transform = TransformHistory.begin()->second;
+        return;
+    }
 
-    Transform.Position = Vector2Lerp(start->second.Position, end->second.Position, param);
-    Transform.Rotation[0] = LerpAngleDeg(start->second.Rotation[0], end->second.Rotation[0], param);
-    Transform.Rotation[1] = LerpAngleDeg(start->second.Rotation[1], end->second.Rotation[1], param);
+    auto lower = std::prev(upper);
+    uint64_t tickSpan = upper->first - lower->first;
+    float t = 0.0f;
+    if (tickSpan > 0)
+    {
+        t = float(RenderTick - double(lower->first)) / float(tickSpan);
+        t = Clamp(t, 0.0f, 1.0f);
+    }
 
-    LastTickTime += deltaTime;
+    Transform.Position = Vector2Lerp(lower->second.Position, upper->second.Position, t);
+    Transform.Rotation[0] = LerpAngleDeg(lower->second.Rotation[0], upper->second.Rotation[0], t);
+    Transform.Rotation[1] = LerpAngleDeg(lower->second.Rotation[1], upper->second.Rotation[1], t);
+    Transform.Velocity = Vector2Lerp(lower->second.Velocity, upper->second.Velocity, t);
 }
 
 void ClientPlayerState::UpdateForTick(uint64_t currentTick)
@@ -114,14 +168,12 @@ void ClientPlayerState::UpdateForTick(uint64_t currentTick)
         return;
     }
 
-    LastTickTime = 0;
-    InterpStartHistoryIndex = (currentTick >= RemotePlayerHistoryOffset) ? (currentTick - RemotePlayerHistoryOffset) : 0;
-    InterpEndHistoryIndex = InterpStartHistoryIndex + 1;
-
-    uint64_t maxHistory = 32;
-    if (currentTick > maxHistory)
+    // Prune history older than 64 ticks (~1 second) behind current playback
+    uint64_t baseTick = (RenderTick > 0.0) ? uint64_t(RenderTick) : currentTick;
+    uint64_t maxHistory = 64;
+    if (baseTick > maxHistory)
     {
-        uint64_t oldest = currentTick - maxHistory;
+        uint64_t oldest = baseTick - maxHistory;
         for (auto itr = TransformHistory.begin(); itr != TransformHistory.end();)
         {
             if (itr->first < oldest)

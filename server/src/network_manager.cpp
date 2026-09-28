@@ -89,6 +89,14 @@ void NetworkManager::NewTick()
     CurrentServerTick++;
 }
 
+void NetworkManager::Flush()
+{
+    if (ServerHost)
+    {
+        enet_host_flush(ServerHost);
+    }
+}
+
 void NetworkManager::PollEvents(int timeoutMs)
 {
     if (!ServerHost)
@@ -97,9 +105,11 @@ void NetworkManager::PollEvents(int timeoutMs)
     }
 
     ENetEvent event;
+    int currentTimeout = timeoutMs;
 
-    while (enet_host_service(ServerHost, &event, timeoutMs) > 0)
+    while (enet_host_service(ServerHost, &event, currentTimeout) > 0)
     {
+        currentTimeout = 0;
         switch (event.type)
         {
             case ENET_EVENT_TYPE_CONNECT:
@@ -117,6 +127,9 @@ void NetworkManager::PollEvents(int timeoutMs)
             case ENET_EVENT_TYPE_RECEIVE:
             {
                 ServerLogger.Log(LogLevel::Verbose, "A packet of length %d containing %x was received from %x on channel %d.", event.packet->dataLength, event.packet->data, event.peer->data, event.channelID);
+
+                uint8_t packetType = (event.packet->dataLength > 0) ? event.packet->data[0] : 0;
+                Bandwidth.RecordPacketReceived(packetType, event.packet->dataLength);
 
                 ProcessPacket(event.packet, event.peer);
 

@@ -203,9 +203,9 @@ namespace PacketHandlers
 
         uint64_t currentTick = netManager.CurrentServerTick;
         uint64_t baseTick = (clientTick > 0 && clientTick <= currentTick) ? clientTick : currentTick;
-        uint64_t rollbackTick = (baseTick >= 6) ? (baseTick - 6) : 0;
-        uint64_t windowStart = (rollbackTick >= 3) ? (rollbackTick - 3) : 0;
-        uint64_t windowEnd = (rollbackTick + 3 <= currentTick) ? (rollbackTick + 3) : currentTick;
+        uint64_t rollbackTick = (baseTick >= kRemotePlayerHistoryOffsetTicks) ? (baseTick - kRemotePlayerHistoryOffsetTicks) : 0;
+        uint64_t windowStart = (rollbackTick >= kLagCompensationToleranceTicks) ? (rollbackTick - kLagCompensationToleranceTicks) : 0;
+        uint64_t windowEnd = (rollbackTick + kLagCompensationToleranceTicks <= currentTick) ? (rollbackTick + kLagCompensationToleranceTicks) : currentTick;
 
         float maxRange = 2000.0f;
         float closestDist = maxRange;

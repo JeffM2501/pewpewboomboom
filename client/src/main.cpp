@@ -682,11 +682,6 @@ void ProcessNetTick(const uint64_t& tick, void*)
 			SoundManager::PlaySFX(PewSound);
 			LogClientMachineGun("[Client Shot] tick=%llu aim=%.1f endPoint=(%.1f, %.1f)", tick, CurrentInputState.TurretAngle, hitPoint.x, hitPoint.y);
 		}
-
-		if (CurrentInputState.Shoot && !LocalPlayer->IsDead)
-		{
-			SoundManager::PlaySFX(BoomSound);
-		}
 	}
 
 	C2S_InputState inputPacket;

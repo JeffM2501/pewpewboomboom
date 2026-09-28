@@ -63,17 +63,29 @@ namespace RobotAI
         }
     }
 
+    std::string RobotNames[] = {
+        "Theta",
+        "Bob"
+        "Carl",
+        "Donut",
+        "Steve"
+        "Miss B"
+    };
+
     void SetupRobots()
     {
-        auto& robot = ServerPlayerList::AddRobotPlayer();
-        robot.UpdateFunctions.emplace_back(RobotAI::UpdateRobot);
-        robot.Name = "Theta (Robot)";
-        robot.Team = -1;
-        robot.CollisionRadius = 3.0f;
-        robot.Health = 100;
-        robot.FractionalHealth = 100.0f;
-        robot.Transform.Position = Vector2{ 20, 20 };
+        for (auto& name : RobotNames)
+        {
+            auto& robot = ServerPlayerList::AddRobotPlayer();
+            robot.UpdateFunctions.emplace_back(RobotAI::UpdateRobot);
+            robot.Name = TextFormat("%s (Robot)", name.c_str());
+            robot.Team = -1;
+            robot.CollisionRadius = 3.0f;
+            robot.Health = 100;
+            robot.FractionalHealth = 100.0f;
+            robot.Transform.Position = Vector2{ 20, 20 };
 
-        robot.ExtensionData.insert_or_assign(AIStateInfoID, std::make_unique<AIStateInfo>());
+            robot.ExtensionData.insert_or_assign(AIStateInfoID, std::make_unique<AIStateInfo>());
+        }
     }
 }

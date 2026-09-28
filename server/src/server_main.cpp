@@ -24,7 +24,7 @@ NetworkManager NetManager;
 
 ServerWorld World(500);
 
-static constexpr bool ShowDebugWindow = false;
+static constexpr bool ShowDebugWindow = true;
 
 void SendWorldData(uint64_t playerID, void* sender)
 {
@@ -195,7 +195,7 @@ void ServerSetup()
 
 	if (NetManager.Initialize(7777, kMaxPlayers))
 	{
-		ServerLogger.Log(LogLevel::Info, "Server started successfully on port 7777.");
+		ServerLogger.Log(LogLevel::Info, "Server started successfully on port 7777 (Simulation: %d Hz, Network Send: %d Hz).", kSimulationTickRate, kNetworkSendRate);
 	}
 	else
 	{
@@ -338,7 +338,9 @@ void DrawDebugScene()
         }
     }
 	EndMode2D();
-	DrawText(TextFormat("Player Count %d", ServerPlayerList::GetPlayerCount()), 10,10, 20, BLACK);
+	DrawText(TextFormat("Player Count %d", ServerPlayerList::GetPlayerCount()), 10, 10, 20, BLACK);
+	std::string bwText = NetManager.GetBandwidthTracker().GetSummaryString();
+	DrawText(bwText.c_str(), 10, 35, 20, GREEN);
 }
 
 int main(int argc, char* argv[])
@@ -347,7 +349,9 @@ int main(int argc, char* argv[])
 	RobotAI::SetupRobots();
 
 	if (ShowDebugWindow)
+	{
 		InitWindow(800, 800, "World State");
+	}
 
 	FixedTickAccumulator serverTick(ServerTickTime);
 
@@ -401,12 +405,28 @@ int main(int argc, char* argv[])
 				ResolveTankTankCollisions();
 
 				UpdatePlayerHistories();
-                SendStateUpdates();
+
+				if ((NetManager.CurrentServerTick % kNetworkSendIntervalTicks) == 0)
+				{
+					SendStateUpdates();
+					NetManager.Flush();
+				}
 			});
 
 		// process items that can happen anytime
 
-		NetManager.PollEvents(ServerTickTimeMS);
+		NetManager.PollEvents(1);
+
+		uint64_t nowMs = GetTimeMs();
+		NetManager.UpdateBandwidth(nowMs);
+
+		if (NetManager.GetBandwidthTracker().ShouldPrintReport(nowMs))
+		{
+			size_t totalPlayers = ServerPlayerList::GetPlayerCount(true);
+			size_t humanPlayers = ServerPlayerList::GetPlayerCount(false);
+			size_t robotCount = (totalPlayers >= humanPlayers) ? (totalPlayers - humanPlayers) : 0;
+			NetManager.GetBandwidthTracker().PrintReport(ServerLogger, humanPlayers, robotCount, nowMs);
+		}
 
 		if (ShowDebugWindow)
 		{

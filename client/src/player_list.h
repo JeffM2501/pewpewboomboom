@@ -9,15 +9,14 @@
 
 class PlayerList;
 
-static constexpr uint64_t RemotePlayerHistoryOffset = 6;
+static constexpr uint64_t RemotePlayerHistoryOffset = kRemotePlayerHistoryOffsetTicks;
 class ClientPlayerState : public PlayerState
 {
 public:
     bool IsLocalPlayer = false;
 
-    uint64_t InterpStartHistoryIndex = 0;
-    uint64_t InterpEndHistoryIndex = 0;
-    float LastTickTime = 0;
+    double RenderTick = 0.0;
+    bool InitializedInterp = false;
 
     float WeaponReloadTime = 0;
 

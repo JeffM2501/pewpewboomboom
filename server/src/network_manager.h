@@ -6,6 +6,7 @@
 #include "chat_filter_processor.h"
 
 #include "event_source.h"
+#include "bandwidth_tracker.h"
 
 static constexpr double ServerTickTime = double(kDefaultTickRate);
 static constexpr int ServerTickTimeMS = static_cast<int>(1.0f / ServerTickTime * 1000.0f);
@@ -22,10 +23,23 @@ public:
     void NewTick();
 
     void PollEvents(int timeoutMs);
+    void Flush();
 
     ENetHost* GetHost() const
     {
         return ServerHost;
+    }
+
+    BandwidthTracker& GetBandwidthTracker()
+    {
+        return Bandwidth;
+    }
+
+    void UpdateBandwidth(uint64_t nowMs)
+    {
+        uint64_t wireSent = ServerHost ? ServerHost->totalSentData : 0;
+        uint64_t wireRecv = ServerHost ? ServerHost->totalReceivedData : 0;
+        Bandwidth.Update(nowMs, wireSent, wireRecv);
     }
 
     EventSource<uint64_t> PlayerConnected;
@@ -46,19 +60,27 @@ public:
         auto player = ServerPlayerList::GetPlayer(playerID);
 
         if (player == nullptr || player->Peer == nullptr)
+        {
             return;
+        }
 
         ENetPacket* packet = enet_packet_create(&data, sizeof(T), reliable ? ENET_PACKET_FLAG_RELIABLE : 0);
         enet_peer_send(player->Peer, channel, packet);
+
+        uint8_t packetType = *reinterpret_cast<const uint8_t*>(&data);
+        Bandwidth.RecordPacketSent(packetType, sizeof(T));
     }
 
     template<class T>
     void Broadcast(int channel, T& data, bool reliable = true, uint64_t excludedPlayerID = uint64_t(-1))
     {
-        ServerPlayerList::DoForEachPlayer([channel, &data, reliable](auto& player) {
+        uint8_t packetType = *reinterpret_cast<const uint8_t*>(&data);
+        ServerPlayerList::DoForEachPlayer([channel, &data, reliable, packetType, this](auto& player)
+        {
             ENetPacket* packet = enet_packet_create(&data, sizeof(T), reliable ? ENET_PACKET_FLAG_RELIABLE : 0);
             enet_peer_send(player.Peer, channel, packet);
-            }, false, excludedPlayerID);
+            Bandwidth.RecordPacketSent(packetType, sizeof(T));
+        }, false, excludedPlayerID);
     }
 
     uint64_t ServerStartTimeMs = 0;
@@ -71,4 +93,5 @@ public:
 private:
     ENetHost* ServerHost = nullptr;
     ChatFilterProcessor ChatProcessor;
+    BandwidthTracker Bandwidth;
 };

@@ -256,11 +256,39 @@ void ClientNetworkManager::ProcessS2C_Pong(PacketProcessor& processor, ENetPeer*
 	ClientNetworkManager& self = static_cast<ClientNetworkManager&>(processor);
 	uint64_t nowMs = GetTimeMs();
 	uint64_t rtt = (nowMs >= pong->clientTimeMs) ? (nowMs - pong->clientTimeMs) : 0;
-	self.LastRTT = rtt;
+	if (self.LastRTT == 0)
+	{
+		self.LastRTT = rtt;
+	}
+	else
+	{
+		self.LastRTT = static_cast<uint64_t>(self.LastRTT * 0.8 + rtt * 0.2);
+	}
 
 	uint64_t latency = rtt / 2;
-	self.ServerTickBase = pong->serverTick;
-	self.ServerTickSyncTimeMs = pong->clientTimeMs + latency;
+	uint64_t syncTime = pong->clientTimeMs + latency;
+
+	if (self.ServerTickSyncTimeMs == 0)
+	{
+		self.ServerTickBase = pong->serverTick;
+		self.ServerTickSyncTimeMs = syncTime;
+	}
+	else
+	{
+		uint64_t currentEst = self.GetCurrentServerTick();
+		uint64_t incomingEst = pong->serverTick;
+		if (nowMs > syncTime)
+		{
+			incomingEst += static_cast<uint64_t>((nowMs - syncTime) * kDefaultTickRate / 1000.0);
+		}
+
+		int64_t drift = static_cast<int64_t>(incomingEst) - static_cast<int64_t>(currentEst);
+		if (std::abs(drift) > 3)
+		{
+			self.ServerTickBase = pong->serverTick;
+			self.ServerTickSyncTimeMs = syncTime;
+		}
+	}
 
 	GetLogger().Log(LogLevel::Info, "[Client] Received S2C_Pong packet! RTT Latency: %llu ms (Server Uptime: %llu ms, Server Tick: %llu)", rtt, pong->serverTimeMs, pong->serverTick);
 }
