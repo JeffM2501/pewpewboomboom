@@ -633,6 +633,7 @@ void GameDraw()
             Color hpColor = (healthPct > 0.5f) ? GREEN : ((healthPct > 0.25f) ? ORANGE : RED);
             DrawRectangleRec(Rectangle{ barPos.x, barPos.y, barWidth * healthPct, barHeight }, hpColor);
             DrawRectangleLinesEx(Rectangle{ barPos.x, barPos.y, barWidth, barHeight }, 0.05f, WHITE);
+			
         });
 
     for (const auto& [id, bullet] : Network.GetBullets())
@@ -681,6 +682,26 @@ void GameDraw()
     }
 
 	EndMode2D();
+
+    Network.GetPlayerList().DoForEachPlayer([](ClientPlayerState* player)
+        {
+            if (player->IsDead)
+            {
+                return;
+            }
+
+            if (!player->IsLocalPlayer)
+            {
+                float nameSize = MeasureText(player->Name.Data(), 10);
+
+                Vector2 namePos = { player->Transform.Position.x, player->Transform.Position.y - player->CollisionRadius - 0.8f };
+				Vector2 screenPos = GetWorldToScreen2D(namePos, ViewCamera);
+				screenPos.x -= nameSize / 2;
+				screenPos.y += 10;
+                DrawText(player->Name.Data(), screenPos.x, screenPos.y, 10, WHITE);
+            }
+
+        });
 
     if (LocalPlayer && LocalPlayer->IsDead)
     {
