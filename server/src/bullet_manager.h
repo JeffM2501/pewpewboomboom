@@ -32,6 +32,22 @@ struct DestroyedBulletInfo
     Vector2 Position = { 0.0f, 0.0f };
 };
 
+struct CreatedBulletInfo
+{
+    uint16_t ID = 0;
+    uint64_t OwnerID = 0;
+    uint8_t BulletType = 0;
+    Vector2 Position = { 0.0f, 0.0f };
+    Vector2 Velocity = { 0.0f, 0.0f };
+};
+
+struct BulletTankKillEvent
+{
+    uint64_t VictimID = 0;
+    uint64_t KillerID = 0;
+    Vector2 Position = { 0.0f, 0.0f };
+};
+
 struct BulletBuildingCollisionEvent
 {
     ServerBullet* Bullet = nullptr;
@@ -64,6 +80,7 @@ namespace BulletManager
     extern EventSource<BulletBuildingCollisionEvent> OnBulletHitBuilding;
     extern EventSource<MachineGunHitBuildingEvent> OnMachineGunHitBuilding;
     extern EventSource<MachineGunHitTankEvent> OnMachineGunHitTank;
+    extern EventSource<BulletTankKillEvent> OnBulletKilledTank;
 
     void Init();
     ServerBullet* SpawnBullet(uint64_t ownerId, Vector2 muzzlePos, float angleDeg, float speed = 50.0f, float damage = 25.0f, uint8_t type = 0);
@@ -73,11 +90,14 @@ namespace BulletManager
     const std::array<ServerBullet, kMaxBullets>& GetBullets();
     const std::vector<DestroyedBulletInfo>& GetDestroyedBullets();
     void ClearDestroyedBullets();
+    const std::vector<CreatedBulletInfo>& GetCreatedBullets();
+    void ClearCreatedBullets();
     void Clear();
 
     EventSource<BulletBuildingCollisionEvent>& GetOnBulletHitBuilding();
     EventSource<MachineGunHitBuildingEvent>& GetOnMachineGunHitBuilding();
     EventSource<MachineGunHitTankEvent>& GetOnMachineGunHitTank();
+    EventSource<BulletTankKillEvent>& GetOnBulletKilledTank();
     bool CheckBulletBuildingCollision(Vector2 startPos, Vector2 endPos, float radius, Vector2 buildingPos, Vector2 buildingSize, float rotationDeg, Vector2& outHitPoint, Vector2& outHitNormal);
 }
 

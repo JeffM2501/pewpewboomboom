@@ -52,6 +52,9 @@ public:
 		EventSource<S2C_HitscanEffect> OnHitscanEffect;
 		EventSource<MachineGunHitBuildingEvent> OnMachineGunHitBuilding;
 		EventSource<MachineGunHitTankEvent> OnMachineGunHitTank;
+		EventSource<S2C_PlayerSpawned> OnPlayerSpawned;
+		EventSource<S2C_PlayerDespawned> OnPlayerDespawned;
+		EventSource<S2C_ShotCreated> OnShotCreated;
 	};
 
 	ClientNetworkManager();
@@ -125,6 +128,9 @@ private:
     static void ProcessS2C_BulletSnapshot(PacketProcessor& processor, ENetPeer* sender, const S2C_BulletSnapshot* snapshot);
     static void ProcessS2C_BulletDestroyed(PacketProcessor& processor, ENetPeer* sender, const S2C_BulletDestroyed* packet);
     static void ProcessS2C_HitscanEffect(PacketProcessor& processor, ENetPeer* sender, const S2C_HitscanEffect* packet);
+    static void ProcessS2C_PlayerSpawned(PacketProcessor& processor, ENetPeer* sender, const S2C_PlayerSpawned* packet);
+    static void ProcessS2C_PlayerDespawned(PacketProcessor& processor, ENetPeer* sender, const S2C_PlayerDespawned* packet);
+    static void ProcessS2C_ShotCreated(PacketProcessor& processor, ENetPeer* sender, const S2C_ShotCreated* packet);
 };
 
 extern ClientNetworkManager Network;

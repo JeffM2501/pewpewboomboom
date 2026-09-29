@@ -77,6 +77,9 @@ namespace MiniMap
 
 		Network.GetPlayerList().DoForEachPlayer([](ClientPlayerState* player)
 			{
+				if (player->IsDead)
+					return;
+
 				DrawCircleV(player->Transform.Position, 5, player->IsLocalPlayer ? GREEN : RED);
 			});
 

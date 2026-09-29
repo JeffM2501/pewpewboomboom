@@ -22,6 +22,9 @@ namespace RobotAI
 
     void UpdateRobot(ServerPlayerList::ServerPlayer& robot, NetworkManager& manager)
     {
+        if (robot.IsDead)
+            return;
+
         auto tick = manager.CurrentServerTick;
 
         float deltaTime = (1.0f / kDefaultTickRate);
@@ -65,10 +68,10 @@ namespace RobotAI
 
     std::string RobotNames[] = {
         "Theta",
-        "Bob"
+        "Bob",
         "Carl",
         "Donut",
-        "Steve"
+        "Steve",
         "Miss B"
     };
 

@@ -69,18 +69,28 @@ void  NetworkManager::RemovePlayer(ENetPeer* peer, bool isDisconnect)
 
     auto& player = ServerPlayerList::GetPlayer(peer);
 
+    auto playerPos = player.Transform.Position;
     auto playerID = player.PlayerID;
     PlayerDisconnected.Invoke(playerID, this);
 
     ServerLogger.Log(LogLevel::Info, "Removing player %s (ID: %llu) from server.", player.Name.Data(), playerID);
     ServerPlayerList::RemovePlayer(peer);
 
-    ServerPlayerList::DoForEachPlayer([playerID, isDisconnect, this](auto& playerInfo)
+    ServerPlayerList::DoForEachPlayer([playerID, isDisconnect, playerPos, this](auto& playerInfo)
         {
             S2C_PlayerDisconnected deadPlayer;
             deadPlayer.playerId = playerID;
             deadPlayer.reason = isDisconnect ? S2C_PlayerDisconnected::Reason::Dissconnect : S2C_PlayerDisconnected::Reason::Quit;
             Send(playerInfo.PlayerID, 0, deadPlayer);
+
+            S2C_PlayerDespawned despawnPacket;
+            despawnPacket.serverTick = CurrentServerTick;
+            despawnPacket.playerId = playerID;
+            despawnPacket.position[0] = playerPos.x;
+            despawnPacket.position[1] = playerPos.y;
+            despawnPacket.reason = S2C_PlayerDespawned::Reason::Disconnected;
+            despawnPacket.killerId = 0;
+            Send(playerInfo.PlayerID, 0, despawnPacket);
         });
 }
 

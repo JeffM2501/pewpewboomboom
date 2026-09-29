@@ -49,6 +49,11 @@ public:
 		return *this;
 	}
 
+    FixedSizeString<N>& operator=(const char* other) {
+        Lenght = CopyFixedSizeString(Value, other, N);
+        return *this;
+    }
+
 	template <size_t OtherN>
 	FixedSizeString<N>& operator+=(const FixedSizeString<OtherN>& other) {
 		return *this += std::string_view(other.Data(), other.Size());

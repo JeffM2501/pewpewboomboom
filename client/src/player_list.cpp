@@ -226,7 +226,7 @@ void ClientLocalPlayerState::AddServerStateUpdate(uint64_t tick, PlayerTransform
         {
             OwnerList->DoForEachPlayer([&](ClientPlayerState* other)
             {
-                if (other->IsLocalPlayer)
+                if (other->IsLocalPlayer || other->IsDead)
                 {
                     return;
                 }

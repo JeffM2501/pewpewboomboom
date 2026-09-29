@@ -27,7 +27,10 @@ enum class PacketType : uint8_t
 	S2C_BulletSnapshot = 16,
 	S2C_BulletDestroyed = 17,
 	C2S_HitscanShot = 18,
-	S2C_HitscanEffect = 19
+	S2C_HitscanEffect = 19,
+	S2C_PlayerSpawned = 20,
+	S2C_PlayerDespawned = 21,
+	S2C_ShotCreated = 22
 };
 
 #pragma pack(push, 1)
@@ -285,5 +288,41 @@ struct S2C_HitscanEffect
     uint64_t hitBuildingId = 0;
     float startPoint[2] = { 0.0f, 0.0f };
     float endPoint[2] = { 0.0f, 0.0f };
+};
+
+struct S2C_PlayerSpawned
+{
+    uint8_t type = static_cast<uint8_t>(PacketType::S2C_PlayerSpawned);
+    uint64_t serverTick = 0;
+    uint64_t playerId = 0;
+    uint8_t isDead = 0;
+    float position[2] = { 0.0f, 0.0f };
+    float rotation = 0.0f;
+};
+
+struct S2C_PlayerDespawned
+{
+    enum class Reason : uint8_t
+    {
+        Killed = 0,
+        Disconnected = 1
+    };
+    uint8_t type = static_cast<uint8_t>(PacketType::S2C_PlayerDespawned);
+    uint64_t serverTick = 0;
+    uint64_t playerId = 0;
+    float position[2] = { 0.0f, 0.0f };
+    Reason reason = Reason::Killed;
+    uint64_t killerId = 0;
+};
+
+struct S2C_ShotCreated
+{
+    uint8_t type = static_cast<uint8_t>(PacketType::S2C_ShotCreated);
+    uint64_t serverTick = 0;
+    uint16_t bulletId = 0;
+    uint64_t ownerId = 0;
+    uint8_t bulletType = 0;
+    float position[2] = { 0.0f, 0.0f };
+    float velocity[2] = { 0.0f, 0.0f };
 };
 #pragma pack(pop)

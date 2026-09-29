@@ -9,6 +9,7 @@ namespace BulletManager
     EventSource<BulletBuildingCollisionEvent> OnBulletHitBuilding;
     EventSource<MachineGunHitBuildingEvent> OnMachineGunHitBuilding;
     EventSource<MachineGunHitTankEvent> OnMachineGunHitTank;
+    EventSource<BulletTankKillEvent> OnBulletKilledTank;
 
     EventSource<BulletBuildingCollisionEvent>& GetOnBulletHitBuilding()
     {
@@ -23,6 +24,11 @@ namespace BulletManager
     EventSource<MachineGunHitTankEvent>& GetOnMachineGunHitTank()
     {
         return OnMachineGunHitTank;
+    }
+
+    EventSource<BulletTankKillEvent>& GetOnBulletKilledTank()
+    {
+        return OnBulletKilledTank;
     }
 
     bool CheckBulletBuildingCollision(Vector2 startPos, Vector2 endPos, float radius, Vector2 buildingPos, Vector2 buildingSize, float rotationDeg, Vector2& outHitPoint, Vector2& outHitNormal)
@@ -161,6 +167,7 @@ namespace BulletManager
     static std::array<ServerBullet, kMaxBullets> BulletPool;
     static uint16_t NextBulletID = 1;
     static std::vector<DestroyedBulletInfo> DestroyedBulletsThisTick;
+    static std::vector<CreatedBulletInfo> CreatedBulletsThisTick;
 
     void DestroyBullet(ServerBullet& bullet, Vector2 impactPos)
     {
@@ -181,6 +188,16 @@ namespace BulletManager
         DestroyedBulletsThisTick.clear();
     }
 
+    const std::vector<CreatedBulletInfo>& GetCreatedBullets()
+    {
+        return CreatedBulletsThisTick;
+    }
+
+    void ClearCreatedBullets()
+    {
+        CreatedBulletsThisTick.clear();
+    }
+
     void Init()
     {
         Clear();
@@ -194,6 +211,7 @@ namespace BulletManager
         }
         NextBulletID = 1;
         DestroyedBulletsThisTick.clear();
+        CreatedBulletsThisTick.clear();
     }
 
     ServerBullet* SpawnBullet(uint64_t ownerId, Vector2 muzzlePos, float angleDeg, float speed, float damage, uint8_t type)
@@ -217,6 +235,7 @@ namespace BulletManager
 
                 float rad = angleDeg * DEG2RAD;
                 bullet.Velocity = Vector2{ cosf(rad) * speed, sinf(rad) * speed };
+                CreatedBulletsThisTick.push_back(CreatedBulletInfo{ bullet.ID, bullet.OwnerID, bullet.BulletType, bullet.Position, bullet.Velocity });
                 return &bullet;
             }
         }
@@ -345,6 +364,12 @@ namespace BulletManager
                         {
                             attacker->Kills++;
                         }
+
+                        BulletTankKillEvent killEvent;
+                        killEvent.VictimID = player.PlayerID;
+                        killEvent.KillerID = bullet.OwnerID;
+                        killEvent.Position = player.Transform.Position;
+                        OnBulletKilledTank.Invoke(killEvent, &world);
                     }
                     else
                     {

@@ -30,6 +30,9 @@ ClientNetworkManager::ClientNetworkManager()
     RegisterProcessor<S2C_BulletSnapshot>(PacketType::S2C_BulletSnapshot, ProcessS2C_BulletSnapshot);
     RegisterProcessor<S2C_BulletDestroyed>(PacketType::S2C_BulletDestroyed, ProcessS2C_BulletDestroyed);
     RegisterProcessor<S2C_HitscanEffect>(PacketType::S2C_HitscanEffect, ProcessS2C_HitscanEffect);
+    RegisterProcessor<S2C_PlayerSpawned>(PacketType::S2C_PlayerSpawned, ProcessS2C_PlayerSpawned);
+    RegisterProcessor<S2C_PlayerDespawned>(PacketType::S2C_PlayerDespawned, ProcessS2C_PlayerDespawned);
+    RegisterProcessor<S2C_ShotCreated>(PacketType::S2C_ShotCreated, ProcessS2C_ShotCreated);
 }
 
 ClientNetworkManager::~ClientNetworkManager()
@@ -374,6 +377,7 @@ void ClientNetworkManager::ProcessS2C_PlayerSnapshot(PacketProcessor& processor,
         newTransform.Rotation[1] = snapshot->rotation[1];
         newTransform.Velocity = DataUtils::UnpackVector2(snapshot->velocity);
 
+        bool wasDead = player->IsDead;
         player->Health = snapshot->health;
         player->IsDead = (snapshot->isDead != 0);
 
@@ -383,6 +387,28 @@ void ClientNetworkManager::ProcessS2C_PlayerSnapshot(PacketProcessor& processor,
         }
 
         player->AddServerStateUpdate(snapshot->serverTick, newTransform);
+
+        if (wasDead && !player->IsDead)
+        {
+            S2C_PlayerSpawned spawn;
+            spawn.serverTick = snapshot->serverTick;
+            spawn.playerId = snapshot->playerId;
+            spawn.position[0] = snapshot->position[0];
+            spawn.position[1] = snapshot->position[1];
+            spawn.rotation = snapshot->rotation[0];
+            self.ConnectionEvents.OnPlayerSpawned.Invoke(spawn);
+        }
+        else if (!wasDead && player->IsDead)
+        {
+            S2C_PlayerDespawned despawn;
+            despawn.serverTick = snapshot->serverTick;
+            despawn.playerId = snapshot->playerId;
+            despawn.position[0] = snapshot->position[0];
+            despawn.position[1] = snapshot->position[1];
+            despawn.reason = S2C_PlayerDespawned::Reason::Killed;
+            despawn.killerId = 0;
+            self.ConnectionEvents.OnPlayerDespawned.Invoke(despawn);
+        }
     }
 }
 
@@ -424,6 +450,17 @@ void ClientNetworkManager::ProcessS2C_BulletSnapshot(PacketProcessor& processor,
         b.Position = predictedPos;
         b.Velocity = serverVel;
         b.LastUpdatedTime = static_cast<float>(GetTime());
+
+        S2C_ShotCreated shot;
+        shot.serverTick = snapshot->serverTick;
+        shot.bulletId = bState.bulletId;
+        shot.ownerId = bState.ownerId;
+        shot.bulletType = bState.bulletType;
+        shot.position[0] = bState.position[0];
+        shot.position[1] = bState.position[1];
+        shot.velocity[0] = bState.velocity[0];
+        shot.velocity[1] = bState.velocity[1];
+        self.ConnectionEvents.OnShotCreated.Invoke(shot);
     }
     else
     {
@@ -513,5 +550,60 @@ void ClientNetworkManager::UpdateBullets(float deltaTime)
             ++it;
         }
     }
+}
+
+void ClientNetworkManager::ProcessS2C_PlayerSpawned(PacketProcessor& processor, ENetPeer* sender, const S2C_PlayerSpawned* packet)
+{
+    ClientNetworkManager& self = static_cast<ClientNetworkManager&>(processor);
+    auto* player = self.GetPlayerList().GetPlayer(packet->playerId);
+    if (player)
+    {
+        player->IsDead = false;
+        player->Transform.Position = DataUtils::UnpackVector2(packet->position);
+        player->Transform.Rotation[0] = packet->rotation;
+
+        if (player->IsLocalPlayer)
+        {
+            self.Spawn = player->Transform.Position;
+            self.ConnectionEvents.OnSpawn.Invoke(self.Spawn);
+        }
+    }
+
+    self.ConnectionEvents.OnPlayerSpawned.Invoke(*packet);
+}
+
+void ClientNetworkManager::ProcessS2C_PlayerDespawned(PacketProcessor& processor, ENetPeer* sender, const S2C_PlayerDespawned* packet)
+{
+    ClientNetworkManager& self = static_cast<ClientNetworkManager&>(processor);
+    auto* player = self.GetPlayerList().GetPlayer(packet->playerId);
+    if (player)
+    {
+        player->IsDead = true;
+    }
+
+    self.ConnectionEvents.OnPlayerDespawned.Invoke(*packet);
+}
+
+void ClientNetworkManager::ProcessS2C_ShotCreated(PacketProcessor& processor, ENetPeer* sender, const S2C_ShotCreated* packet)
+{
+    ClientNetworkManager& self = static_cast<ClientNetworkManager&>(processor);
+    if (self.RecentlyDestroyedBullets.find(packet->bulletId) != self.RecentlyDestroyedBullets.end())
+    {
+        return;
+    }
+
+    auto it = self.Bullets.find(packet->bulletId);
+    if (it == self.Bullets.end())
+    {
+        auto& b = self.Bullets[packet->bulletId];
+        b.ID = packet->bulletId;
+        b.OwnerID = packet->ownerId;
+        b.BulletType = packet->bulletType;
+        b.Position = DataUtils::UnpackVector2(packet->position);
+        b.Velocity = DataUtils::UnpackVector2(packet->velocity);
+        b.LastUpdatedTime = static_cast<float>(GetTime());
+    }
+
+    self.ConnectionEvents.OnShotCreated.Invoke(*packet);
 }
 

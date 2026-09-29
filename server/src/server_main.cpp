@@ -97,9 +97,13 @@ Vector2 CollidePlayerWithMap(const Vector2& oldPos, const Vector2& desiredPos, S
 	BoundingCircle bounds = { desiredPos, 10 };
 	Vector2 resolvedPos = World.Collide(oldPos, desiredPos, player.CollisionRadius, bounds);
 
+	// you are dead, no moving
+	if (player.IsDead)
+		return oldPos;
+
 	ServerPlayerList::DoForEachPlayer([&player, oldPos, &resolvedPos](ServerPlayerList::ServerPlayer& other)
 	{
-		if (other.PlayerID == player.PlayerID)
+		if (other.PlayerID == player.PlayerID || other.IsDead)
 		{
 			return;
 		}
@@ -128,6 +132,9 @@ void ResolveTankTankCollisions()
 			auto* p1 = players[i];
 			auto* p2 = players[j];
 
+			if (p1->IsDead || p2->IsDead)
+				continue;
+
 			Vector2 hitNormal;
 			float penetrationDepth = 0.0f;
 			if (ResolveCircleCircleCollision(p1->Transform.Position, p1->CollisionRadius, p2->Transform.Position, p2->CollisionRadius, hitNormal, penetrationDepth))
@@ -149,6 +156,7 @@ void SetupPlayer(ServerPlayerList::ServerPlayer& player)
 	player.FractionalHealth = 100.0f;
 	player.WeaponCooldown = 0.0f;
 	player.MachineGunCooldown = 0.0f;
+	player.IsDead = false;
 }
 
 void ServerSetup()
@@ -189,6 +197,18 @@ void ServerSetup()
 		});
 
 	NetManager.PlayerJoined.Add(SendWorldData);
+
+	BulletManager::OnBulletKilledTank.Add([](const BulletTankKillEvent& event, void*)
+	{
+		S2C_PlayerDespawned despawnPacket;
+		despawnPacket.serverTick = NetManager.CurrentServerTick;
+		despawnPacket.playerId = event.VictimID;
+		despawnPacket.position[0] = event.Position.x;
+		despawnPacket.position[1] = event.Position.y;
+		despawnPacket.reason = S2C_PlayerDespawned::Reason::Killed;
+		despawnPacket.killerId = event.KillerID;
+		NetManager.Broadcast(0, despawnPacket, true);
+	});
 
 	NetManager.ProcessPlayerUpdate = CollidePlayerWithMap;
 	NetManager.SetupRemotePlayer = SetupPlayer;
@@ -266,9 +286,25 @@ void SendStateUpdates()
 
                 NetManager.Send(player.PlayerID, 1, bulletDestroyed, false);
             }
+
+            for (const auto& created : BulletManager::GetCreatedBullets())
+            {
+                S2C_ShotCreated shotCreated;
+                shotCreated.serverTick = NetManager.CurrentServerTick;
+                shotCreated.bulletId = created.ID;
+                shotCreated.ownerId = created.OwnerID;
+                shotCreated.bulletType = created.BulletType;
+                shotCreated.position[0] = created.Position.x;
+                shotCreated.position[1] = created.Position.y;
+                shotCreated.velocity[0] = created.Velocity.x;
+                shotCreated.velocity[1] = created.Velocity.y;
+
+                NetManager.Send(player.PlayerID, 1, shotCreated, false);
+            }
         }, false);
 
     BulletManager::ClearDestroyedBullets();
+    BulletManager::ClearCreatedBullets();
 }
 
 void UpdatePlayerHistories()
@@ -326,6 +362,9 @@ void DrawDebugScene()
 
     ServerPlayerList::DoForEachPlayer([&](ServerPlayerList::ServerPlayer& player)
         {
+			if (player.IsDead)
+				return;
+
 			DrawCircleV(player.Transform.Position, player.CollisionRadius, player.IsDead ? GRAY : BLUE);
         }
     , true);
@@ -394,6 +433,14 @@ int main(int argc, char* argv[])
 								player.Transform.Position = Vector2{ float(GetRandomValue(-50, 50)), float(GetRandomValue(-50, 50)) };
 								BoundingCircle b = { player.Transform.Position, 10 };
 								player.Transform.Position = World.Collide(player.Transform.Position, player.Transform.Position, player.CollisionRadius, b);
+
+								S2C_PlayerSpawned spawnPacket;
+								spawnPacket.serverTick = NetManager.CurrentServerTick;
+								spawnPacket.playerId = player.PlayerID;
+								spawnPacket.position[0] = player.Transform.Position.x;
+								spawnPacket.position[1] = player.Transform.Position.y;
+								spawnPacket.rotation = player.Transform.Rotation[0];
+								NetManager.Broadcast(0, spawnPacket, true);
 							}
 						}
 

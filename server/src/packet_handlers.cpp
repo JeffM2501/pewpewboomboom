@@ -83,24 +83,45 @@ namespace PacketHandlers
         netManager.PlayerJoined.Invoke(player.PlayerID, &netManager);
 
         // send the player list to them
-        ServerPlayerList::DoForEachPlayer([sender,&processor](auto& playerInfo)
+        ServerPlayerList::DoForEachPlayer([sender, &processor, &netManager](auto& playerInfo)
             {
                 S2C_PlayerJoined remotePlayer;
                 remotePlayer.playerId = playerInfo.PlayerID;
                 remotePlayer.collisionRadius = playerInfo.CollisionRadius;
                 playerInfo.Name.CopyToBuffer(remotePlayer.name);
                 processor.SendPacket(sender, 0, remotePlayer);
+
+               // if (!playerInfo.IsDead)
+                {
+                    S2C_PlayerSpawned remoteSpawn;
+                    remoteSpawn.serverTick = netManager.CurrentServerTick;
+                    remoteSpawn.playerId = playerInfo.PlayerID;
+                    remoteSpawn.position[0] = playerInfo.Transform.Position.x;
+                    remoteSpawn.position[1] = playerInfo.Transform.Position.y;
+                    remoteSpawn.rotation = playerInfo.Transform.Rotation[0];
+                    remoteSpawn.isDead = playerInfo.IsDead ? 1 : 0;
+                    processor.SendPacket(sender, 0, remoteSpawn);
+                }
             }
             , true, player.PlayerID);
 
         // send them to all other players
-        ServerPlayerList::DoForEachPlayer([&player,&processor](auto& playerInfo)
+        ServerPlayerList::DoForEachPlayer([&player, &processor, &netManager](auto& playerInfo)
             {
                 S2C_PlayerJoined newPlayer;
                 newPlayer.playerId = player.PlayerID;
                 newPlayer.collisionRadius = player.CollisionRadius;
                 player.Name.CopyToBuffer(newPlayer.name);
                 processor.SendPacket(playerInfo.Peer, 0, newPlayer);
+
+                S2C_PlayerSpawned newSpawn;
+                newSpawn.serverTick = netManager.CurrentServerTick;
+                newSpawn.playerId = player.PlayerID;
+                newSpawn.position[0] = player.Transform.Position.x;
+                newSpawn.position[1] = player.Transform.Position.y;
+                newSpawn.rotation = player.Transform.Rotation[0];
+                newSpawn.isDead = player.IsDead ? 1 : 0;
+                processor.SendPacket(playerInfo.Peer, 0, newSpawn);
             }
             , false, player.PlayerID);
     }
@@ -347,6 +368,15 @@ namespace PacketHandlers
                     shooter.Kills++;
                     LogServerMachineGun("[Combat] Player %llu was KILLED by Player %llu with Machine Gun (Server Detected)", target->PlayerID, shooter.PlayerID);
                     ServerLogger.Log(LogLevel::Info, "[Combat] Player %llu was KILLED by Player %llu with Machine Gun (Server Detected)", target->PlayerID, shooter.PlayerID);
+
+                    S2C_PlayerDespawned despawnPacket;
+                    despawnPacket.serverTick = netManager.CurrentServerTick;
+                    despawnPacket.playerId = target->PlayerID;
+                    despawnPacket.position[0] = target->Transform.Position.x;
+                    despawnPacket.position[1] = target->Transform.Position.y;
+                    despawnPacket.reason = S2C_PlayerDespawned::Reason::Killed;
+                    despawnPacket.killerId = shooter.PlayerID;
+                    netManager.Broadcast(0, despawnPacket, true);
                 }
                 else
                 {

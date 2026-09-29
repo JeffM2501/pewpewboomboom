@@ -88,6 +88,38 @@ void AddHitscanVisualLine(Vector2 start, Vector2 end)
 	ActiveHitscanLines.push_back(line);
 }
 
+struct VisualEffect
+{
+	enum class Type
+	{
+		Spawn,
+		Despawn,
+		Shot
+	};
+	Type EffectType = Type::Spawn;
+	Vector2 Position = { 0.0f, 0.0f };
+	float Radius = 0.0f;
+	float MaxRadius = 5.0f;
+	float RemainingTime = 0.5f;
+	float TotalDuration = 0.5f;
+	Color EffectColor = WHITE;
+};
+
+static std::vector<VisualEffect> ActiveVisualEffects;
+
+void AddVisualEffect(VisualEffect::Type type, Vector2 pos, float maxRadius, float duration, Color color)
+{
+	VisualEffect fx;
+	fx.EffectType = type;
+	fx.Position = pos;
+	fx.Radius = 0.0f;
+	fx.MaxRadius = maxRadius;
+	fx.RemainingTime = duration;
+	fx.TotalDuration = duration;
+	fx.EffectColor = color;
+	ActiveVisualEffects.push_back(fx);
+}
+
 Vector2 PredictHitscanHitPoint(Vector2 startPos, Vector2 dir, uint64_t clientTick, float maxRange = 2000.0f)
 {
 	float closestDist = maxRange;
@@ -349,6 +381,57 @@ void GameInit()
         });
 
 	Network.GetEvents().OnSpawn.Add([](const Vector2& spawn, void*) { ProcessPlayerSpawn(spawn); });
+
+	Network.GetEvents().OnPlayerSpawned.Add([](const S2C_PlayerSpawned& spawn, void*)
+	{
+		Vector2 pos = DataUtils::UnpackVector2(spawn.position);
+		AddVisualEffect(VisualEffect::Type::Spawn, pos, 5.0f, 0.5f, GREEN);
+
+		if (!LocalPlayer || spawn.playerId != LocalPlayer->PlayerID)
+		{
+			auto* p = Network.GetPlayerList().GetPlayer(spawn.playerId);
+			const char* name = (p && p->Name.Size() > 0) ? p->Name.Data() : "Remote Player";
+			ChatWindow::AddSystemChatLine(TextFormat("[Spawn] %s spawned at (%.0f, %.0f)!", name, pos.x, pos.y));
+		}
+	});
+
+	Network.GetEvents().OnPlayerDespawned.Add([](const S2C_PlayerDespawned& despawn, void*)
+	{
+		Vector2 pos = DataUtils::UnpackVector2(despawn.position);
+		AddVisualEffect(VisualEffect::Type::Despawn, pos, 7.0f, 0.7f, ORANGE);
+		SoundManager::PlaySFX(BoomSound);
+
+		auto* p = Network.GetPlayerList().GetPlayer(despawn.playerId);
+		const char* name = (p && p->Name.Size() > 0) ? p->Name.Data() : "Player";
+		if (despawn.reason == S2C_PlayerDespawned::Reason::Killed)
+		{
+			if (despawn.killerId != 0)
+			{
+				auto* killer = Network.GetPlayerList().GetPlayer(despawn.killerId);
+				const char* killerName = (killer && killer->Name.Size() > 0) ? killer->Name.Data() : "someone";
+				ChatWindow::AddSystemChatLine(TextFormat("[Destroyed] %s was destroyed by %s!", name, killerName));
+			}
+			else
+			{
+				ChatWindow::AddSystemChatLine(TextFormat("[Destroyed] %s was destroyed!", name));
+			}
+		}
+		else
+		{
+			ChatWindow::AddSystemChatLine(TextFormat("[Despawn] %s left the match.", name));
+		}
+	});
+
+	Network.GetEvents().OnShotCreated.Add([](const S2C_ShotCreated& shot, void*)
+	{
+		Vector2 pos = DataUtils::UnpackVector2(shot.position);
+		AddVisualEffect(VisualEffect::Type::Shot, pos, 1.5f, 0.2f, GOLD);
+
+		if (!LocalPlayer || shot.ownerId != LocalPlayer->PlayerID)
+		{
+			SoundManager::PlaySFX(BoomSound);
+		}
+	});
 	Network.GetEvents().OnHitscanEffect.Add([](const S2C_HitscanEffect& effect, void*)
 	{
 		Vector2 start = DataUtils::UnpackVector2(effect.startPoint);
@@ -451,7 +534,7 @@ bool GameUpdate()
 
     Network.GetPlayerList().DoForEachPlayer([](ClientPlayerState* player)
         {
-            if (!player->IsLocalPlayer)
+            if (!player->IsLocalPlayer && !player->IsDead)
             {
                 player->UpdateInterpolatedTransform(GetFrameTime());
             }
@@ -469,6 +552,21 @@ bool GameUpdate()
         }
         else
         {
+            ++it;
+        }
+    }
+
+    for (auto it = ActiveVisualEffects.begin(); it != ActiveVisualEffects.end();)
+    {
+        it->RemainingTime -= frameDt;
+        if (it->RemainingTime <= 0.0f)
+        {
+            it = ActiveVisualEffects.erase(it);
+        }
+        else
+        {
+            float progress = 1.0f - (it->RemainingTime / it->TotalDuration);
+            it->Radius = it->MaxRadius * progress;
             ++it;
         }
     }
@@ -562,6 +660,26 @@ void GameDraw()
         DrawLineEx(sp, line.End, 0.15f, ColorAlpha(WHITE, alpha));
     }
 
+    for (const auto& fx : ActiveVisualEffects)
+    {
+        float alpha = Clamp(fx.RemainingTime / fx.TotalDuration, 0.0f, 1.0f);
+        if (fx.EffectType == VisualEffect::Type::Spawn)
+        {
+            DrawCircleLinesV(fx.Position, fx.Radius, ColorAlpha(fx.EffectColor, alpha));
+            DrawCircleV(fx.Position, fx.Radius * 0.4f, ColorAlpha(fx.EffectColor, alpha * 0.4f));
+        }
+        else if (fx.EffectType == VisualEffect::Type::Despawn)
+        {
+            DrawCircleLinesV(fx.Position, fx.Radius, ColorAlpha(fx.EffectColor, alpha));
+            DrawCircleV(fx.Position, fx.Radius * 0.5f, ColorAlpha(RED, alpha * 0.5f));
+            DrawCircleV(fx.Position, fx.Radius * 0.25f, ColorAlpha(ORANGE, alpha * 0.8f));
+        }
+        else if (fx.EffectType == VisualEffect::Type::Shot)
+        {
+            DrawCircleV(fx.Position, fx.Radius * 0.5f, ColorAlpha(fx.EffectColor, alpha));
+        }
+    }
+
 	EndMode2D();
 
     if (LocalPlayer && LocalPlayer->IsDead)
@@ -620,7 +738,7 @@ void UpdateLocalPlayerState(uint64_t tick = 0)
 
     Network.GetPlayerList().DoForEachPlayer([&](ClientPlayerState* other)
     {
-        if (other->IsLocalPlayer)
+        if (other->IsLocalPlayer || other->IsDead)
         {
             return;
         }
