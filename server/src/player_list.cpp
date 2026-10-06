@@ -17,6 +17,10 @@ namespace ServerPlayerList
 
     static std::recursive_mutex  PlayerListLock;
 
+    EventSource<ServerPlayer> OnPlayerAdded;
+    EventSource<ServerPlayer> OnPlayerRemoved;
+    EventSource<ServerPlayer> OnPlayerScoreUpdate;
+
     std::unordered_map<uint64_t, ServerPlayer>& GetPlayerList()
     {
         return Players;

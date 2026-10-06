@@ -56,9 +56,9 @@ namespace TankManager
 		LoadTankInfo("hull07_red.png", "turret02_red2.png", TeamColors::Red);
 		LoadTankInfo("hull10_purple2.png", "turret10_purple.png", TeamColors::Purple);
 		LoadTankInfo("hull10_yellow2.png", "turret10_yellow.png", TeamColors::Yellow);
-		LoadTankInfo("hull10_white2.png", "turret10_white.png", TeamColors::White);
+		LoadTankInfo("hull10_white.png", "turret10_white.png", TeamColors::White);
 		LoadTankInfo("hull10_black.png", "turret10_black.png", TeamColors::Black);
-		LoadTankInfo("hull05_green.png", "turret07_green.png", TeamColors::Green);
+		LoadTankInfo("hull05_green.png", "turret02_green.png", TeamColors::Green);
 		FowardArrow = LoadTextureFromFile("arrow_decorative_n.png");
 	}
 	void Cleanup()

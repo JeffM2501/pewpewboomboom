@@ -31,7 +31,7 @@ namespace ChatWindow
 
     char PendingChatLine[kMaxChatLineSize] = { 0 };
 
-    ImVec2 ChatBoxSize(600, 200);
+    ImVec2 ChatBoxSize(400, 200);
 
     void AddLogLine(std::string_view message)
     {

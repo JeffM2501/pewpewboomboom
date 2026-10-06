@@ -33,6 +33,7 @@ ClientNetworkManager::ClientNetworkManager()
     RegisterProcessor<S2C_PlayerSpawned>(PacketType::S2C_PlayerSpawned, ProcessS2C_PlayerSpawned);
     RegisterProcessor<S2C_PlayerDespawned>(PacketType::S2C_PlayerDespawned, ProcessS2C_PlayerDespawned);
     RegisterProcessor<S2C_ShotCreated>(PacketType::S2C_ShotCreated, ProcessS2C_ShotCreated);
+    RegisterProcessor<S2C_PlayerScoreUpdate>(PacketType::S2C_PlayerScoreUpdate, ProcessS2C_PlayerScoreUpdate);
 }
 
 ClientNetworkManager::~ClientNetworkManager()
@@ -305,6 +306,7 @@ void ClientNetworkManager::ProcessS2C_JoinResponse(PacketProcessor& processor, E
 
 	auto localPlayerInfo = self.Players.AddPlayer(self.PlayerID, true);
 	localPlayerInfo->Name = self.PlayerName;
+    localPlayerInfo->Team = responce->team;
 	localPlayerInfo->IsLocalPlayer = true;
     localPlayerInfo->Transform.Position = self.Spawn;
     localPlayerInfo->Transform.Rotation[0] = 0.0f;
@@ -326,6 +328,7 @@ void ClientNetworkManager::ProcessS2C_PlayerJoined(PacketProcessor& processor, E
 	auto localPlayerInfo = self.Players.AddPlayer(joinInfo->playerId);
 	localPlayerInfo->Name = joinInfo->name;
 	localPlayerInfo->CollisionRadius = joinInfo->collisionRadius;
+	localPlayerInfo->Team = joinInfo->team;
 	self.ConnectionEvents.OnPlayerJoin.Invoke(joinInfo->playerId);
 }
 
@@ -606,4 +609,16 @@ void ClientNetworkManager::ProcessS2C_ShotCreated(PacketProcessor& processor, EN
 
     self.ConnectionEvents.OnShotCreated.Invoke(*packet);
 }
+
+void ClientNetworkManager::ProcessS2C_PlayerScoreUpdate(PacketProcessor& processor, ENetPeer* sender, const S2C_PlayerScoreUpdate* packet)
+{
+    ClientNetworkManager& self = static_cast<ClientNetworkManager&>(processor);
+    auto* player = self.GetPlayerList().GetPlayer(packet->playerId);
+    if (player)
+    {
+        player->Kills = packet->kills;
+        player->Deaths = packet->deaths;
+    }
+}
+
 

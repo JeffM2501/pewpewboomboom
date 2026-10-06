@@ -358,11 +358,14 @@ namespace BulletManager
                         player.IsDead = true;
                         player.RespawnTimer = 5.0f;
                         player.Deaths++;
+                        ServerPlayerList::OnPlayerScoreUpdate.Invoke(player);
 
                         auto* attacker = ServerPlayerList::GetPlayer(bullet.OwnerID);
                         if (attacker)
                         {
                             attacker->Kills++;
+
+                            ServerPlayerList::OnPlayerScoreUpdate.Invoke(*attacker);
                         }
 
                         BulletTankKillEvent killEvent;

@@ -9,6 +9,18 @@
 #include <map>
 #include <cmath>
 
+enum class TeamColors
+{
+    Blue = 0,
+    Red = 1,
+    Purple = 2,
+    Yellow = 3,
+    White = 4,
+    Black = 5,
+    Green = 6,
+    MAX
+};
+
 inline float LerpAngleDeg(float a, float b, float t)
 {
 	float diff = fmodf(b - a + 180.0f, 360.0f);

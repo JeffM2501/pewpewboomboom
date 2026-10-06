@@ -131,6 +131,8 @@ private:
     static void ProcessS2C_PlayerSpawned(PacketProcessor& processor, ENetPeer* sender, const S2C_PlayerSpawned* packet);
     static void ProcessS2C_PlayerDespawned(PacketProcessor& processor, ENetPeer* sender, const S2C_PlayerDespawned* packet);
     static void ProcessS2C_ShotCreated(PacketProcessor& processor, ENetPeer* sender, const S2C_ShotCreated* packet);
+    static void ProcessS2C_PlayerScoreUpdate(PacketProcessor& processor, ENetPeer* sender, const S2C_PlayerScoreUpdate* packet);
+
 };
 
 extern ClientNetworkManager Network;

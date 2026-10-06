@@ -213,6 +213,18 @@ void ServerSetup()
 	NetManager.ProcessPlayerUpdate = CollidePlayerWithMap;
 	NetManager.SetupRemotePlayer = SetupPlayer;
 
+	ServerPlayerList::OnPlayerScoreUpdate.Add([](const ServerPlayerList::ServerPlayer& player, void*)
+	{
+            ServerPlayerList::DoForEachPlayer([&player](const ServerPlayerList::ServerPlayer& other)
+            {
+                    S2C_PlayerScoreUpdate scorePacket;
+                    scorePacket.playerId = player.PlayerID;
+                    scorePacket.kills = player.Kills;
+                    scorePacket.deaths = player.Deaths;
+                    NetManager.Send(other.PlayerID, 1, scorePacket, false);
+            });
+	});
+
 	if (NetManager.Initialize(7777, kMaxPlayers))
 	{
 		ServerLogger.Log(LogLevel::Info, "Server started successfully on port 7777 (Simulation: %d Hz, Network Send: %d Hz).", kSimulationTickRate, kNetworkSendRate);
@@ -384,8 +396,16 @@ void DrawDebugScene()
 
 int main(int argc, char* argv[])
 {
+	int robotCount = 1;
+
+    if (argc > 1 && std::string(argv[1]) == "--robots")
+    {
+        robotCount = std::stoi(std::string(argv[2]));
+    }
+   
 	ServerSetup();
-	RobotAI::SetupRobots();
+
+	RobotAI::SetupRobots(robotCount);
 
 	if (ShowDebugWindow)
 	{

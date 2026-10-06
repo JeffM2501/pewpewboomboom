@@ -75,14 +75,17 @@ namespace RobotAI
         "Miss B"
     };
 
-    void SetupRobots()
+    void SetupRobots(int robotCount)
     {
-        for (auto& name : RobotNames)
+        for (int i = 0; i < robotCount; ++i)
         {
+            auto& name = RobotNames[i % std::size(RobotNames)];
+            name += TextFormat(" %d", i / std::size(RobotNames) + 1);
+
             auto& robot = ServerPlayerList::AddRobotPlayer();
             robot.UpdateFunctions.emplace_back(RobotAI::UpdateRobot);
             robot.Name = TextFormat("%s (Robot)", name.c_str());
-            robot.Team = -1;
+            robot.Team = GetRandomValue(0, int(TeamColors::MAX) - 1);;
             robot.CollisionRadius = 3.0f;
             robot.Health = 100;
             robot.FractionalHealth = 100.0f;

@@ -14,7 +14,7 @@ namespace NetConnectionDialog
 			return;
 		}
 
-		ImVec2 windowSize(300, ImGui::GetTextLineHeightWithSpacing() * 8);
+		ImVec2 windowSize(300, ImGui::GetTextLineHeightWithSpacing() * 6 + ImGui::GetStyle().FramePadding.y * 2.0f);
 		ImVec2 windowPos((ImGui::GetIO().DisplaySize.x - windowSize.x) * 0.5f, (ImGui::GetIO().DisplaySize.y - windowSize.y) * 0.5f);
 
 		ImGui::SetNextWindowSize(windowSize, ImGuiCond_Always);
@@ -25,12 +25,12 @@ namespace NetConnectionDialog
 		{
 			if (ImGui::BeginTable("Connect", 2, ImGuiTableFlags_SizingStretchProp))
 			{
-				ImGui::TableNextRow();
-				ImGui::TableSetColumnIndex(0);
-				ImGui::TextUnformatted("Name");
-				ImGui::TableNextColumn();
-				ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
-				ImGui::InputText("##Name", Network.GetPlayerName().Buffer(), kMaxNameSize);
+// 				ImGui::TableNextRow();
+// 				ImGui::TableSetColumnIndex(0);
+// 				ImGui::TextUnformatted("Name");
+// 				ImGui::TableNextColumn();
+// 				ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+// 				ImGui::InputText("##Name", Network.GetPlayerName().Buffer(), kMaxNameSize);
 
 				ImGui::TableNextRow();
 				ImGui::TableNextColumn();

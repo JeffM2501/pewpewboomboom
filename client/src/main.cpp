@@ -613,7 +613,13 @@ void GameDraw()
                 return;
             }
 
-            TankManager::DrawTank(player->IsLocalPlayer ? TeamColors::Blue : TeamColors::Red, player->Transform, player->IsLocalPlayer);
+            TeamColors team = TeamColors::Black;
+			if (player->Team >= 0)
+			{
+                team = static_cast<TeamColors>(player->Team);
+			}
+
+            TankManager::DrawTank(team, player->Transform, player->IsLocalPlayer);
 
             // Draw floating health bar
             float barWidth = 4.0f;
@@ -692,13 +698,13 @@ void GameDraw()
 
             if (!player->IsLocalPlayer)
             {
-                float nameSize = MeasureText(player->Name.Data(), 10);
+                float nameSize = float(MeasureText(player->Name.Data(), 10));
 
                 Vector2 namePos = { player->Transform.Position.x, player->Transform.Position.y - player->CollisionRadius - 0.8f };
 				Vector2 screenPos = GetWorldToScreen2D(namePos, ViewCamera);
 				screenPos.x -= nameSize / 2;
 				screenPos.y += 10;
-                DrawText(player->Name.Data(), screenPos.x, screenPos.y, 10, WHITE);
+                DrawText(player->Name.Data(), int(screenPos.x), int(screenPos.y), 10, WHITE);
             }
 
         });

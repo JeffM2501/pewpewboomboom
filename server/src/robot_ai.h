@@ -3,5 +3,5 @@
 
 namespace RobotAI
 {
-    void SetupRobots();
+    void SetupRobots(int robotCount = 1);
 }

@@ -69,6 +69,8 @@ void  NetworkManager::RemovePlayer(ENetPeer* peer, bool isDisconnect)
 
     auto& player = ServerPlayerList::GetPlayer(peer);
 
+    ServerPlayerList::OnPlayerRemoved.Invoke(player);
+
     auto playerPos = player.Transform.Position;
     auto playerID = player.PlayerID;
     PlayerDisconnected.Invoke(playerID, this);
@@ -130,6 +132,7 @@ void NetworkManager::PollEvents(int timeoutMs)
                 if (SetupRemotePlayer)
                     SetupRemotePlayer(player);
 
+                ServerPlayerList::OnPlayerAdded.Invoke(player);
                 PlayerConnected.Invoke(player.PlayerID, this);
                 break;
             }

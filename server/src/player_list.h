@@ -2,6 +2,7 @@
 #include "external/fix_win32_compatibility.h"
 #include "enet.h"
 
+#include "event_source.h"
 #include "player_state.h"
 #include <unordered_map>
 #include <functional>
@@ -36,6 +37,10 @@ namespace ServerPlayerList
     };
 
     std::unordered_map<uint64_t, ServerPlayer> &GetPlayerList();
+
+    extern EventSource<ServerPlayer> OnPlayerAdded;
+    extern EventSource<ServerPlayer> OnPlayerRemoved;
+    extern EventSource<ServerPlayer> OnPlayerScoreUpdate;
 
     ServerPlayer& GetPlayer(ENetPeer* peer);
     ServerPlayer* GetPlayer(uint64_t playerID);

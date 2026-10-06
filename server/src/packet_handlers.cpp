@@ -42,6 +42,22 @@ namespace PacketHandlers
         enet_peer_disconnect_now(sender, 0);
     }
 
+    static std::string GetRandomName()
+    {
+        static const char* names[] = {
+            "Alpha", "Bravo", "Charlie", "Delta", "Echo", "Foxtrot", "Golf", "Hotel",
+            "India", "Juliet", "Kilo", "Lima", "Mike", "November", "Oscar", "Papa",
+            "Quebec", "Romeo", "Sierra", "Tango", "Uniform", "Victor", "Whiskey",
+            "X-ray", "Yankee", "Zulu"
+        };
+        int index = GetRandomValue(0, sizeof(names) / sizeof(names[0]) - 1);
+        int index2 = GetRandomValue(0, sizeof(names) / sizeof(names[0]) - 1);
+
+        char buffer[64];
+        sprintf(buffer, "%s-%s%hx", names[index], names[index2], uint16_t(GetRandomValue(0, 65535)));
+        return std::string(buffer);
+    }
+
     static void ProcessC2S_JoinRequest(PacketProcessor& processor, ENetPeer* sender, const C2S_JoinRequest* join)
     {
         NetworkManager& netManager = static_cast<NetworkManager&>(processor);
@@ -59,7 +75,9 @@ namespace PacketHandlers
 
         auto& player = ServerPlayerList::GetPlayer(sender);
 
-        player.Name = join->desriredName;
+        CopyFixedSizeString(player.Name.Buffer(), GetRandomName().c_str(), player.Name.Capacity());
+
+        player.Team = GetRandomValue(0, int(TeamColors::MAX) - 1);
 
         player.Transform.Position.x = float(GetRandomValue(-50, 50));
         player.Transform.Position.y = float(GetRandomValue(-50, 50));
@@ -68,6 +86,8 @@ namespace PacketHandlers
         player.Name.CopyToBuffer(responce.actualName);
 
         responce.playerId = player.PlayerID;
+        responce.team = player.Team;
+
         DataUtils::PackVector2(player.Transform.Position, responce.spawn);
 
         responce.bostMultiplier = player.Rules.BoostMultiplier;
@@ -87,6 +107,7 @@ namespace PacketHandlers
             {
                 S2C_PlayerJoined remotePlayer;
                 remotePlayer.playerId = playerInfo.PlayerID;
+                remotePlayer.team = playerInfo.Team;
                 remotePlayer.collisionRadius = playerInfo.CollisionRadius;
                 playerInfo.Name.CopyToBuffer(remotePlayer.name);
                 processor.SendPacket(sender, 0, remotePlayer);
@@ -365,7 +386,10 @@ namespace PacketHandlers
                     target->IsDead = true;
                     target->RespawnTimer = 5.0f;
                     target->Deaths++;
+                    ServerPlayerList::OnPlayerScoreUpdate.Invoke(*target);
                     shooter.Kills++;
+                    ServerPlayerList::OnPlayerScoreUpdate.Invoke(shooter);
+
                     LogServerMachineGun("[Combat] Player %llu was KILLED by Player %llu with Machine Gun (Server Detected)", target->PlayerID, shooter.PlayerID);
                     ServerLogger.Log(LogLevel::Info, "[Combat] Player %llu was KILLED by Player %llu with Machine Gun (Server Detected)", target->PlayerID, shooter.PlayerID);
 

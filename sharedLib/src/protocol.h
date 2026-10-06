@@ -30,7 +30,8 @@ enum class PacketType : uint8_t
 	S2C_HitscanEffect = 19,
 	S2C_PlayerSpawned = 20,
 	S2C_PlayerDespawned = 21,
-	S2C_ShotCreated = 22
+	S2C_ShotCreated = 22,
+    S2C_PlayerScoreUpdate = 23,
 };
 
 #pragma pack(push, 1)
@@ -84,6 +85,8 @@ struct S2C_JoinResponse
     float turnSpeed = 90.0f; // degrees per second
     float bostMultiplier = 2.0f;
 
+    int team = -1;
+
 	char actualName[kMaxNameSize] = {};
 };
 
@@ -91,6 +94,7 @@ struct S2C_PlayerJoined
 {
     uint8_t type = static_cast<uint8_t>(PacketType::S2C_PlayerJoined);
 	uint64_t playerId;
+    int team = -1;
 	float collisionRadius = 3.0f;
 	char name[kMaxNameSize] = {};
 };
@@ -324,5 +328,13 @@ struct S2C_ShotCreated
     uint8_t bulletType = 0;
     float position[2] = { 0.0f, 0.0f };
     float velocity[2] = { 0.0f, 0.0f };
+};
+
+struct S2C_PlayerScoreUpdate
+{
+    uint8_t type = static_cast<uint8_t>(PacketType::S2C_PlayerScoreUpdate);
+    uint64_t playerId = 0;
+    uint32_t kills = 0;
+    uint32_t deaths = 0;
 };
 #pragma pack(pop)
