@@ -1,4 +1,3 @@
-#include "external/fix_win32_compatibility.h"
 #include "client_network_manager.h"
 #include "enet.h"
 #include <cstdio>

@@ -1,5 +1,7 @@
 #pragma once
+#if defined(_WIN32)
 #include "external/fix_win32_compatibility.h"
+#endif
 #include "enet.h"
 
 #include "event_source.h"

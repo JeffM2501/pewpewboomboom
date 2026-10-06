@@ -1,4 +1,6 @@
+#if defined(_WIN32)
 #include "external/fix_win32_compatibility.h"
+#endif
 #include "packet_handlers.h"
 #include "network_manager.h"
 #include "protocol.h"

@@ -1,5 +1,3 @@
-#include "external/fix_win32_compatibility.h"
-
 #include "player_state.h"
 
 #include "raymath.h"
@@ -75,4 +73,4 @@ PlayerTransform PlayerState::GetTransformAtTick(uint64_t tick) const
     interp.Rotation[1] = LerpAngleDeg(lower->second.Rotation[1], upper->second.Rotation[1], t);
     interp.Velocity = Vector2Lerp(lower->second.Velocity, upper->second.Velocity, t);
     return interp;
-}
+}

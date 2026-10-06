@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <cstddef>
 
 static constexpr int kSimulationTickRate = 60;
 static constexpr float kSimulationTickTime = 1.0f / float(kSimulationTickRate);

@@ -1,5 +1,7 @@
 #pragma once
+#if defined(_WIN32)
 #include "external/fix_win32_compatibility.h"
+#endif
 #include "player_list.h"
 #include "enet.h"
 #include "packet_processor.h"
