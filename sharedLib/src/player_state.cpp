@@ -17,18 +17,33 @@ Vector2 UpdatePlayerTransform(PlayerTransform& transform, const InputState& inpu
     float turn = ClampInput(input.Turn);
     float foward = ClampInput(input.Foward);
 
-    transform.Rotation[0] += turn * (rules.TurnSpeed * deltaTime);
+    float turnRate = turn * rules.TurnSpeed;
+    transform.Rotation[0] += turnRate * deltaTime;
+
+    float prevTurret = transform.Rotation[1];
     transform.Rotation[1] = input.TurretAngle;
+
+    transform.AngularVelocity[0] = turnRate;
+    if (deltaTime > 0.0f)
+    {
+        transform.AngularVelocity[1] = AngleDiffDeg(prevTurret, input.TurretAngle) / deltaTime;
+    }
+    else
+    {
+        transform.AngularVelocity[1] = 0.0f;
+    }
 
     Vector2 forwardDir = Vector2Rotate(Vector2{ 1, 0 }, transform.Rotation[0] * DEG2RAD);
 
-    transform.Velocity = forwardDir * foward;
-
     float speedMultiplier = 1.0f;
     if (input.Boost)
+    {
         speedMultiplier = rules.BoostMultiplier;
+    }
 
-    return transform.Position + transform.Velocity * (rules.MaxSpeed * deltaTime) * speedMultiplier;
+    transform.Velocity = forwardDir * (foward * rules.MaxSpeed * speedMultiplier);
+
+    return transform.Position + transform.Velocity * deltaTime;
 }
 
 PlayerTransform PlayerState::GetTransformAtTick(uint64_t tick) const
@@ -53,10 +68,8 @@ PlayerTransform PlayerState::GetTransformAtTick(uint64_t tick) const
     {
         const auto& latest = TransformHistory.rbegin()->second;
         uint64_t diffTicks = tick - TransformHistory.rbegin()->first;
-        PlayerTransform extrapolated = latest;
         float dt = (1.0f / kDefaultTickRate) * float(diffTicks);
-        extrapolated.Position = Vector2Add(latest.Position, Vector2Scale(latest.Velocity, dt));
-        return extrapolated;
+        return PredictTransform(latest, dt);
     }
 
     auto upper = TransformHistory.upper_bound(tick);
@@ -72,5 +85,25 @@ PlayerTransform PlayerState::GetTransformAtTick(uint64_t tick) const
     interp.Rotation[0] = LerpAngleDeg(lower->second.Rotation[0], upper->second.Rotation[0], t);
     interp.Rotation[1] = LerpAngleDeg(lower->second.Rotation[1], upper->second.Rotation[1], t);
     interp.Velocity = Vector2Lerp(lower->second.Velocity, upper->second.Velocity, t);
+    interp.AngularVelocity[0] = Lerp(lower->second.AngularVelocity[0], upper->second.AngularVelocity[0], t);
+    interp.AngularVelocity[1] = Lerp(lower->second.AngularVelocity[1], upper->second.AngularVelocity[1], t);
     return interp;
 }
+
+PlayerTransform PredictTransform(const PlayerTransform& transform, float deltaTime)
+{
+    PlayerTransform predicted = transform;
+    predicted.Position = Vector2Add(transform.Position, Vector2Scale(transform.Velocity, deltaTime));
+    predicted.Rotation[0] = fmodf(transform.Rotation[0] + transform.AngularVelocity[0] * deltaTime, 360.0f);
+    if (predicted.Rotation[0] < 0.0f)
+    {
+        predicted.Rotation[0] += 360.0f;
+    }
+    predicted.Rotation[1] = fmodf(transform.Rotation[1] + transform.AngularVelocity[1] * deltaTime, 360.0f);
+    if (predicted.Rotation[1] < 0.0f)
+    {
+        predicted.Rotation[1] += 360.0f;
+    }
+    return predicted;
+}
+

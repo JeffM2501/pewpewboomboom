@@ -233,6 +233,14 @@ void ServerSetup()
 	NetManager.ProcessPlayerUpdate = CollidePlayerWithMap;
 	NetManager.SetupRemotePlayer = SetupPlayer;
 
+	ServerPlayerList::OnPlayerRemoved.Add([](const ServerPlayerList::ServerPlayer& removedPlayer, void*)
+	{
+		ServerPlayerList::DoForEachPlayer([&removedPlayer](ServerPlayerList::ServerPlayer& other)
+		{
+			other.ClientPredictions.erase(removedPlayer.PlayerID);
+		}, true);
+	});
+
 	ServerPlayerList::OnPlayerScoreUpdate.Add([](const ServerPlayerList::ServerPlayer& player, void*)
 	{
             ServerPlayerList::DoForEachPlayer([&player](const ServerPlayerList::ServerPlayer& other)
@@ -271,18 +279,85 @@ void SendStateUpdates()
             NetManager.Send(player.PlayerID, 1, beginSnapshot, false);
             ServerPlayerList::DoForEachPlayer([&](auto& otherPlayer)
                 {
-                    S2C_PlayerSnapshot snapshot;
-                    snapshot.serverTick = (otherPlayer.PlayerID == player.PlayerID && otherPlayer.LastAckedInputTick > 0) ? otherPlayer.LastAckedInputTick : NetManager.CurrentServerTick;
-                    snapshot.playerId = otherPlayer.PlayerID;
-                    snapshot.position[0] = otherPlayer.Transform.Position.x;
-                    snapshot.position[1] = otherPlayer.Transform.Position.y;
-                    snapshot.rotation[0] = otherPlayer.Transform.Rotation[0];
-                    snapshot.rotation[1] = otherPlayer.Transform.Rotation[1];
-                    snapshot.velocity[0] = otherPlayer.Transform.Velocity.x;
-                    snapshot.velocity[1] = otherPlayer.Transform.Velocity.y;
-                    snapshot.health = otherPlayer.Health;
-                    snapshot.isDead = otherPlayer.IsDead ? 1 : 0;
-                    NetManager.Send(player.PlayerID, 1, snapshot, false);
+                    bool isSelf = (otherPlayer.PlayerID == player.PlayerID);
+                    uint64_t targetTick = (isSelf && otherPlayer.LastAckedInputTick > 0) ? otherPlayer.LastAckedInputTick : NetManager.CurrentServerTick;
+
+                    bool needSend = false;
+
+                    if (isSelf)
+                    {
+                        // Local player receives authoritative correction for client prediction reconciliation
+                        needSend = true;
+                    }
+                    else
+                    {
+                        auto it = otherPlayer.ClientPredictions.find(player.PlayerID);
+                        if (it == otherPlayer.ClientPredictions.end())
+                        {
+                            // First time sending otherPlayer to this client
+                            needSend = true;
+                        }
+                        else
+                        {
+                            auto& pred = it->second;
+                            uint8_t currentIsDead = otherPlayer.IsDead ? 1 : 0;
+                            if (otherPlayer.Health != pred.LastHealth || currentIsDead != pred.LastIsDead)
+                            {
+                                needSend = true;
+                            }
+                            else
+                            {
+                                float dt = float(targetTick - pred.BaseTick) / float(kDefaultTickRate);
+                                PlayerTransform predicted = PredictTransform(pred.BaseTransform, dt);
+
+                                float posDiff = Vector2Distance(otherPlayer.Transform.Position, predicted.Position);
+                                float bodyRotDiff = fabsf(AngleDiffDeg(predicted.Rotation[0], otherPlayer.Transform.Rotation[0]));
+                                float turretRotDiff = fabsf(AngleDiffDeg(predicted.Rotation[1], otherPlayer.Transform.Rotation[1]));
+
+                                float velDiff = Vector2Distance(otherPlayer.Transform.Velocity, pred.BaseTransform.Velocity);
+                                float bodyAngVelDiff = fabsf(otherPlayer.Transform.AngularVelocity[0] - pred.BaseTransform.AngularVelocity[0]);
+                                float turretAngVelDiff = fabsf(otherPlayer.Transform.AngularVelocity[1] - pred.BaseTransform.AngularVelocity[1]);
+
+                                static constexpr float kPosTolerance = 0.5f;
+                                static constexpr float kAngleTolerance = 3.0f;
+                                static constexpr float kVelTolerance = 0.5f;
+                                static constexpr float kAngVelTolerance = 5.0f;
+
+                                if (posDiff > kPosTolerance || bodyRotDiff > kAngleTolerance || turretRotDiff > kAngleTolerance ||
+                                    velDiff > kVelTolerance || bodyAngVelDiff > kAngVelTolerance || turretAngVelDiff > kAngVelTolerance)
+                                {
+                                    needSend = true;
+                                }
+                            }
+                        }
+                    }
+
+                    if (needSend)
+                    {
+                        S2C_PlayerSnapshot snapshot;
+                        snapshot.serverTick = targetTick;
+                        snapshot.playerId = otherPlayer.PlayerID;
+                        snapshot.position[0] = otherPlayer.Transform.Position.x;
+                        snapshot.position[1] = otherPlayer.Transform.Position.y;
+                        snapshot.rotation[0] = otherPlayer.Transform.Rotation[0];
+                        snapshot.rotation[1] = otherPlayer.Transform.Rotation[1];
+                        snapshot.velocity[0] = otherPlayer.Transform.Velocity.x;
+                        snapshot.velocity[1] = otherPlayer.Transform.Velocity.y;
+                        snapshot.angularVelocity[0] = otherPlayer.Transform.AngularVelocity[0];
+                        snapshot.angularVelocity[1] = otherPlayer.Transform.AngularVelocity[1];
+                        snapshot.health = otherPlayer.Health;
+                        snapshot.isDead = otherPlayer.IsDead ? 1 : 0;
+                        NetManager.Send(player.PlayerID, 1, snapshot, false);
+
+                        if (!isSelf)
+                        {
+                            auto& pred = otherPlayer.ClientPredictions[player.PlayerID];
+                            pred.BaseTick = targetTick;
+                            pred.BaseTransform = otherPlayer.Transform;
+                            pred.LastHealth = otherPlayer.Health;
+                            pred.LastIsDead = snapshot.isDead;
+                        }
+                    }
                 }, true);
 
             // Bullets are only sent on creation and termination, clients extrapolate in between

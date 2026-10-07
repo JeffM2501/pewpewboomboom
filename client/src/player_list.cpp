@@ -55,7 +55,45 @@ void PlayerList::DoForEachPlayer(std::function<void(ClientPlayerState*)> callbac
 
 void ClientPlayerState::AddServerStateUpdate(uint64_t tick, PlayerTransform& transform)
 {
-   
+    if (IsLocalPlayer)
+    {
+        TransformHistory[tick] = transform;
+        return;
+    }
+
+    if (!InitializedInterp)
+    {
+        Transform = transform;
+        SmoothedTransform = transform;
+        PositionError = { 0.0f, 0.0f };
+        RotationError[0] = 0.0f;
+        RotationError[1] = 0.0f;
+        InitializedInterp = true;
+    }
+    else
+    {
+        // Measure mismatch between current visual display (SmoothedTransform) and new authoritative state
+        Vector2 posErr = Vector2Subtract(SmoothedTransform.Position, transform.Position);
+        float rot0Err = AngleDiffDeg(transform.Rotation[0], SmoothedTransform.Rotation[0]);
+        float rot1Err = AngleDiffDeg(transform.Rotation[1], SmoothedTransform.Rotation[1]);
+
+        if (Vector2Length(posErr) > 8.0f)
+        {
+            // Teleport or extreme correction: snap directly
+            PositionError = { 0.0f, 0.0f };
+            RotationError[0] = 0.0f;
+            RotationError[1] = 0.0f;
+        }
+        else
+        {
+            PositionError = posErr;
+            RotationError[0] = rot0Err;
+            RotationError[1] = rot1Err;
+        }
+
+        Transform = transform;
+    }
+
     TransformHistory[tick] = transform;
 }
 
@@ -66,99 +104,46 @@ void ClientPlayerState::UpdateInterpolatedTransform(float deltaTime)
         return;
     }
 
-    if (TransformHistory.empty())
-    {
-        return;
-    }
-
-    uint64_t latestTick = TransformHistory.rbegin()->first;
-    double idealTargetTick = (latestTick >= RemotePlayerHistoryOffset) ? double(latestTick - RemotePlayerHistoryOffset) : double(latestTick);
-
     if (!InitializedInterp)
     {
-        RenderTick = idealTargetTick;
-        InitializedInterp = true;
-    }
-
-    // Advance render playback time continuously
-    double deltaTicks = double(deltaTime) * double(kDefaultTickRate);
-
-    // Gently adjust playback rate to prevent clock drift from starving or bloating the buffer
-    double diff = RenderTick - idealTargetTick;
-    double driftThreshold = double(kNetworkSendIntervalTicks) + 1.0;
-    if (diff > driftThreshold)
-    {
-        // Render tick is drifting too close to latest received snapshot; slow down slightly
-        deltaTicks *= 0.9;
-    }
-    else if (diff < -driftThreshold)
-    {
-        // Render tick is falling too far behind; speed up slightly
-        deltaTicks *= 1.1;
-    }
-
-    // If there is an extreme hitch or disconnect jump, snap to target
-    if (fabs(diff) > 15.0)
-    {
-        RenderTick = idealTargetTick;
-    }
-    else
-    {
-        RenderTick += deltaTicks;
-    }
-
-    if (TransformHistory.size() == 1)
-    {
-        Transform = TransformHistory.begin()->second;
         return;
     }
 
-    // Clamp or extrapolate based on the available snapshot history window
-    if (RenderTick < double(TransformHistory.begin()->first))
+    // 1. Advance simulation prediction using current velocity and angular velocity
+    Transform = PredictTransform(Transform, deltaTime);
+
+    // 2. Exponentially decay smoothing error offsets towards zero
+    float decay = expf(-15.0f * deltaTime);
+    PositionError = Vector2Scale(PositionError, decay);
+    RotationError[0] *= decay;
+    RotationError[1] *= decay;
+
+    if (Vector2Length(PositionError) < 0.005f)
     {
-        Transform = TransformHistory.begin()->second;
-        return;
+        PositionError = { 0.0f, 0.0f };
+    }
+    if (fabsf(RotationError[0]) < 0.05f)
+    {
+        RotationError[0] = 0.0f;
+    }
+    if (fabsf(RotationError[1]) < 0.05f)
+    {
+        RotationError[1] = 0.0f;
     }
 
-    if (RenderTick >= double(latestTick))
+    // 3. Compute smoothed render transform for visual display
+    SmoothedTransform = Transform;
+    SmoothedTransform.Position = Vector2Add(Transform.Position, PositionError);
+    SmoothedTransform.Rotation[0] = fmodf(Transform.Rotation[0] + RotationError[0], 360.0f);
+    if (SmoothedTransform.Rotation[0] < 0.0f)
     {
-        // Extrapolate forward along last known velocity during temporary packet delays
-        const auto& latestTransform = TransformHistory.rbegin()->second;
-        double overshootTicks = RenderTick - double(latestTick);
-        float overshootSec = float(overshootTicks) / float(kDefaultTickRate);
-
-        // Cap extrapolation window to 0.15s (~9 ticks) to avoid wandering too far on dropouts
-        if (overshootSec > 0.15f)
-        {
-            overshootSec = 0.15f;
-        }
-
-        Transform = latestTransform;
-        Transform.Position = Vector2Add(latestTransform.Position, Vector2Scale(latestTransform.Velocity, overshootSec));
-        return;
+        SmoothedTransform.Rotation[0] += 360.0f;
     }
-
-    // Find the enclosing snapshots: lower <= RenderTick < upper
-    auto upper = TransformHistory.upper_bound(uint64_t(RenderTick));
-    if (upper == TransformHistory.begin())
+    SmoothedTransform.Rotation[1] = fmodf(Transform.Rotation[1] + RotationError[1], 360.0f);
+    if (SmoothedTransform.Rotation[1] < 0.0f)
     {
-        Transform = TransformHistory.begin()->second;
-        return;
+        SmoothedTransform.Rotation[1] += 360.0f;
     }
-
-    auto lower = std::prev(upper);
-    uint64_t tickSpan = upper->first - lower->first;
-    float t = 0.0f;
-    if (tickSpan > 0)
-    {
-        t = float(RenderTick - double(lower->first)) / float(tickSpan);
-        t = Clamp(t, 0.0f, 1.0f);
-    }
-
-    Transform.Position = Vector2Lerp(lower->second.Position, upper->second.Position, t);
-    Transform.Rotation[0] = LerpAngleDeg(lower->second.Rotation[0], upper->second.Rotation[0], t);
-    Transform.Rotation[1] = LerpAngleDeg(lower->second.Rotation[1], upper->second.Rotation[1], t);
-    Transform.Velocity = Vector2Lerp(lower->second.Velocity, upper->second.Velocity, t);
 }
 
 void ClientPlayerState::UpdateForTick(uint64_t currentTick)

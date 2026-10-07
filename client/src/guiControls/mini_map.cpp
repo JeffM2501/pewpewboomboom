@@ -80,7 +80,7 @@ namespace MiniMap
 				if (player->IsDead)
 					return;
 
-				DrawCircleV(player->Transform.Position, 5, player->IsLocalPlayer ? GREEN : RED);
+				DrawCircleV(player->GetRenderTransform().Position, 5, player->IsLocalPlayer ? GREEN : RED);
 			});
 
 		EndMode2D();

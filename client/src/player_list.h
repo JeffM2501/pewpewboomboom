@@ -18,7 +18,14 @@ public:
     double RenderTick = 0.0;
     bool InitializedInterp = false;
 
-    float WeaponReloadTime = 0;
+    Vector2 PositionError = { 0.0f, 0.0f };
+    float RotationError[2] = { 0.0f, 0.0f };
+    PlayerTransform SmoothedTransform;
+
+    const PlayerTransform& GetRenderTransform() const
+    {
+        return IsLocalPlayer ? Transform : SmoothedTransform;
+    }
 
     void UpdateInterpolatedTransform(float deltaTime);
 

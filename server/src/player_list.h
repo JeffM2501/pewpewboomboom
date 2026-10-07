@@ -27,6 +27,17 @@ namespace ServerPlayerList
 
         uint64_t LastAckedInputTick = 0;
 
+        struct RemoteClientPredictionState
+        {
+            uint64_t BaseTick = 0;
+            PlayerTransform BaseTransform;
+            uint8_t LastHealth = 100;
+            uint8_t LastIsDead = 0;
+        };
+
+        // client playerId -> prediction state that the server believes client has for this player
+        std::unordered_map<uint64_t, RemoteClientPredictionState> ClientPredictions;
+
         ServerPlayer(ENetPeer* peer);
 
         void Update(NetworkManager &manager)

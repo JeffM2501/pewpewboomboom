@@ -245,6 +245,7 @@ struct S2C_PlayerSnapshot
     float position[2] = { 0.0f, 0.0f };
     float rotation[2] = { 0.0f, 0.0f };
     float velocity[2] = { 0.0f, 0.0f };
+    float angularVelocity[2] = { 0.0f, 0.0f };
     uint8_t health = 100;
     uint8_t isDead = 0;
 };

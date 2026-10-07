@@ -377,6 +377,8 @@ void ClientNetworkManager::ProcessS2C_PlayerSnapshot(PacketProcessor& processor,
         newTransform.Rotation[0] = snapshot->rotation[0];
         newTransform.Rotation[1] = snapshot->rotation[1];
         newTransform.Velocity = DataUtils::UnpackVector2(snapshot->velocity);
+        newTransform.AngularVelocity[0] = snapshot->angularVelocity[0];
+        newTransform.AngularVelocity[1] = snapshot->angularVelocity[1];
 
         bool wasDead = player->IsDead;
         player->Health = snapshot->health;
@@ -517,6 +519,13 @@ void ClientNetworkManager::ProcessS2C_PlayerSpawned(PacketProcessor& processor, 
         {
             self.Spawn = player->Transform.Position;
             self.ConnectionEvents.OnSpawn.Invoke(self.Spawn);
+        }
+        else
+        {
+            player->SmoothedTransform = player->Transform;
+            player->PositionError = { 0.0f, 0.0f };
+            player->RotationError[0] = 0.0f;
+            player->RotationError[1] = 0.0f;
         }
     }
 

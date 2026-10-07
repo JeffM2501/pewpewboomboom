@@ -38,8 +38,23 @@ struct PlayerTransform
 {
 	Vector2 Position = { 0.0f, 0.0f };
 	float Rotation[2] = { 0.0f, 0.0f };
-	Vector2 Velocity = { 0.0f, 0.0f };
+	Vector2 Velocity = { 0.0f, 0.0f }; // world units per second
+	float AngularVelocity[2] = { 0.0f, 0.0f }; // degrees per second for the body and turret rotation
 };
+
+// shortest signed difference between two angles in degrees, result is in [-180, 180]
+inline float AngleDiffDeg(float a, float b)
+{
+	float diff = fmodf(b - a + 180.0f, 360.0f);
+	if (diff < 0.0f)
+	{
+		diff += 360.0f;
+	}
+	return diff - 180.0f;
+}
+
+// dead reckons a transform forward in time using its linear and angular velocities, this is what remote clients predict between updates
+PlayerTransform PredictTransform(const PlayerTransform& transform, float deltaTime);
 
 struct PlayerMovementRules
 {

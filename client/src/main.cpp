@@ -673,7 +673,8 @@ void GameDraw()
                 team = static_cast<TeamColors>(player->Team);
 			}
 
-            TankManager::DrawTank(team, player->Transform, player->IsLocalPlayer);
+            const auto& renderTransform = player->GetRenderTransform();
+            TankManager::DrawTank(team, renderTransform, player->IsLocalPlayer);
 
             // Draw floating health bar
             float barWidth = 4.0f;
@@ -688,7 +689,7 @@ void GameDraw()
                 healthPct = 1.0f;
             }
 
-            Vector2 barPos = { player->Transform.Position.x - barWidth * 0.5f, player->Transform.Position.y - player->CollisionRadius - 0.8f };
+            Vector2 barPos = { renderTransform.Position.x - barWidth * 0.5f, renderTransform.Position.y - player->CollisionRadius - 0.8f };
             DrawRectangleRec(Rectangle{ barPos.x, barPos.y, barWidth, barHeight }, ColorAlpha(BLACK, 0.6f));
             Color hpColor = (healthPct > 0.5f) ? GREEN : ((healthPct > 0.25f) ? ORANGE : RED);
             DrawRectangleRec(Rectangle{ barPos.x, barPos.y, barWidth * healthPct, barHeight }, hpColor);
@@ -754,7 +755,8 @@ void GameDraw()
             {
                 float nameSize = float(MeasureText(player->Name.Data(), 10));
 
-                Vector2 namePos = { player->Transform.Position.x, player->Transform.Position.y - player->CollisionRadius - 0.8f };
+                const auto& renderTransform = player->GetRenderTransform();
+                Vector2 namePos = { renderTransform.Position.x, renderTransform.Position.y - player->CollisionRadius - 0.8f };
 				Vector2 screenPos = GetWorldToScreen2D(namePos, ViewCamera);
 				screenPos.x -= nameSize / 2;
 				screenPos.y += 10;
