@@ -7,6 +7,7 @@
 #include "raylib.h"
 
 #include <vector>
+#include <functional>
 #include <unordered_map>
 #include <cstdint>
 #include "event_source.h"
@@ -16,7 +17,6 @@
 #include "packet_processor.h"
 #include "time_utils.h"
 
-struct S2C_BulletSnapshot;
 struct S2C_BulletDestroyed;
 
 struct ClientBullet
@@ -26,7 +26,7 @@ struct ClientBullet
 	uint8_t BulletType = 0;
 	Vector2 Position = { 0.0f, 0.0f };
 	Vector2 Velocity = { 0.0f, 0.0f };
-	float LastUpdatedTime = 0.0f;
+	float Lifetime = kBulletLifetime;
 };
 
 
@@ -85,6 +85,9 @@ public:
 	}
 	void UpdateBullets(float deltaTime);
 
+	// returns true if a bullet moving from start to end hits something, filling in the hit point
+	std::function<bool(Vector2 start, Vector2 end, float radius, Vector2& hitPoint)> BulletCollisionPredictor;
+
 	void SentChatMessage(std::string_view message);
 
 private:
@@ -115,6 +118,7 @@ private:
 
 	FixedTickAccumulator PingAccumualtor;
 
+	bool AdvanceBullet(ClientBullet& bullet, float deltaTime);
 	void SendPing();
 	void SendJoin();
 
@@ -128,7 +132,6 @@ private:
 
     static void ProcessS2C_BeginStateSnapshot(PacketProcessor& processor, ENetPeer* sender, const S2C_BeginStateSnapshot* snapshot);
     static void ProcessS2C_PlayerSnapshot(PacketProcessor& processor, ENetPeer* sender, const S2C_PlayerSnapshot* snapshot);
-    static void ProcessS2C_BulletSnapshot(PacketProcessor& processor, ENetPeer* sender, const S2C_BulletSnapshot* snapshot);
     static void ProcessS2C_BulletDestroyed(PacketProcessor& processor, ENetPeer* sender, const S2C_BulletDestroyed* packet);
     static void ProcessS2C_HitscanEffect(PacketProcessor& processor, ENetPeer* sender, const S2C_HitscanEffect* packet);
     static void ProcessS2C_PlayerSpawned(PacketProcessor& processor, ENetPeer* sender, const S2C_PlayerSpawned* packet);

@@ -422,6 +422,60 @@ void GameInit()
 		}
 	});
 
+	Network.BulletCollisionPredictor = [](Vector2 start, Vector2 end, float radius, Vector2& hitPoint)
+	{
+		if (!World.Walls)
+		{
+			return false;
+		}
+
+		Vector2 normal = Vector2Zeros;
+		Vector2 testPos = end;
+		if (World.Walls->GetCollider().IntersectPath(testPos, start, radius, hitPoint, normal))
+		{
+			return true;
+		}
+
+		bool hit = false;
+		float travelDist = Vector2Distance(start, end);
+		BoundingCircle sweepBounds = { Vector2Scale(Vector2Add(start, end), 0.5f), travelDist * 0.5f + radius + 1.0f };
+
+		World.DoForEachObject(sweepBounds, [&](WorldObject& worldObj)
+		{
+			if (hit)
+			{
+				return;
+			}
+
+			auto& obj = static_cast<ClientWorldObject&>(worldObj);
+			if (obj.GetObjectType() == S2C_SetWorldObject::ObjectType::Walls)
+			{
+				return;
+			}
+
+			if (obj.GetObjectType() == S2C_SetWorldObject::ObjectType::Building)
+			{
+				const auto& rect = static_cast<const RectangleColliderObject&>(obj.GetCollider());
+				Vector2 buildingNormal = Vector2Zeros;
+				if (CheckBulletBuildingCollision(start, end, radius, rect.Bounds.Center, rect.Size, rect.Rotation, hitPoint, buildingNormal))
+				{
+					hit = true;
+				}
+			}
+			else
+			{
+				Vector2 objNormal = Vector2Zeros;
+				Vector2 objTestPos = end;
+				if (obj.GetCollider().IntersectPath(objTestPos, start, radius, hitPoint, objNormal))
+				{
+					hit = true;
+				}
+			}
+		});
+
+		return hit;
+	};
+
 	Network.GetEvents().OnShotCreated.Add([](const S2C_ShotCreated& shot, void*)
 	{
 		Vector2 pos = DataUtils::UnpackVector2(shot.position);

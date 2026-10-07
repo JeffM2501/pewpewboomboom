@@ -26,7 +26,6 @@ ClientNetworkManager::ClientNetworkManager()
 	RegisterProcessor<S2C_SetWorldObject>(PacketType::S2C_SetWorldObject, ProcessS2C_SetWorldObject);
     RegisterProcessor<S2C_BeginStateSnapshot>(PacketType::S2C_BeginStateSnapshot, ProcessS2C_BeginStateSnapshot);
     RegisterProcessor<S2C_PlayerSnapshot>(PacketType::S2C_PlayerSnapshot, ProcessS2C_PlayerSnapshot);
-    RegisterProcessor<S2C_BulletSnapshot>(PacketType::S2C_BulletSnapshot, ProcessS2C_BulletSnapshot);
     RegisterProcessor<S2C_BulletDestroyed>(PacketType::S2C_BulletDestroyed, ProcessS2C_BulletDestroyed);
     RegisterProcessor<S2C_HitscanEffect>(PacketType::S2C_HitscanEffect, ProcessS2C_HitscanEffect);
     RegisterProcessor<S2C_PlayerSpawned>(PacketType::S2C_PlayerSpawned, ProcessS2C_PlayerSpawned);
@@ -414,76 +413,6 @@ void ClientNetworkManager::ProcessS2C_PlayerSnapshot(PacketProcessor& processor,
     }
 }
 
-void ClientNetworkManager::ProcessS2C_BulletSnapshot(PacketProcessor& processor, ENetPeer* sender, const S2C_BulletSnapshot* snapshot)
-{
-    ClientNetworkManager& self = static_cast<ClientNetworkManager&>(processor);
-    const auto& bState = snapshot->state;
-
-    if (self.RecentlyDestroyedBullets.find(bState.bulletId) != self.RecentlyDestroyedBullets.end())
-    {
-        return;
-    }
-
-    Vector2 serverPos = DataUtils::UnpackVector2(bState.position);
-    Vector2 serverVel = DataUtils::UnpackVector2(bState.velocity);
-
-    uint64_t currentTick = self.GetCurrentServerTick();
-    if (currentTick == 0)
-    {
-        currentTick = snapshot->serverTick;
-    }
-
-    float ticksElapsed = (currentTick > snapshot->serverTick) ? float(currentTick - snapshot->serverTick) : 0.0f;
-    if (ticksElapsed > 10.0f)
-    {
-        ticksElapsed = 10.0f;
-    }
-    float timeElapsed = ticksElapsed / float(kDefaultTickRate);
-
-    Vector2 predictedPos = Vector2Add(serverPos, Vector2Scale(serverVel, timeElapsed));
-
-    auto it = self.Bullets.find(bState.bulletId);
-    if (it == self.Bullets.end())
-    {
-        auto& b = self.Bullets[bState.bulletId];
-        b.ID = bState.bulletId;
-        b.OwnerID = bState.ownerId;
-        b.BulletType = bState.bulletType;
-        b.Position = predictedPos;
-        b.Velocity = serverVel;
-        b.LastUpdatedTime = static_cast<float>(GetTime());
-
-        S2C_ShotCreated shot;
-        shot.serverTick = snapshot->serverTick;
-        shot.bulletId = bState.bulletId;
-        shot.ownerId = bState.ownerId;
-        shot.bulletType = bState.bulletType;
-        shot.position[0] = bState.position[0];
-        shot.position[1] = bState.position[1];
-        shot.velocity[0] = bState.velocity[0];
-        shot.velocity[1] = bState.velocity[1];
-        self.ConnectionEvents.OnShotCreated.Invoke(shot);
-    }
-    else
-    {
-        auto& b = it->second;
-        b.Velocity = serverVel;
-        b.LastUpdatedTime = static_cast<float>(GetTime());
-
-        Vector2 diff = Vector2Subtract(predictedPos, b.Position);
-        float err = Vector2Length(diff);
-
-        if (err > 4.0f)
-        {
-            b.Position = predictedPos;
-        }
-        else if (err > 0.05f)
-        {
-            b.Position = Vector2Add(b.Position, Vector2Scale(diff, 0.2f));
-        }
-    }
-}
-
 void ClientNetworkManager::ProcessS2C_BulletDestroyed(PacketProcessor& processor, ENetPeer* sender, const S2C_BulletDestroyed* packet)
 {
     ClientNetworkManager& self = static_cast<ClientNetworkManager&>(processor);
@@ -523,21 +452,41 @@ void ClientNetworkManager::ProcessS2C_HitscanEffect(PacketProcessor& processor, 
     }
 }
 
+bool ClientNetworkManager::AdvanceBullet(ClientBullet& bullet, float deltaTime)
+{
+    bullet.Lifetime -= deltaTime;
+    if (bullet.Lifetime <= 0.0f)
+    {
+        return false;
+    }
+
+    Vector2 nextPos = Vector2Add(bullet.Position, Vector2Scale(bullet.Velocity, deltaTime));
+
+    // predict hitting the world, the server will confirm with a destroy packet
+    Vector2 hitPoint = nextPos;
+    if (BulletCollisionPredictor && BulletCollisionPredictor(bullet.Position, nextPos, kBulletRadius, hitPoint))
+    {
+        return false;
+    }
+
+    bullet.Position = nextPos;
+    return true;
+}
+
 void ClientNetworkManager::UpdateBullets(float deltaTime)
 {
     float dt = fminf(deltaTime, 0.1f);
     float now = static_cast<float>(GetTime());
     for (auto it = Bullets.begin(); it != Bullets.end(); )
     {
-        if (now - it->second.LastUpdatedTime > 0.5f)
+        if (AdvanceBullet(it->second, dt))
         {
-            it = Bullets.erase(it);
+            ++it;
         }
         else
         {
-            it->second.Position.x += it->second.Velocity.x * dt;
-            it->second.Position.y += it->second.Velocity.y * dt;
-            ++it;
+            RecentlyDestroyedBullets[it->first] = now;
+            it = Bullets.erase(it);
         }
     }
 
@@ -597,13 +546,23 @@ void ClientNetworkManager::ProcessS2C_ShotCreated(PacketProcessor& processor, EN
     auto it = self.Bullets.find(packet->bulletId);
     if (it == self.Bullets.end())
     {
+        uint64_t currentTick = self.GetCurrentServerTick();
+        float ticksElapsed = (currentTick > packet->serverTick) ? float(currentTick - packet->serverTick) : 0.0f;
+        float timeElapsed = fminf(ticksElapsed / float(kDefaultTickRate), 0.5f);
+
         auto& b = self.Bullets[packet->bulletId];
         b.ID = packet->bulletId;
         b.OwnerID = packet->ownerId;
         b.BulletType = packet->bulletType;
         b.Position = DataUtils::UnpackVector2(packet->position);
         b.Velocity = DataUtils::UnpackVector2(packet->velocity);
-        b.LastUpdatedTime = static_cast<float>(GetTime());
+        b.Lifetime = kBulletLifetime;
+
+        // catch up to where the server thinks the bullet is now
+        if (!self.AdvanceBullet(b, timeElapsed))
+        {
+            self.Bullets.erase(packet->bulletId);
+        }
     }
 
     self.ConnectionEvents.OnShotCreated.Invoke(*packet);

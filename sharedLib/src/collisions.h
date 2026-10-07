@@ -15,3 +15,4 @@ bool IntersectRayCircle(Vector2 rayOrigin, Vector2 rayDir, Vector2 circleCenter,
 bool IntersectRayOBB(Vector2 rayOrigin, Vector2 rayDir, Vector2 boxCenter, Vector2 boxHalfSize, float rotationDeg, float& outDist, Vector2& outHitPoint);
 bool IntersectRayAABB(Vector2 rayOrigin, Vector2 rayDir, Vector2 boxMin, Vector2 boxMax, float& outDist, Vector2& outHitPoint);
 bool IntersectRayBoxExit(Vector2 rayOrigin, Vector2 rayDir, Vector2 boxMin, Vector2 boxMax, float& outDist, Vector2& outHitPoint);
+bool CheckBulletBuildingCollision(Vector2 startPos, Vector2 endPos, float radius, Vector2 buildingPos, Vector2 buildingSize, float rotationDeg, Vector2& outHitPoint, Vector2& outHitNormal);

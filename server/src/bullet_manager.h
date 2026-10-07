@@ -39,6 +39,7 @@ struct CreatedBulletInfo
     uint8_t BulletType = 0;
     Vector2 Position = { 0.0f, 0.0f };
     Vector2 Velocity = { 0.0f, 0.0f };
+    uint64_t Tick = 0;
 };
 
 struct BulletTankKillEvent
@@ -83,6 +84,7 @@ namespace BulletManager
     extern EventSource<BulletTankKillEvent> OnBulletKilledTank;
 
     void Init();
+    void SetCurrentTick(uint64_t tick);
     ServerBullet* SpawnBullet(uint64_t ownerId, Vector2 muzzlePos, float angleDeg, float speed = 50.0f, float damage = 25.0f, uint8_t type = 0);
     void Update(float deltaTime, ServerWorld& world);
     void DestroyBullet(ServerBullet& bullet, Vector2 impactPos);
@@ -98,6 +100,5 @@ namespace BulletManager
     EventSource<MachineGunHitBuildingEvent>& GetOnMachineGunHitBuilding();
     EventSource<MachineGunHitTankEvent>& GetOnMachineGunHitTank();
     EventSource<BulletTankKillEvent>& GetOnBulletKilledTank();
-    bool CheckBulletBuildingCollision(Vector2 startPos, Vector2 endPos, float radius, Vector2 buildingPos, Vector2 buildingSize, float rotationDeg, Vector2& outHitPoint, Vector2& outHitNormal);
 }
 

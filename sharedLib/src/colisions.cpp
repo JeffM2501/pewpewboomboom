@@ -1,4 +1,6 @@
 #include <limits>
+#include <cmath>
+#include <utility>
 
 #include "collisions.h"
 #include "raylib.h"
@@ -440,3 +442,137 @@ bool IntersectRayBoxExit(Vector2 rayOrigin, Vector2 rayDir, Vector2 boxMin, Vect
 	}
 	return false;
 }
+
+bool CheckBulletBuildingCollision(Vector2 startPos, Vector2 endPos, float radius, Vector2 buildingPos, Vector2 buildingSize, float rotationDeg, Vector2& outHitPoint, Vector2& outHitNormal)
+{
+    Vector2 rel0 = Vector2Subtract(startPos, buildingPos);
+    Vector2 localP0 = Vector2Rotate(rel0, -rotationDeg * DEG2RAD);
+
+    Vector2 rel1 = Vector2Subtract(endPos, buildingPos);
+    Vector2 localP1 = Vector2Rotate(rel1, -rotationDeg * DEG2RAD);
+
+    Vector2 halfSize = buildingSize;
+    Vector2 expandedHalfSize = { halfSize.x + radius, halfSize.y + radius };
+
+    if (fabsf(localP0.x) <= expandedHalfSize.x && fabsf(localP0.y) <= expandedHalfSize.y)
+    {
+        float dxLeft = fabsf(localP0.x - (-halfSize.x));
+        float dxRight = fabsf(localP0.x - halfSize.x);
+        float dyTop = fabsf(localP0.y - (-halfSize.y));
+        float dyBottom = fabsf(localP0.y - halfSize.y);
+
+        float minD = dxLeft;
+        Vector2 localNorm = { -1.0f, 0.0f };
+        if (dxRight < minD)
+        {
+            minD = dxRight;
+            localNorm = { 1.0f, 0.0f };
+        }
+        if (dyTop < minD)
+        {
+            minD = dyTop;
+            localNorm = { 0.0f, -1.0f };
+        }
+        if (dyBottom < minD)
+        {
+            minD = dyBottom;
+            localNorm = { 0.0f, 1.0f };
+        }
+
+        Vector2 clampedLocal = {
+            fmaxf(-halfSize.x, fminf(halfSize.x, localP0.x)),
+            fmaxf(-halfSize.y, fminf(halfSize.y, localP0.y))
+        };
+        outHitPoint = Vector2Add(buildingPos, Vector2Rotate(clampedLocal, rotationDeg * DEG2RAD));
+        outHitNormal = Vector2Rotate(localNorm, rotationDeg * DEG2RAD);
+        return true;
+    }
+
+    Vector2 dir = Vector2Subtract(localP1, localP0);
+    float tMin = 0.0f;
+    float tMax = 1.0f;
+    Vector2 hitNormLocal = { 0.0f, 0.0f };
+
+    if (fabsf(dir.x) < 1e-6f)
+    {
+        if (localP0.x < -expandedHalfSize.x || localP0.x > expandedHalfSize.x)
+        {
+            return false;
+        }
+    }
+    else
+    {
+        float invD = 1.0f / dir.x;
+        float t1 = (-expandedHalfSize.x - localP0.x) * invD;
+        float t2 = (expandedHalfSize.x - localP0.x) * invD;
+        Vector2 n1 = { -1.0f, 0.0f };
+        Vector2 n2 = { 1.0f, 0.0f };
+        if (t1 > t2)
+        {
+            std::swap(t1, t2);
+            std::swap(n1, n2);
+        }
+        if (t1 > tMin)
+        {
+            tMin = t1;
+            hitNormLocal = n1;
+        }
+        if (t2 < tMax)
+        {
+            tMax = t2;
+        }
+        if (tMin > tMax)
+        {
+            return false;
+        }
+    }
+
+    if (fabsf(dir.y) < 1e-6f)
+    {
+        if (localP0.y < -expandedHalfSize.y || localP0.y > expandedHalfSize.y)
+        {
+            return false;
+        }
+    }
+    else
+    {
+        float invD = 1.0f / dir.y;
+        float t1 = (-expandedHalfSize.y - localP0.y) * invD;
+        float t2 = (expandedHalfSize.y - localP0.y) * invD;
+        Vector2 n1 = { 0.0f, -1.0f };
+        Vector2 n2 = { 0.0f, 1.0f };
+        if (t1 > t2)
+        {
+            std::swap(t1, t2);
+            std::swap(n1, n2);
+        }
+        if (t1 > tMin)
+        {
+            tMin = t1;
+            hitNormLocal = n1;
+        }
+        if (t2 < tMax)
+        {
+            tMax = t2;
+        }
+        if (tMin > tMax)
+        {
+            return false;
+        }
+    }
+
+    if (tMin >= 0.0f && tMin <= 1.0f)
+    {
+        Vector2 localHit = Vector2Add(localP0, Vector2Scale(dir, tMin));
+        Vector2 clampedLocal = {
+            fmaxf(-halfSize.x, fminf(halfSize.x, localHit.x)),
+            fmaxf(-halfSize.y, fminf(halfSize.y, localHit.y))
+        };
+        outHitPoint = Vector2Add(buildingPos, Vector2Rotate(clampedLocal, rotationDeg * DEG2RAD));
+        outHitNormal = Vector2Rotate(hitNormLocal, rotationDeg * DEG2RAD);
+        return true;
+    }
+
+    return false;
+}
+

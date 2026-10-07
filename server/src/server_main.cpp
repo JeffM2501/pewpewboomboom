@@ -34,6 +34,26 @@ void SendWorldData(uint64_t playerID, void* sender)
 	{
 		NetManager.Send(playerID, 0, object->Packet, true);
 	}
+
+	// bullets are no longer streamed, so late joiners need the ones already in flight
+	for (const auto& bullet : BulletManager::GetBullets())
+	{
+		if (!bullet.Active)
+		{
+			continue;
+		}
+
+		S2C_ShotCreated shotCreated;
+		shotCreated.serverTick = NetManager.CurrentServerTick;
+		shotCreated.bulletId = bullet.ID;
+		shotCreated.ownerId = bullet.OwnerID;
+		shotCreated.bulletType = bullet.BulletType;
+		shotCreated.position[0] = bullet.Position.x;
+		shotCreated.position[1] = bullet.Position.y;
+		shotCreated.velocity[0] = bullet.Velocity.x;
+		shotCreated.velocity[1] = bullet.Velocity.y;
+		NetManager.Send(playerID, 0, shotCreated, true);
+	}
 }
 
 void PopulateWorld()
@@ -243,14 +263,11 @@ void ServerCleanup()
 
 void SendStateUpdates()
 {
-    uint16_t bulletCount = uint16_t(BulletManager::GetActiveBulletCount());
-
     ServerPlayerList::DoForEachPlayer([&](auto& player)
         {
             S2C_BeginStateSnapshot beginSnapshot;
             beginSnapshot.snapshotTick = NetManager.CurrentServerTick;
             beginSnapshot.playerCount = uint8_t(ServerPlayerList::GetPlayerCount());
-            beginSnapshot.bulletCount = bulletCount;
             NetManager.Send(player.PlayerID, 1, beginSnapshot, false);
             ServerPlayerList::DoForEachPlayer([&](auto& otherPlayer)
                 {
@@ -268,24 +285,20 @@ void SendStateUpdates()
                     NetManager.Send(player.PlayerID, 1, snapshot, false);
                 }, true);
 
-            for (const auto& bullet : BulletManager::GetBullets())
+            // Bullets are only sent on creation and termination, clients extrapolate in between
+            for (const auto& created : BulletManager::GetCreatedBullets())
             {
-                if (!bullet.Active)
-                {
-                    continue;
-                }
+                S2C_ShotCreated shotCreated;
+                shotCreated.serverTick = created.Tick;
+                shotCreated.bulletId = created.ID;
+                shotCreated.ownerId = created.OwnerID;
+                shotCreated.bulletType = created.BulletType;
+                shotCreated.position[0] = created.Position.x;
+                shotCreated.position[1] = created.Position.y;
+                shotCreated.velocity[0] = created.Velocity.x;
+                shotCreated.velocity[1] = created.Velocity.y;
 
-                S2C_BulletSnapshot bulletSnapshot;
-                bulletSnapshot.serverTick = NetManager.CurrentServerTick;
-                bulletSnapshot.state.bulletId = bullet.ID;
-                bulletSnapshot.state.ownerId = bullet.OwnerID;
-                bulletSnapshot.state.bulletType = bullet.BulletType;
-                bulletSnapshot.state.position[0] = bullet.Position.x;
-                bulletSnapshot.state.position[1] = bullet.Position.y;
-                bulletSnapshot.state.velocity[0] = bullet.Velocity.x;
-                bulletSnapshot.state.velocity[1] = bullet.Velocity.y;
-
-                NetManager.Send(player.PlayerID, 1, bulletSnapshot, false);
+                NetManager.Send(player.PlayerID, 1, shotCreated, true);
             }
 
             for (const auto& destroyed : BulletManager::GetDestroyedBullets())
@@ -296,22 +309,7 @@ void SendStateUpdates()
                 bulletDestroyed.position[0] = destroyed.Position.x;
                 bulletDestroyed.position[1] = destroyed.Position.y;
 
-                NetManager.Send(player.PlayerID, 1, bulletDestroyed, false);
-            }
-
-            for (const auto& created : BulletManager::GetCreatedBullets())
-            {
-                S2C_ShotCreated shotCreated;
-                shotCreated.serverTick = NetManager.CurrentServerTick;
-                shotCreated.bulletId = created.ID;
-                shotCreated.ownerId = created.OwnerID;
-                shotCreated.bulletType = created.BulletType;
-                shotCreated.position[0] = created.Position.x;
-                shotCreated.position[1] = created.Position.y;
-                shotCreated.velocity[0] = created.Velocity.x;
-                shotCreated.velocity[1] = created.Velocity.y;
-
-                NetManager.Send(player.PlayerID, 1, shotCreated, false);
+                NetManager.Send(player.PlayerID, 1, bulletDestroyed, true);
             }
         }, false);
 
@@ -467,6 +465,7 @@ int main(int argc, char* argv[])
 						player.Update(NetManager);
 					}, true);
 
+				BulletManager::SetCurrentTick(NetManager.CurrentServerTick);
 				BulletManager::Update(1.0f / kDefaultTickRate, World);
 
 				ResolveTankTankCollisions();
