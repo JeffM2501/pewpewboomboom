@@ -4,6 +4,7 @@
 
 #include <unordered_map>
 #include <vector>
+#include <cstddef>
 
 constexpr size_t MaxInstances = 16;
 

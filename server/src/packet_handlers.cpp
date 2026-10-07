@@ -69,7 +69,10 @@ namespace PacketHandlers
         if (!ServerPlayerList::PlayerExists(sender))
         {
             responce.result = S2C_JoinResponse::Result::Failure;
-            ServerLogger.Log(LogLevel::Warning, "Received C2S_JoinRequest from unknown peer %x.", sender->address.host);
+            char buffer[64];
+            enet_address_get_host_ip_old(&sender->address, buffer, 64);
+
+            ServerLogger.Log(LogLevel::Warning, "Received C2S_JoinRequest from unknown peer %s.", buffer);
             processor.SendPacket(sender, 0, responce);
             enet_peer_disconnect_now(sender, 0);
             return;
@@ -99,7 +102,12 @@ namespace PacketHandlers
         responce.collisionRadius = player.CollisionRadius;
 
         processor.SendPacket(sender, 0, responce);
-        ServerLogger.Log(LogLevel::Info, "%x sent Join Response, ID %d name %s", sender->address.host, responce.playerId, responce.actualName);
+
+        char buffer[64];
+        enet_address_get_host_ip_old(&sender->address, buffer, 64);
+
+
+        ServerLogger.Log(LogLevel::Info, "%s sent Join Response, ID %d name %s", buffer, responce.playerId, responce.actualName);
 
         // tell the host that they joined, so that the world and other game specific data can be sent
         netManager.PlayerJoined.Invoke(player.PlayerID, &netManager);

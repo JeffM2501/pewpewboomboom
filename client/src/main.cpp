@@ -13,7 +13,7 @@ Use this as a starting point or replace it with your code.
 
 #include "game.h"   
 
-#include "rlimgui.h" 
+#include "rlImGui.h" 
 #include "imgui.h"
 #include "client_network_manager.h" 
 #include "connection_dialog.h" 
